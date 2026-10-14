@@ -153,7 +153,7 @@ input.miss{border-color:var(--bad)}
 .bar .trk i{display:block;height:100%;background:var(--accent);border-radius:4px}
 .bar .trk i.lo{background:var(--warn)}
 .bar .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-.trend{display:grid;gap:10px;align-items:end;height:170px;padding-top:20px}
+.trend{display:grid;gap:clamp(3px,1vw,10px);align-items:end;height:170px;padding-top:20px}
 .tcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:100%;min-width:0}
 .tbar{width:100%;max-width:48px;background:var(--accent);border-radius:6px 6px 2px 2px;position:relative;min-height:3px}
 .tbar span{position:absolute;top:-19px;left:0;right:0;text-align:center;font-size:.78rem;font-weight:800;font-variant-numeric:tabular-nums}
@@ -503,6 +503,13 @@ function caseRow(c,showJab){
 function pendRow(c){const p=survDays(c);
   return `<div class="pend"><button class="pinfo" data-open="${c.id}"><b>${esc(c.nama)}</b><span class="hint"><span class="mono">${esc(c.mrn)}</span> · ${esc(c.kategori)} · ${fmtD(c.tarikhOp)} · day ${daysPost(c)}/${p}</span></button>
    <div class="pbtn"><button class="btn sm good" data-conf="${c.id}" data-v="tiada">✓ No SSI</button><button class="btn sm danger" data-conf="${c.id}" data-v="ada">SSI present</button></div></div>`}
+// Trend always shows January–December of the chosen year, including months with no data
+function trendYear(list){
+  const cy=TODAYISO.slice(0,4),ys=[...new Set(list.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean).concat([cy]))].sort();
+  const y=ys.includes(S.ty)?S.ty:(ys.includes(cy)?cy:ys[ys.length-1]);
+  const keys=Array.from({length:12},(_,i)=>y+'-'+String(i+1).padStart(2,'0'));
+  return `${ys.length>1?`<div class="row" style="justify-content:flex-end;margin-top:6px"><select class="inline" id="tySel">${ys.slice().reverse().map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select></div>`:`<p class="hint" style="margin:.2em 0 0">${y}</p>`}${trendHTML(list,keys)}`;
+}
 function trendHTML(list,keys){
   const data=keys.map(k=>{const l=list.filter(c=>monthKey(c)===k);return{k,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const max=Math.max(1,...data.map(d=>d.n));
@@ -533,7 +540,7 @@ function liaisonDash(){
     <div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${esc(r.p)}</td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
     <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">${ssiM.length}</td><td class="num">${list.length?pct(ssiM.length,list.length)+'%':'—'}</td></tr></tbody></table></div></div>
-   <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendHTML(mine,months())}</div>
+   <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendYear(mine)}</div>
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
 }
@@ -668,7 +675,7 @@ function coordDash(){
    <div class="panel stack"><h3>Surgery types · ${ML}</h3><div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th></tr></thead><tbody>
     ${JAB.filter(j=>S.cjab==='Semua'||j===S.cjab).map(j=>`<tr class="grp"><td colspan="3">${esc(j)}</td></tr>`+PROC[j].map(p=>{const l=all.filter(c=>c.jabatan===j&&c.kategori===p);return`<tr><td>${esc(p)}</td><td class="num">${l.length}</td><td class="num">${l.filter(c=>c.ssi==='Ya').length}</td></tr>`}).join('')).join('')}
     </tbody></table></div></div>
-   <div class="panel"><h3>Monthly trend · ${S.cjab==='Semua'?'all departments':esc(S.cjab)}</h3>${trendHTML(S.cases.filter(c=>S.cjab==='Semua'||c.jabatan===S.cjab),months())}</div>
+   <div class="panel"><h3>Monthly trend · ${S.cjab==='Semua'?'all departments':esc(S.cjab)}</h3>${trendYear(S.cases.filter(c=>S.cjab==='Semua'||c.jabatan===S.cjab))}</div>
    <div class="panel stack"><h3>SSI bundle compliance</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
    <div class="panel"><h3>SSI patients, all departments (${S.cases.filter(c=>c.ssi==='Ya').length})</h3>${S.cases.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,true)).join('')||'<div class="empty">No SSI patients.</div>'}</div>
    ${sah?`<div class="panel"><h3>Awaiting liaison confirmation (${sah})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> (reminder card on the liaison dashboard) so that month's report is final.</p>${S.cases.filter(c=>status(c).key==='sah').map(c=>caseRow(c,true)).join('')}</div>`:''}
@@ -1112,6 +1119,7 @@ document.addEventListener('change',e=>{
   if(id==='impfile'){impRead(T.files[0]);return}
   if((id==='impauto'||id==='impskip')&&S.imp){S.imp[id==='impauto'?'autoClose':'skipOther']=T.checked;impReparse();keepY();return}
   if(id==='ljab'){S.ljab=T.value;S.lerr='';render();return}
+  if(id==='tySel'){S.ty=T.value;keepY();return}
   if(id==='monthSel'){S.month=T.value;keepY()}
   if(id==='cjabSel'){S.cjab=T.value;keepY()}
   if(id==='rmonthSel'){S.rmonth=T.value;S.mail=null;keepY()}
