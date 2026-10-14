@@ -392,7 +392,7 @@ const SHIELD=`<svg viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradien
 // ================= STATE =================
 const S={user:null,lrole:'coord',lerr:'',lnama:'',ljab:'O&G',
  tab:null,cases:[],mods:[],token:null,set:{},lbusy:false,draft:null,cur:null,sd:null,fu:{t:TODAYISO,cara:'Phone',nota:''},
- month:CURM,cjab:'Semua',rmonth:'2026-09',rmonths:[],rsheet:'O&G',pf:'Semua',pmonth:'Semua',q:'',cq:'',
+ dy:CURM.slice(0,4),dm:CURM.slice(5),cjab:'Semua',rmonth:'2026-09',rmonths:[],rsheet:'O&G',pf:'Semua',py:'Semua',pm:'Semua',q:'',cq:'',
  sent:{},mail:null,mailLog:[],madd:null,mdel:null,closeAsk:false,
  liaisons:{},
  lpw:{}};
@@ -518,7 +518,7 @@ function caseRow(c,showJab){
   const cp=complete(c),st=status(c);
   return `<button class="case" data-open="${c.id}"><div><div class="t">${esc(c.nama)}</div>
    <div class="hint"><span class="mono">${esc(c.mrn)}</span> · ${fmtD(c.tarikhOp)} · ${esc(c.kategori||'—')}${showJab?' · '+esc(c.jabatan):''}</div></div>
-   <div class="tags">${c.ssi==='Ya'?(reqAll(c).some(k=>c[k]===undefined||c[k]==='')?'<span class="pill w">SSI form incomplete</span>':'<span class="pill g">SSI form complete</span>'):(cp.pct<100?`<span class="pill n">${cp.missing} fields empty</span>`:'')}<span class="pill ${st.k}">${st.t}</span></div></button>`;
+   <div class="tags">${isMon(c)?'':'<span class="pill w">Not monitored · excluded</span>'}${c.ssi==='Ya'?(reqAll(c).some(k=>c[k]===undefined||c[k]==='')?'<span class="pill w">SSI form incomplete</span>':'<span class="pill g">SSI form complete</span>'):(cp.pct<100?`<span class="pill n">${cp.missing} fields empty</span>`:'')}<span class="pill ${st.k}">${st.t}</span></div></button>`;
 }
 function pendRow(c){const p=survDays(c);
   return `<div class="pend"><button class="pinfo" data-open="${c.id}"><b>${esc(c.nama)}</b><span class="hint"><span class="mono">${esc(c.mrn)}</span> · ${esc(c.kategori)} · ${fmtD(c.tarikhOp)} · day ${daysPost(c)}/${p}</span></button>
@@ -536,11 +536,22 @@ function trendHTML(list,keys){
   return `<div class="trend" style="grid-template-columns:repeat(${data.length},1fr)">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
    <span class="pill ${d.s?'b':'n'}">${d.s} SSI</span><span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div>`;
 }
+// Period filter: separate Year and Month dropdowns
+const yearsList=()=>[...new Set(S.cases.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean).concat([TODAYISO.slice(0,4)]))].sort().reverse();
+// Only surgeries in the department's monitored list count in dashboards and reports
+const isMon=c=>(PROC[c.jabatan]||[]).includes(c.kategori);
+const pMatch=(c,y,m)=>(y==='Semua'||(c.tarikhOp||'').slice(0,4)===y)&&(m==='Semua'||(c.tarikhOp||'').slice(5,7)===m);
+const pLabel=(y,m)=>y==='Semua'&&m==='Semua'?'All years':y==='Semua'?BULAN[+m-1]+' (all years)':m==='Semua'?'All months '+y:BULAN[+m-1]+' '+y;
+const pShort=(y,m)=>y==='Semua'&&m==='Semua'?'all':m==='Semua'?y:BULAN[+m-1].slice(0,3)+(y==='Semua'?'':' '+y);
+function periodSel(pre,y,m){
+  return `<select class="inline" id="${pre}Y" aria-label="Year"><option value="Semua" ${y==='Semua'?'selected':''}>All years</option>${yearsList().map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select>
+   <select class="inline" id="${pre}M" aria-label="Month"><option value="Semua" ${m==='Semua'?'selected':''}>All months</option>${BULAN.map((b,i)=>{const v=String(i+1).padStart(2,'0');return `<option value="${v}" ${v===m?'selected':''}>${b}</option>`}).join('')}</select>`;
+}
 function monthSel(id,cur,all){return `<select class="inline" id="${id}">${all?`<option value="Semua" ${cur==='Semua'?'selected':''}>All months</option>`:''}${months().slice().reverse().map(m=>`<option value="${m}" ${m===cur?'selected':''}>${monthLabel(m)}</option>`).join('')}</select>`}
 
 // ================= LIAISON =================
 function liaisonDash(){
-  const mine=myCases(),list=mine.filter(c=>S.month==='Semua'||monthKey(c)===S.month),ML=S.month==='Semua'?'All months':monthLabel(S.month),MS=S.month==='Semua'?'all':shortMonth(S.month);
+  const mine=myCases(),list=mine.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),ML=pLabel(S.dy,S.dm),MS=pShort(S.dy,S.dm);
   const ssiM=list.filter(c=>c.ssi==='Ya'),aktif=mine.filter(c=>status(c).key==='aktif').length,sah=mine.filter(c=>status(c).key==='sah').length;
   const rows=PROC[S.user.jabatan].map(p=>{const l=list.filter(c=>c.kategori===p);return{p,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
@@ -551,7 +562,7 @@ function liaisonDash(){
    <div class="panel stack"><h3>Find a patient for the SSI form</h3>
     <div class="search">${IC.search}<input id="q" placeholder="Name, IC No. or MRN" value="${esc(S.q)}" autocomplete="off"></div>
     <div id="qres">${searchRes(S.q,mine)}</div></div>
-   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2>${monthSel('monthSel',S.month,true)}</div>
+   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}</div></div>
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored (${MS})</span></div>
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
@@ -560,7 +571,7 @@ function liaisonDash(){
     <div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${esc(r.p)}</td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
     <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">${ssiM.length}</td><td class="num">${list.length?pct(ssiM.length,list.length)+'%':'—'}</td></tr></tbody></table></div></div>
-   <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendYear(mine)}</div>
+   <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendYear(mine.filter(isMon))}</div>
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
 }
@@ -590,11 +601,11 @@ function entryView(){
    <button class="btn pri" data-act="save">Save</button></div></div>`;
 }
 function patientsView(){
-  const f=S.pf,mine=myCases().filter(c=>S.pmonth==='Semua'||monthKey(c)===S.pmonth);
+  const f=S.pf,mine=myCases().filter(c=>pMatch(c,S.py,S.pm));
   const cnt=k=>k==='Semua'?mine.length:k==='kosong'?mine.filter(c=>complete(c).pct<100).length:mine.filter(c=>status(c).key===k).length;
   const opts=[['Semua','All'],['aktif','In surveillance'],['sah','Needs confirmation'],['ssi','SSI'],['selesai','Completed'],['kosong','Incomplete']];
   const l=mine.filter(c=>f==='Semua'||(f==='kosong'?complete(c).pct<100:status(c).key===f)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
-  return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2>${monthSel('pmonthSel',S.pmonth,true)}</div>
+  return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}</div></div>
    <div class="chips">${opts.map(([k,lb])=>`<button class="chip ${f===k?'on':''}" data-pf="${k}">${lb} (${cnt(k)})</button>`).join('')}</div>
    <div class="panel">${l.length?l.map(c=>status(c).key==='sah'?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
 }
@@ -680,7 +691,7 @@ function formView(){
 
 // ================= KOORDINATOR =================
 function coordDash(){
-  const all=S.cases.filter(c=>S.month==='Semua'||monthKey(c)===S.month),ML=S.month==='Semua'?'All months':monthLabel(S.month);
+  const all=S.cases.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),ML=pLabel(S.dy,S.dm),SK=S.dy!=='Semua'&&S.dm!=='Semua'?S.dy+'-'+S.dm:'';
   const list=all.filter(c=>S.cjab==='Semua'||c.jabatan===S.cjab);
   const ssi=list.filter(c=>c.ssi==='Ya').length,full=list.filter(c=>complete(c).pct===100).length,sah=S.cases.filter(c=>status(c).key==='sah').length;
   const perJ=JAB.map(j=>{const l=all.filter(c=>c.jabatan===j);return{j,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,f:l.filter(c=>complete(c).pct===100).length,sah:S.cases.filter(c=>c.jabatan===j&&status(c).key==='sah').length}});
@@ -688,16 +699,16 @@ function coordDash(){
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">
-   <div class="row between"><h2>All departments summary</h2><div class="row">${monthSel('monthSel',S.month,true)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${S.cjab===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select></div></div>
+   <div class="row between"><h2>All departments summary</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${S.cjab===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select></div></div>
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
    <div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
     ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
-     <td>${S.month==='Semua'?`<span class="pill n">${Object.keys(S.sent).length} months sent</span>`:S.sent[S.month]?`<span class="pill g">Sent ${S.sent[S.month]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+     <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>
    <div class="panel stack"><h3>Surgery types · ${ML}</h3><div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th></tr></thead><tbody>
     ${JAB.filter(j=>S.cjab==='Semua'||j===S.cjab).map(j=>`<tr class="grp"><td colspan="3">${esc(j)}</td></tr>`+PROC[j].map(p=>{const l=all.filter(c=>c.jabatan===j&&c.kategori===p);return`<tr><td>${esc(p)}</td><td class="num">${l.length}</td><td class="num">${l.filter(c=>c.ssi==='Ya').length}</td></tr>`}).join('')).join('')}
     </tbody></table></div></div>
-   <div class="panel"><h3>Monthly trend · ${S.cjab==='Semua'?'all departments':esc(S.cjab)}</h3>${trendYear(S.cases.filter(c=>S.cjab==='Semua'||c.jabatan===S.cjab))}</div>
+   <div class="panel"><h3>Monthly trend · ${S.cjab==='Semua'?'all departments':esc(S.cjab)}</h3>${trendYear(S.cases.filter(c=>isMon(c)&&(S.cjab==='Semua'||c.jabatan===S.cjab)))}</div>
    <div class="panel stack"><h3>SSI bundle compliance</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
    <div class="panel"><h3>SSI patients, all departments (${S.cases.filter(c=>c.ssi==='Ya').length})</h3>${S.cases.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,true)).join('')||'<div class="empty">No SSI patients.</div>'}</div>
    ${sah?`<div class="panel"><h3>Awaiting liaison confirmation (${sah})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> (reminder card on the liaison dashboard) so that month's report is final.</p>${S.cases.filter(c=>status(c).key==='sah').map(c=>caseRow(c,true)).join('')}</div>`:''}
@@ -708,9 +719,12 @@ const JKN_COLS=['NUM','NAME OF PATIENT','IDENTIFICATION NUMBER /PASSPORT NUMBER'
 const JKN_HEAD=`<tr><th class="blank" colspan="12"></th><th class="grp" colspan="7">PREOPERATIVE DETAILS</th><th class="grp" colspan="7">POSTOPERATIVE</th></tr>
 <tr><th class="blank" colspan="13"></th><th class="grp2" colspan="3">SKIN PREPARATION</th><th class="grp2" colspan="3">ANTIBIOTIC PROPHYLAXIS</th><th class="blank"></th><th class="grp2">CARDIAC &amp; VASCULAR</th><th class="grp2">NON CARDIAC &amp; VASCULAR</th><th class="grp2" colspan="4">TYPE OF SSI</th></tr>`;
 const yn=v=>v==='Ya'?'YES':v==='Tidak'?'NO':(v||'');
-function jknCells(c,i){return[i+1,c.nama,c.ic||c.mrn,c.umur,(c.jantina==='Perempuan'?'F':c.jantina==='Lelaki'?'M':'')+'/'+(c.bangsa||''),c.diagnosis,c.jabatan,fmtD(c.tarikhOp),hhmm(durasi(c)),c.jenisLuka,c.pakar,c.ssi==='Ya'?yn(c.readmit):'',c.bmi,c.kulit1,c.kulit2,yn(c.jahitan),yn(c.abx),c.masaAbx,(c.redose&&c.redose!=='None'?c.redose:(c.abx?'NO':'')),yn(c.gula),'',c.abxPost,c.ssi==='Ya'?'YES':'NO',c.ssi==='Ya'&&c.tarikhSSI?'Day '+dayDiff(c.tarikhOp,c.tarikhSSI):'',c.tapak,c.diagKlinikal].map(v=>v??'')}
+function jknCells(c,i){return[i+1,c.nama,c.ic||c.mrn,c.umur,(c.jantina==='Perempuan'?'F':c.jantina==='Lelaki'?'M':'')+'/'+(c.bangsa||''),c.diagnosis,c.jabatan,fmtD(c.tarikhOp),hhmm(durasi(c)),c.jenisLuka,c.pakar,c.ssi==='Ya'?yn(c.readmit):'',c.bmi,c.kulit1,c.kulit2,yn(c.jahitan),yn(c.abx),c.masaAbx,(c.redose&&c.redose!=='None'?c.redose:(c.abx?'NO':'')),yn(c.gula),'',c.abxPost,c.ssi==='Ya'?'YES':'NO',c.ssi==='Ya'&&c.tarikhSSI?'Day '+dayDiff(c.tarikhOp,c.tarikhSSI):'',ssiSite(c),ssiDiag(c)].map(v=>v??'')}
+function ssiSite(c){return c.tapak||((String(c.diagKlinikal||'').match(/^Site:\s*([^·]+)/)||[])[1]||'').trim()}
+function ssiDiag(c){return [c.diagJenis,c.organisma,String(c.diagKlinikal||'').replace(/^Site:\s*[^·]+(·\s*)?/,'').trim()].filter(Boolean).join(' – ')}
 const jknRows=(j,m)=>S.cases.filter(c=>c.jabatan===j&&monthKey(c)===m).sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
-const selRows=(j,ms)=>S.cases.filter(c=>c.jabatan===j&&ms.includes(monthKey(c)));
+const selRows=(j,ms)=>S.cases.filter(c=>c.jabatan===j&&isMon(c)&&ms.includes(monthKey(c)));
+const notMonRows=(ms)=>S.cases.filter(c=>!isMon(c)&&ms.includes(monthKey(c)));
 const ssiRows=(j,ms)=>selRows(j,ms).filter(c=>c.ssi==='Ya').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
 const formIncomplete=c=>reqAll(c).some(k=>c[k]===undefined||c[k]==='');
 function monthsText(ms){const a=[...ms].sort();if(!a.length)return'—';if(a.length===1)return monthLabel(a[0]);
@@ -732,6 +746,7 @@ function reportView(){
     <p class="hint" style="margin:0">Select one or more months. The report lists <b>SSI cases only</b>; the calculation uses all monitored surgeries in the selected month(s).</p></div>
    ${!ms.length?'<div class="panel empty">Select at least one month to generate the report.</div>':`
    ${aktif?`<p class="flag w">${aktif} patients in ${esc(monthsText(ms))} are still in the surveillance period. Generate the final report after it ends.</p>`:''}
+   ${notMonRows(ms).length?`<p class="flag w">${notMonRows(ms).length} surgeries in the selected month(s) are not in the monitored list (e.g. ${esc([...new Set(notMonRows(ms).map(c=>c.kategori||'blank'))].slice(0,3).join(', '))}). They are excluded from the report and calculation.</p>`:''}
    <div class="chips">${JAB.map(j=>`<button class="chip ${S.rsheet===j?'on':''}" data-sheet="${esc(j)}">Sheet ${SHEET[j]} · ${ssiRows(j,ms).length} SSI / ${selRows(j,ms).length}</button>`).join('')}</div>
    <div class="panel stack"><div class="xl-title">LAPORAN BULANAN SURGICAL SITE INFECTION (SSI) PREVENTION AND SURVEILLANCE</div>
     <div class="xl-meta"><span>HOSPITAL: KAJANG</span><span>BULAN/TAHUN: ${esc(monthsText(ms).toUpperCase())}</span><span>SHEET: ${SHEET[S.rsheet]}</span></div>
@@ -1045,7 +1060,7 @@ async function commitImport(){
   const btn=$('[data-act="impgo"]');if(btn){btn.disabled=true;btn.textContent='Importing…'}
   try{let r=null;if(typeof api==='function')r=await api('importCases',{cases:list});
     const pos={};S.cases.forEach((c,i)=>pos[c.id]=i);list.forEach(c=>{if(pos[c.id]!=null)S.cases[pos[c.id]]=c;else S.cases.push(c)});
-    S.imp=null;S.month='Semua';S.cq='';keepY();toast(`Imported ${list.length} cases · ${list.length-M.matched} new, ${M.matched} already in app`)}
+    S.imp=null;S.dy='Semua';S.dm='Semua';S.cq='';keepY();toast(`Imported ${list.length} cases · ${list.length-M.matched} new, ${M.matched} already in app`)}
   catch(e){toast('Import failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Import '+list.length+' cases'}}
 }
 function downloadTemplate(){
@@ -1120,7 +1135,7 @@ document.addEventListener('click',e=>{
     const done=()=>{S.cases=S.cases.filter(x=>x.id!==id);S.cur=null;S.delAsk=false;S.formv=false;render();scrollTo(0,0);toast((c?c.nama:'Patient')+' deleted')};
     if(typeof api==='function')api('deleteCase',{id}).then(done).catch(e=>toast('Not deleted: '+e.message));else done()}
   if(a==='remtog'){S.remOpen=!S.remOpen;keepY()}
-  if(a==='seepend'){S.tab='pesakit';S.pf='sah';S.pmonth='Semua';render();scrollTo(0,0)}
+  if(a==='seepend'){S.tab='pesakit';S.pf='sah';S.py='Semua';S.pm='Semua';render();scrollTo(0,0)}
   if(a==='close1'){S.closeAsk=true;keepY()}
   if(a==='close0'){S.closeAsk=false;keepY()}
   if(a==='close2'){const c=S.cases.find(x=>x.id===S.cur);c.tutup=true;c.ssi='Tiada';persist(c);S.closeAsk=false;keepY();toast('Surveillance closed: no SSI')}
@@ -1160,10 +1175,12 @@ document.addEventListener('change',e=>{
   if(T.dataset.rmc){const m=T.dataset.rmc;S.rmonths=T.checked?[...new Set([...S.rmonths,m])].sort():S.rmonths.filter(x=>x!==m);S.mail=null;keepY();return}
   if(T.dataset.rmy){const ym=months().filter(m=>m.startsWith(T.dataset.rmy));S.rmonths=T.checked?[...new Set([...S.rmonths,...ym])].sort():S.rmonths.filter(x=>!ym.includes(x));S.mail=null;keepY();return}
   if(id==='tySel'){S.ty=T.value;keepY();return}
-  if(id==='monthSel'){S.month=T.value;keepY()}
+  if(id==='dY'){S.dy=T.value;keepY()}
+  if(id==='dM'){S.dm=T.value;keepY()}
+  if(id==='pY'){S.py=T.value;keepY()}
+  if(id==='pM'){S.pm=T.value;keepY()}
   if(id==='cjabSel'){S.cjab=T.value;keepY()}
   if(id==='rmonthSel'){S.rmonth=T.value;S.mail=null;keepY()}
-  if(id==='pmonthSel'){S.pmonth=T.value;keepY()}
   if(['masaAbx','masaMula','tarikhSSI','tarikhOp'].includes(T.dataset.in))keepY();
 });
 function liveCalc(){
@@ -1181,7 +1198,7 @@ function saveEntry(){
   if(c.id){S.cases[S.cases.findIndex(x=>x.id===c.id)]={...c}}else{c.id='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);S.cases.push({...c})}persist(S.cases.find(x=>x.id===c.id));
   const cp=complete(c),id=c.id;S.draft=null;
   toast(cp.pct===100?'Saved':'Saved as draft · '+cp.missing+' required fields missing');
-  if(S.user.role==='liaison'){S.tab='pesakit';S.pf='Semua';S.pmonth='Semua'}
+  if(S.user.role==='liaison'){S.tab='pesakit';S.pf='Semua';S.py='Semua';S.pm='Semua'}
   openCase(id);
 }
 function saveSSI(){
