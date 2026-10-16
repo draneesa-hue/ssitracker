@@ -431,6 +431,16 @@ function applyData(r){
   S.tab='dash';S.draft=null;S.cur=null;const ms=months().filter(m=>m<CURM);S.rmonths=[ms.length?ms[ms.length-1]:CURM];
 }
 
+// Reload latest data from the Google Sheet (keeps the current screen)
+let LAST_SYNC=Date.now();
+async function reloadData(quiet){
+  if(!S.user||!S.token||typeof api!=='function')return;
+  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;
+    if(S.cur&&!S.cases.some(c=>c.id===S.cur))S.cur=null;LAST_SYNC=Date.now();if(!S.draft||!S.draft.nama)keepY();if(!quiet)toast('Data updated · '+S.cases.length+' patients')}
+  catch(e){if(!quiet)toast('Could not refresh: '+e.message)}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-LAST_SYNC>60000)reloadData(true)});
+
 // ================= SERVER (Google Apps Script) =================
 function store(v){try{if(v===undefined)return localStorage.getItem('ssiTracker_token');if(v)localStorage.setItem('ssiTracker_token',v);else localStorage.removeItem('ssiTracker_token')}catch(e){return null}}
 let BUSY=0;function busy(d){BUSY+=d;const b=$('#busy');if(b)b.hidden=BUSY<=0}
@@ -484,7 +494,7 @@ function render(){
   else if(S.tab==='kes')body=allCasesView();
   else if(S.tab==='liaison')body=liaisonAdmin();
   app.innerHTML=`<header class="top"><div class="in"><div class="brand"><img class="lg-s" src="${ICON}" alt=""><div><h1>SSI Tracker</h1><small>${S.user.role==='liaison'?esc(S.user.jabatan)+' Liaison':'UKI Coordinator'} · HTPN</small></div></div>
-    <span class="hint">${esc(S.user.nama)}</span><button class="btn sm" data-act="logout">Log out</button></div></header>
+    <span class="hint">${esc(S.user.nama)}</span><button class="btn sm" data-act="reload" title="Get the latest data">↻ Refresh</button><button class="btn sm" data-act="logout">Log out</button></div></header>
    <main class="wrap">${body}</main>
    <nav class="bnav">${navTabs().map(([k,l,i])=>{const b=k==='pesakit'&&S.user.role==='liaison'?myCases().filter(c=>status(c).key==='sah').length:0;
      return `<button data-tab="${k}" class="${S.tab===k&&!S.cur?'on':''}">${i}<span>${l}</span>${b?`<span class="badge">${b}</span>`:''}</button>`}).join('')}</nav>`;
@@ -1058,7 +1068,13 @@ function importPanel(){
 async function commitImport(){
   const I=S.imp;if(!I||!I.res||!I.res.cases.length)return;const M=mergeImport(I.res.cases),list=M.rows;
   const btn=$('[data-act="impgo"]');if(btn){btn.disabled=true;btn.textContent='Importing…'}
-  try{let r=null;if(typeof api==='function')r=await api('importCases',{cases:list});
+  try{let r=null;if(typeof api==='function'){
+      // send in batches so large files are not cut off
+      let added=0,updated=0;for(let i=0;i<list.length;i+=150){if(btn)btn.textContent=`Saving ${Math.min(i+150,list.length)} / ${list.length}…`;const x=await api('importCases',{cases:list.slice(i,i+150)});added+=x.added||0;updated+=x.updated||0}
+      r={added,updated};const before=S.dy;await reloadData(true);
+      const ids=new Set(S.cases.map(c=>c.id)),missing=list.filter(c=>!ids.has(c.id)).length;
+      S.imp=null;S.dy='Semua';S.dm='Semua';S.cq='';keepY();
+      toast(missing?`Warning: ${missing} of ${list.length} cases were not saved. Try importing again.`:`Saved to Google Sheet: ${list.length} cases (${added} new, ${updated} updated)`);return}
     const pos={};S.cases.forEach((c,i)=>pos[c.id]=i);list.forEach(c=>{if(pos[c.id]!=null)S.cases[pos[c.id]]=c;else S.cases.push(c)});
     S.imp=null;S.dy='Semua';S.dm='Semua';S.cq='';keepY();toast(`Imported ${list.length} cases · ${list.length-M.matched} new, ${M.matched} already in app`)}
   catch(e){toast('Import failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Import '+list.length+' cases'}}
@@ -1134,6 +1150,7 @@ document.addEventListener('click',e=>{
   if(a==='cdel2'){const id=S.cur,c=S.cases.find(x=>x.id===id);
     const done=()=>{S.cases=S.cases.filter(x=>x.id!==id);S.cur=null;S.delAsk=false;S.formv=false;render();scrollTo(0,0);toast((c?c.nama:'Patient')+' deleted')};
     if(typeof api==='function')api('deleteCase',{id}).then(done).catch(e=>toast('Not deleted: '+e.message));else done()}
+  if(a==='reload')reloadData(false);
   if(a==='remtog'){S.remOpen=!S.remOpen;keepY()}
   if(a==='seepend'){S.tab='pesakit';S.pf='sah';S.py='Semua';S.pm='Semua';render();scrollTo(0,0)}
   if(a==='close1'){S.closeAsk=true;keepY()}
