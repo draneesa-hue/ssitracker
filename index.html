@@ -623,8 +623,8 @@ function liaisonDash(){
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
    ${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah})}
-   ${dayPanel(ssiM,S.user.jabatan)}
    ${trendPanel(mine.filter(c=>isMon(c)&&rfOk(c)),S.user.jabatan)}
+   ${dayPanel(ssiM,S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
    ${woundPanel(list,S.user.jabatan)}
    ${riskPanel(base,S.user.jabatan)}
@@ -764,10 +764,10 @@ function coordDash(){
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
-   ${S.dy==='Semua'?yearSummary(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),JAB.filter(j=>D==='Semua'||j===D),DL):''}
    ${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
-   ${dayPanel(ssiL,DL)}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
+   ${S.dy==='Semua'?yearSummary(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),JAB.filter(j=>D==='Semua'||j===D),DL):''}
+   ${dayPanel(ssiL,DL)}
    ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
    ${woundPanel(list,DL)}
    ${riskPanel(base,DL)}
@@ -1379,7 +1379,23 @@ function yearSummary(src,depts,DL){
   h+=sec('Type of SSI');
   TYP.forEach(t=>{h+=row(t,l=>ss(l).filter(c=>c.tapak===t).length)});
   h+=row('Not classified',l=>{const n=ss(l).filter(c=>!TYP.includes(c.tapak)).length;return n?`<span class="pill w">${n}</span>`:'0'});
-  return `<div class="panel stack"><h3>Year-by-year summary · ${esc(DL)}${S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''}</h3>
+  const ttl='Year-by-year summary · '+DL+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''),yc=cols.filter(c=>!c.tot),YCOL=['#0f5a20','#8cc63f','#2f8fa3','#d08a1e','#7a5aa6','#9aa59c'];
+  const M=S.ysm||'overall',MT={overall:'Surgeries & SSI cases',rate:'SSI rate',proc:'SSI rate by surgery type',risk:'Risk factors (% of surgeries)',wound:'SSI rate by type of surgery',type:'Type of SSI'};
+  let cfg;
+  if(M==='overall')cfg={series:['Surgeries','SSI cases'],rows:yc.map(c=>{const s=ss(c.l).length;return{l:c.y,v:[c.l.length,s],lab:[String(c.l.length),`${s} (${pct(s,c.l.length)}%)`]}})};
+  else if(M==='rate')cfg={series:['SSI rate'],colors:['#b0281c'],unit:'%',rows:yc.map(c=>{const s=ss(c.l).length;return{l:c.y,v:[pct(s,c.l.length)],lab:[`${pct(s,c.l.length)}% (${s}/${c.l.length})`]}})};
+  else{let items;
+    if(M==='proc')items=[].concat(...depts.map(j=>PROC[j].filter(p=>l0.some(c=>c.jabatan===j&&c.kategori===p)).map(p=>({l:(depts.length>1?j+' · ':'')+p,f:l=>{const x=l.filter(c=>c.jabatan===j&&c.kategori===p);return pct(ss(x).length,x.length)}}))));
+    else if(M==='risk')items=RISK.filter(R=>l0.some(R[1])).map(R=>({l:R[0],f:l=>{const rec=l.filter(R[1]);return pct(rec.filter(R[2]).length,rec.length)}}));
+    else if(M==='wound')items=WCL.map(w=>({l:w,f:l=>{const x=l.filter(c=>c.jenisLuka===w);return pct(ss(x).length,x.length)}}));
+    else items=TYP.concat(['Not classified']).map(t=>({l:t,f:l=>ss(l).filter(c=>t==='Not classified'?!TYP.includes(c.tapak):c.tapak===t).length}));
+    cfg={series:yc.map(c=>c.y),colors:YCOL,unit:M==='type'?'':'%',rows:items.map(it=>({l:it.l,v:yc.map(c=>it.f(c.l))}))}}
+  cfg.title=ttl+' · '+MT[M];cfg.def='table';CH.ys=cfg;
+  const v=CV('ys');
+  if(v!=='table')return `<div class="panel stack">${chartHead('ys','Year-by-year summary · '+esc(DL)+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''))}
+   <label class="row" style="gap:8px"><span class="flabel" style="margin:0">Show</span><select class="inline" id="ysMetric">${Object.entries(MT).map(([k,t])=>`<option value="${k}" ${k===M?'selected':''}>${t}</option>`).join('')}</select></label>
+   ${chartBody('ys',cfg,v)}</div>`;
+  return `<div class="panel stack">${chartHead('ys','Year-by-year summary · '+esc(DL)+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''))}
    <p class="hint" style="margin:-6px 0 0">Monitored surgeries only. Red SSI rate = higher than in surgeries without that risk factor. Choose a year above to see one year in detail.</p>
    <div class="scroll"><table class="ysum"><thead>${th}</thead><tbody>${h}</tbody></table></div></div>`;
 }
@@ -1829,6 +1845,7 @@ document.addEventListener('change',e=>{
   if(T.dataset.rmy){const ym=months().filter(m=>m.startsWith(T.dataset.rmy));S.rmonths=T.checked?[...new Set([...S.rmonths,...ym])].sort():S.rmonths.filter(x=>!ym.includes(x));S.mail=null;keepY();return}
   if(id==='rfSel'){S.rf=T.value;keepY();return}
   if(id==='tySel'){S.ty=T.value;if(S.dy!=='Semua')S.dy=T.value;keepY();return}
+  if(id==='ysMetric'){S.ysm=T.value;keepY();return}
   if(id==='dY'){S.dy=T.value;keepY()}
   if(id==='dM'){S.dm=T.value;keepY()}
   if(id==='pY'){S.py=T.value;keepY()}
