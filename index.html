@@ -71,6 +71,18 @@ tr.dupr td{opacity:.6}
 .modalc{background:var(--surface);border-radius:16px;padding:20px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25)}
 .tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
 table.ot input.miss{border-color:var(--bad);background:var(--bad-soft)}
+.ptab tr.prow{cursor:pointer}
+.ptab tr.prow:hover td,.ptab tr.prow.open td{background:var(--accent-soft)}
+.ptab tr.prow.zero{cursor:default;color:var(--muted)}
+.ptab .caret{display:inline-block;width:18px;color:var(--accent);font-weight:800}
+.ptab tr.pdet td{background:var(--bg);padding:6px 8px 10px}
+.plist{display:flex;flex-direction:column;gap:4px}
+.pitem{display:grid;grid-template-columns:86px 1fr auto;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;width:100%}
+.pitem:hover{border-color:var(--accent)}
+.pitem .pd{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
+.pitem .pn{display:flex;flex-direction:column;min-width:0}
+.pitem .pn .hint{overflow-wrap:anywhere}
+@media (max-width:560px){.pitem{grid-template-columns:1fr auto}.pitem .pd{grid-column:1/-1}}
 .mdd{position:relative}
 .mddbtn{width:100%;text-align:left;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mddp{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:12px;max-height:420px;overflow-y:auto}
@@ -551,7 +563,7 @@ function pendRow(c){const p=survDays(c);
 // Trend always shows January–December of the chosen year, including months with no data
 function trendYear(list){
   const cy=TODAYISO.slice(0,4),ys=[...new Set(list.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean).concat([cy]))].sort();
-  const y=ys.includes(S.ty)?S.ty:(ys.includes(cy)?cy:ys[ys.length-1]);
+  const y=S.dy&&S.dy!=='Semua'&&ys.includes(S.dy)?S.dy:ys.includes(S.ty)?S.ty:(ys.includes(cy)?cy:ys[ys.length-1]);
   const keys=Array.from({length:12},(_,i)=>y+'-'+String(i+1).padStart(2,'0'));
   return `${ys.length>1?`<div class="row" style="justify-content:flex-end;margin-top:6px"><select class="inline" id="tySel">${ys.slice().reverse().map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select></div>`:`<p class="hint" style="margin:.2em 0 0">${y}</p>`}${trendHTML(list,keys)}`;
 }
@@ -592,11 +604,7 @@ function liaisonDash(){
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
-   ${brkHTML(mine,S.user.jabatan)}
-   <div class="panel stack"><h3>Surgery types · ${ML}</h3>
-    <div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${esc(r.p)}</td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
-    <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">${ssiM.length}</td><td class="num">${list.length?pct(ssiM.length,list.length)+'%':'—'}</td></tr></tbody></table></div></div>
+   ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
    <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendYear(mine.filter(isMon))}</div>
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
@@ -739,16 +747,11 @@ function coordDash(){
    <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select></div></div>
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
-   <div class="panel stack"><h3>${S.dy!=='Semua'?'By month':'By year'} · ${esc(DL)}${S.dy!=='Semua'?' · '+S.dy:''}</h3><div class="scroll"><table><thead><tr><th>${S.dy!=='Semua'?'Month':'Year'}</th><th class="num">Surgeries monitored</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
-    ${brk.map(r=>`<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num">${r.s?`<b style="color:var(--bad)">${r.s}</b>`:0}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
-    <tr class="grp"><td>Total</td><td class="num">${bt.n}</td><td class="num">${bt.s}</td><td class="num">${bt.n?pct(bt.s,bt.n)+'%':'—'}</td></tr></tbody></table></div></div>
+   ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
    ${D==='Semua'?`<div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
     ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
      <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:''}
    <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
-   <div class="panel stack"><h3>Surgery types · ${esc(DL)} · ${ML}</h3><div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th></tr></thead><tbody>
-    ${JAB.filter(j=>D==='Semua'||j===D).map(j=>`<tr class="grp"><td colspan="3">${esc(j)}</td></tr>`+PROC[j].map(p=>{const l=all.filter(c=>c.jabatan===j&&c.kategori===p);return`<tr><td>${esc(p)}</td><td class="num">${l.length}</td><td class="num">${l.filter(c=>c.ssi==='Ya').length}</td></tr>`}).join('')).join('')}
-    </tbody></table></div></div>
    <div class="panel"><h3>Monthly trend · ${esc(DL)}</h3>${trendYear(S.cases.filter(c=>isMon(c)&&inD(c)))}</div>
    <div class="panel stack"><h3>SSI bundle compliance · ${esc(DL)}</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
    ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
@@ -1145,6 +1148,17 @@ function downloadTemplate(){
   try{XLSX.writeFile(wb,`SSI_Data_Collection_Template_${y}.xlsx`);toast('Template downloaded')}catch(e){toast('Download blocked by this browser')}
 }
 
+// ================= SURGERY TYPES (expandable to patient & procedure detail) =================
+function procTable(list,depts,title){
+  const row=(j,p)=>{const l=list.filter(c=>c.jabatan===j&&c.kategori===p),n=l.length,sN=l.filter(c=>c.ssi==='Ya').length,key=j+'|'+p,op=S.opx===key;
+    return `<tr class="prow ${op?'open':''} ${n?'':'zero'}" ${n?`data-opx="${esc(key)}" tabindex="0" role="button" aria-expanded="${op}"`:''}><td>${n?`<span class="caret">${op?'▾':'▸'}</span>`:'<span class="caret"></span>'}${esc(p)}</td><td class="num">${n}</td><td class="num">${sN?`<b style="color:var(--bad)">${sN}</b>`:0}</td><td class="num">${n?pct(sN,n)+'%':'—'}</td></tr>
+     ${op?`<tr class="pdet"><td colspan="4"><div class="plist">${l.sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||'')).map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.prosedur&&c.prosedur!==c.kategori?c.prosedur:'(no procedure detail)')}${c.drNama?' · Dr '+esc(c.drNama):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></td></tr>`:''}`};
+  const tot=list.length,ts=list.filter(c=>c.ssi==='Ya').length;
+  return `<div class="panel stack"><h3>${title}</h3><p class="hint" style="margin:-6px 0 0">Tap a surgery to see the patients and procedure details.</p><div class="scroll"><table class="ptab"><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
+   ${depts.map(j=>(depts.length>1?`<tr class="grp"><td colspan="4">${esc(j)}</td></tr>`:'')+PROC[j].map(p=>row(j,p)).join('')).join('')}
+   <tr class="grp"><td>Total</td><td class="num">${tot}</td><td class="num">${ts}</td><td class="num">${tot?pct(ts,tot)+'%':'—'}</td></tr></tbody></table></div></div>`;
+}
+
 // ================= BREAKDOWN BY MONTH / YEAR (shared) =================
 function brkHTML(base,DL){
   base=base.filter(c=>isMon(c)&&(S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm));
@@ -1310,7 +1324,7 @@ const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-open]');if(!t)return;const D=t.dataset;
+  const t=e.target.closest('button,[data-open],[data-opx]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
   if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
@@ -1325,6 +1339,7 @@ document.addEventListener('click',e=>{
     return}
   if(D.fu){S.fu.cara=D.fu;S.fu.t=$('#fu_t').value;S.fu.nota=$('#fu_n').value;keepY();return}
   if(D.pf){S.pf=D.pf;render();return}
+  if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
   if(D.mode){S.mode=D.mode;render();return}
   if(D.lj){S.lj=D.lj;S.lim=50;if(S.lk&&S.lk!=='Semua'&&S.lk!=='_not'&&D.lj!=='Semua'&&!PROC[D.lj].includes(S.lk))S.lk='Semua';keepY();return}
   if(D.otc!==undefined){S.ot.rows[+D.otc].on=!S.ot.rows[+D.otc].on;return}
@@ -1426,7 +1441,7 @@ document.addEventListener('change',e=>{
   if(id==='ljab'){S.ljab=T.value;S.lerr='';render();return}
   if(T.dataset.rmc){const m=T.dataset.rmc;S.rmonths=T.checked?[...new Set([...S.rmonths,m])].sort():S.rmonths.filter(x=>x!==m);S.mail=null;keepY();return}
   if(T.dataset.rmy){const ym=months().filter(m=>m.startsWith(T.dataset.rmy));S.rmonths=T.checked?[...new Set([...S.rmonths,...ym])].sort():S.rmonths.filter(x=>!ym.includes(x));S.mail=null;keepY();return}
-  if(id==='tySel'){S.ty=T.value;keepY();return}
+  if(id==='tySel'){S.ty=T.value;if(S.dy!=='Semua')S.dy=T.value;keepY();return}
   if(id==='dY'){S.dy=T.value;keepY()}
   if(id==='dM'){S.dm=T.value;keepY()}
   if(id==='pY'){S.py=T.value;keepY()}
