@@ -52,6 +52,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .chead h3{margin:0}.vseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
 .vseg{flex:none}.chead .vseg>button{all:unset;box-sizing:border-box;padding:6px 11px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;border-radius:0;box-shadow:none;background:none}.chead .vseg>button+button{border-left:1px solid var(--line)}
 .chead .vseg>button.on{background:var(--accent);color:#fff}.chead .vseg>button:focus-visible{outline:2px solid var(--deep)}.chartwrap{overflow-x:auto}.chartwrap svg{display:block;max-width:100%;height:auto;min-width:520px}
+.tpill{border:0;cursor:pointer;font-family:inherit}.tpill:hover,.tpill.on{outline:2px solid var(--bad);outline-offset:1px}
+.tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
 .ysum tr.ysubgrp td{font-weight:800;color:var(--deep);font-size:.8rem;padding-top:10px}
@@ -588,7 +590,7 @@ function trendHTML(list,keys){
   const data=keys.map(k=>{const l=list.filter(c=>monthKey(c)===k);return{k,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const max=Math.max(1,...data.map(d=>d.n));
   return `<div class="trend" style="grid-template-columns:repeat(${data.length},1fr)">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
-   <span class="pill ${d.s?'b':'n'}">${d.s} SSI</span><span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div>`;
+   ${tpill(d.k,d.s)}<span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div>${keys.map(k=>tselList(list,k)).join('')}`;
 }
 // Period filter: separate Year and Month dropdowns
 const yearsList=()=>[...new Set(S.cases.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean).concat([TODAYISO.slice(0,4)]))].sort().reverse();
@@ -766,14 +768,12 @@ function coordDash(){
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
    ${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
+   ${D==='Semua'?deptPanel(list,ML,SK):''}
    ${S.dy==='Semua'?yearSummary(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),JAB.filter(j=>D==='Semua'||j===D),DL):''}
    ${dayPanel(ssiL,DL)}
    ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
    ${woundPanel(list,DL)}
    ${riskPanel(base,DL)}
-   ${D==='Semua'?`<div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
-    ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
-     <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:''}
    <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
    <div class="panel stack"><h3>SSI bundle compliance · ${esc(DL)}</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
    ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
@@ -1342,7 +1342,7 @@ function trendPanel(src,DL){
   return `<div class="panel stack"><h3>Yearly trend · ${esc(DL)}${S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''}</h3>
    <p class="hint" style="margin:-6px 0 0">Surgeries monitored and SSI cases per year. Choose a year above to see its monthly trend.</p>
    <div class="trend" style="grid-template-columns:repeat(${data.length},minmax(0,90px));justify-content:center">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
-    <span class="pill ${d.s?'b':'n'}">${d.s} SSI</span><span class="tlab">${d.y}</span></div>`).join('')}</div>
+    ${tpill(d.y,d.s)}<span class="tlab">${d.y}</span></div>`).join('')}</div>${data.map(d=>tselList(l0,d.y)).join('')}
    <div><span class="flabel">SSI rate by year</span><div class="stack" style="gap:6px;margin-top:6px">${data.map(d=>`<div class="bar"><span>${d.y}</span><div class="trk"><i class="lo" style="width:${d.r/rmax*100}%"></i></div><span class="v">${d.r}%</span></div>`).join('')}</div></div></div>`;
 }
 
@@ -1366,6 +1366,7 @@ function yearSummary(src,depts,DL){
   h+=row('<b>SSI rate</b>',l=>`<b>${pct(ss(l).length,l.length)}%</b>`);
   h+=row('Data complete',l=>pct(l.filter(c=>complete(c).pct===100).length,l.length)+'%');
   h+=row('Median day SSI identified',DAY);
+  if(depts.length>1){h+=sec('By department <span class="hint" style="font-weight:600">· surgeries · SSI · rate</span>');depts.forEach(j=>{h+=row('<b>'+esc(j)+'</b>',l=>rateCell(l.filter(c=>c.jabatan===j)))})}
   h+=sec('Surgery types <span class="hint" style="font-weight:600">· surgeries · SSI · rate</span>');
   depts.forEach(j=>{if(depts.length>1)h+=`<tr class="ysubgrp"><td colspan="${cols.length+1}">${esc(j)}</td></tr>`;
     PROC[j].forEach(p=>{if(!l0.some(c=>c.jabatan===j&&c.kategori===p))return;h+=row(esc(p),l=>rateCell(l.filter(c=>c.jabatan===j&&c.kategori===p)))})});
@@ -1380,12 +1381,13 @@ function yearSummary(src,depts,DL){
   TYP.forEach(t=>{h+=row(t,l=>ss(l).filter(c=>c.tapak===t).length)});
   h+=row('Not classified',l=>{const n=ss(l).filter(c=>!TYP.includes(c.tapak)).length;return n?`<span class="pill w">${n}</span>`:'0'});
   const ttl='Year-by-year summary · '+DL+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''),yc=cols.filter(c=>!c.tot),YCOL=['#0f5a20','#8cc63f','#2f8fa3','#d08a1e','#7a5aa6','#9aa59c'];
-  const M=S.ysm||'overall',MT={overall:'Surgeries & SSI cases',rate:'SSI rate',proc:'SSI rate by surgery type',risk:'Risk factors (% of surgeries)',wound:'SSI rate by type of surgery',type:'Type of SSI'};
+  const M=S.ysm||'overall',MT={overall:'Surgeries & SSI cases',rate:'SSI rate',dept:'SSI rate by department',proc:'SSI rate by surgery type',risk:'Risk factors (% of surgeries)',wound:'SSI rate by type of surgery',type:'Type of SSI'};
   let cfg;
   if(M==='overall')cfg={series:['Surgeries','SSI cases'],rows:yc.map(c=>{const s=ss(c.l).length;return{l:c.y,v:[c.l.length,s],lab:[String(c.l.length),`${s} (${pct(s,c.l.length)}%)`]}})};
   else if(M==='rate')cfg={series:['SSI rate'],colors:['#b0281c'],unit:'%',rows:yc.map(c=>{const s=ss(c.l).length;return{l:c.y,v:[pct(s,c.l.length)],lab:[`${pct(s,c.l.length)}% (${s}/${c.l.length})`]}})};
   else{let items;
-    if(M==='proc')items=[].concat(...depts.map(j=>PROC[j].filter(p=>l0.some(c=>c.jabatan===j&&c.kategori===p)).map(p=>({l:(depts.length>1?j+' · ':'')+p,f:l=>{const x=l.filter(c=>c.jabatan===j&&c.kategori===p);return pct(ss(x).length,x.length)}}))));
+    if(M==='dept')items=depts.map(j=>({l:j,f:l=>{const x=l.filter(c=>c.jabatan===j);return pct(ss(x).length,x.length)}}));
+    else if(M==='proc')items=[].concat(...depts.map(j=>PROC[j].filter(p=>l0.some(c=>c.jabatan===j&&c.kategori===p)).map(p=>({l:(depts.length>1?j+' · ':'')+p,f:l=>{const x=l.filter(c=>c.jabatan===j&&c.kategori===p);return pct(ss(x).length,x.length)}}))));
     else if(M==='risk')items=RISK.filter(R=>l0.some(R[1])).map(R=>({l:R[0],f:l=>{const rec=l.filter(R[1]);return pct(rec.filter(R[2]).length,rec.length)}}));
     else if(M==='wound')items=WCL.map(w=>({l:w,f:l=>{const x=l.filter(c=>c.jenisLuka===w);return pct(ss(x).length,x.length)}}));
     else items=TYP.concat(['Not classified']).map(t=>({l:t,f:l=>ss(l).filter(c=>t==='Not classified'?!TYP.includes(c.tapak):c.tapak===t).length}));
@@ -1463,7 +1465,7 @@ const CH={};
 const CV=(id,d)=>(S.cv||{})[id]||d||'table';
 const CCOL=['#1f8a35','#b0281c','#9aa59c','#d08a1e'];
 function chartHead(id,title,def){const v=CV(id,def);
-  return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><div class="vseg" role="group" aria-label="View">${[['table','Table'],['h','Horizontal'],['v','Vertical']].map(([k,l])=>`<button type="button" class="${v===k?'on':''}" data-cv="${id}|${k}">${l}</button>`).join('')}</div><button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button></div></div>`}
+  return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><div class="vseg" role="group" aria-label="View">${[['table','Table'],['h','Horizontal'],['v','Vertical']].map(([k,l])=>`<button type="button" class="${v===k?'on':''}" data-cv="${id}|${k}">${l}</button>`).join('')}</div>${canSplit()&&['proc','day','wound','risk','dept'].includes(id)?`<button type="button" class="byy ${isSplit(id)?'on':''}" data-byy="${id}" title="Show each year separately">By year</button>`:''}<button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button></div></div>`}
 function wrapTxt(s,n,maxL){const w=String(s).split(/\s+/).flatMap(x=>x.length>n?x.match(new RegExp('.{1,'+(n-1)+'}','g')).map((y,i,a)=>i<a.length-1?y+'-':y):[x]),L=[];let cur='';w.forEach(x=>{if((cur+' '+x).trim().length>n&&cur){L.push(cur);cur=x}else cur=(cur+' '+x).trim()});if(cur)L.push(cur);
   if(L.length>maxL){L.length=maxL;L[maxL-1]=L[maxL-1].slice(0,n-1)+'…'}return L}
 function svgChart(cfg,o){
@@ -1507,6 +1509,7 @@ function chartPNG(id){
 const injHead=(html,id,def)=>html.replace(/<h3>([\s\S]*?)<\/h3>/,(m,t)=>chartHead(id,t,def));
 // Surgery types
 function procTable(list,depts,title){
+  if(isSplit('proc'))return splitProc(list,depts,title);
   const rows=[];depts.forEach(j=>PROC[j].forEach(p=>{const l=list.filter(c=>c.jabatan===j&&c.kategori===p),n=l.length,s=l.filter(c=>c.ssi==='Ya').length;if(n)rows.push({l:(depts.length>1?j+' · ':'')+p,v:[n,s],lab:[String(n),s?`${s} (${pct(s,n)}%)`:'0']})}));
   const cfg={title:title.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&'),series:['Surgeries','SSI cases'],rows,def:'table'};CH.proc=cfg;
   const v=CV('proc');if(v==='table')return injHead(procTable0(list,depts,title),'proc');
@@ -1514,6 +1517,7 @@ function procTable(list,depts,title){
 }
 // Risk factors
 function riskPanel(base,DL){
+  if(isSplit('risk'))return splitRisk(base,DL);
   const rows=RISK.map(R=>{const rec=base.filter(R[1]),w=rec.filter(R[2]),wo=rec.filter(c=>!R[2](c)),sw=w.filter(c=>c.ssi==='Ya').length,swo=wo.filter(c=>c.ssi==='Ya').length;
     return rec.length?{l:R[0],v:[pct(sw,w.length),pct(swo,wo.length)],lab:[`${pct(sw,w.length)}% (${sw}/${w.length})`,`${pct(swo,wo.length)}%`]}:null}).filter(Boolean);
   const cfg={title:'Risk factors · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI rate with factor','SSI rate without'],colors:['#b0281c','#9aa59c'],unit:'%',rows,def:'table'};CH.risk=cfg;
@@ -1522,6 +1526,7 @@ function riskPanel(base,DL){
 }
 // Day SSI identified
 function dayPanel(ssiL,DL){
+  if(isSplit('day')&&ssiL.length)return splitDay(ssiL,DL);
   const rows=DAYB.map(b=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return{l:b[0],v:[n],lab:[`${n}${ssiL.length?' ('+pct(n,ssiL.length)+'%)':''}`]}});
   const cfg={title:'Day SSI identified · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI cases'],colors:['#b0281c'],rows:ssiL.length?rows:[],def:'h'};CH.day=cfg;
   const v=CV('day','h'),orig=dayPanel0(ssiL,DL);
@@ -1533,6 +1538,7 @@ function dayPanel(ssiL,DL){
 // Type of surgery (wound class)
 const WCL=['Clean','Clean contaminated','Contaminated'];
 function woundPanel(list,DL){
+  if(isSplit('wound'))return splitWound(list,DL);
   const grp=WCL.map(w=>[w,list.filter(c=>c.jenisLuka===w)]).concat([['Not recorded',list.filter(c=>!WCL.includes(c.jenisLuka))]]);
   const rows=grp.filter(g=>g[1].length).map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return{l:w,v:[l.length,s],lab:[String(l.length),s?`${s} (${pct(s,l.length)}%)`:'0'],r:pct(s,l.length),s}});
   const cfg={title:'Type of surgery (wound class) · '+DL+' · '+pLabel(S.dy,S.dm),series:['Surgeries','SSI cases'],rows,def:'table'};CH.wound=cfg;
@@ -1541,6 +1547,71 @@ function woundPanel(list,DL){
     ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'':'zero'}"><td>${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td></tr>`}).join('')}
     <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td></tr></tbody></table></div>`:chartBody('wound',cfg,v);
   return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate.</p>${body}</div>`;
+}
+
+
+// ================= TREND: tap "x SSI" to list the SSI patients =================
+function tselList(list,key){
+  if(!S.tsel||S.tsel!==key)return '';
+  const l=list.filter(c=>c.ssi==='Ya'&&(c.tarikhOp||'').startsWith(key)).sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
+  const lab=key.length===4?key:shortMonth(key)+' '+key.slice(0,4);
+  return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(lab)} (${l.length})</span><button class="btn sm" data-tsel="${key}">✕ Close</button></div>
+   <div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}${c.tapak&&c.tapak!==ssiSite(c)?' · '+esc(c.tapak):''}</span></span><span class="pill b">SSI</span></button>`).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
+}
+const tpill=(k,s)=>s?`<button type="button" class="pill b tpill ${S.tsel===k?'on':''}" data-tsel="${k}" title="Show SSI patients">${s} SSI</button>`:`<span class="pill n">0 SSI</span>`;
+
+// ================= SPLIT BY YEAR (when "All years") =================
+const canSplit=()=>S.dy==='Semua'&&yearsList().length>1;
+const isSplit=id=>canSplit()&&!!(S.byy||{})[id];
+function yrsOf(list){return [...new Set(list.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean))].sort().map(y=>({y,l:list.filter(c=>(c.tarikhOp||'').startsWith(y))}))}
+const YCOL2=['#0f5a20','#8cc63f','#2f8fa3','#d08a1e','#7a5aa6','#9aa59c'];
+function yTable(first,items,yrs,cell){
+  return `<div class="scroll"><table class="ysum"><thead><tr><th class="ylab">${first}</th>${yrs.map(y=>`<th class="num">${y.y}</th>`).join('')}<th class="num ytot">All years</th></tr></thead><tbody>
+   ${items.map(it=>it.grp?`<tr class="ysubgrp"><td colspan="${yrs.length+2}">${esc(it.grp)}</td></tr>`:`<tr><td class="ylab">${esc(it.l)}</td>${yrs.map(y=>`<td class="num">${cell(it,y.l)}</td>`).join('')}<td class="num ytot">${cell(it,yrs.flatMap(y=>y.l))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+const rCell=l=>{const n=l.length,s=l.filter(c=>c.ssi==='Ya').length;return n?`${n}<span class="ysub">${s?`<b style="color:var(--bad)">${s} SSI</b>`:'0 SSI'} · ${pct(s,n)}%</span>`:'<span class="hint">—</span>'};
+function splitPanel(id,title,hint,list,items,cell,chartVal,unit,ssiOnly){
+  const yrs=yrsOf(list),v=CV(id,id==='day'?'h':'table');
+  const cfg={title:title.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&')+' · by year',series:yrs.map(y=>y.y),colors:YCOL2,unit:unit||'',def:id==='day'?'h':'table',
+    rows:items.filter(it=>!it.grp).map(it=>({l:it.l,v:yrs.map(y=>chartVal(it,y.l))}))};CH[id]=cfg;
+  const body=v==='table'?yTable(id==='day'?'Day identified':id==='dept'?'Department':id==='risk'?'Risk factor':id==='wound'?'Type of surgery':'Surgery performed',items,yrs,cell):chartBody(id,cfg,v);
+  return `<div class="panel stack">${chartHead(id,title,id==='day'?'h':'table')}<p class="hint" style="margin:-6px 0 0">${hint}</p>${body}</div>`;
+}
+function splitProc(list,depts,title){
+  const items=[];depts.forEach(j=>{const ps=PROC[j].filter(p=>list.some(c=>c.jabatan===j&&c.kategori===p));if(!ps.length)return;if(depts.length>1)items.push({grp:j});ps.forEach(p=>items.push({l:(depts.length>1?j+' · ':'')+p,f:c=>c.jabatan===j&&c.kategori===p}))});
+  return splitPanel('proc',title,'Each year: surgeries monitored, SSI cases and SSI rate. Chart shows SSI rate per year.',list,items,(it,l)=>rCell(l.filter(it.f)),(it,l)=>{const x=l.filter(it.f);return pct(x.filter(c=>c.ssi==='Ya').length,x.length)},'%');
+}
+function splitDay(ssiL,DL){
+  const items=DAYB.map(b=>({l:b[0],f:c=>inDayB(c,b)}));
+  return splitPanel('day','Day SSI identified · '+esc(DL),'Number of SSI cases by day identified, per year.',ssiL,items,(it,l)=>{const n=l.filter(it.f).length;return n?`<b>${n}</b>`:'0'},(it,l)=>l.filter(it.f).length,'');
+}
+function splitWound(list,DL){
+  const items=WCL.map(w=>({l:w,f:c=>c.jenisLuka===w})).concat([{l:'Not recorded',f:c=>!WCL.includes(c.jenisLuka)}]);
+  return splitPanel('wound','Type of surgery (wound class) · '+esc(DL),'Each year: surgeries, SSI cases and SSI rate. Chart shows SSI rate per year.',list,items,(it,l)=>rCell(l.filter(it.f)),(it,l)=>{const x=l.filter(it.f);return pct(x.filter(c=>c.ssi==='Ya').length,x.length)},'%');
+}
+function splitRisk(base,DL){
+  const items=RISK.filter(R=>base.some(R[1])).map(R=>({l:R[0],R}));
+  return splitPanel('risk','Risk factors · '+esc(DL),'Each year: % of surgeries with the factor, and SSI rate in those surgeries. Chart shows % of surgeries with the factor.',base,items,
+    (it,l)=>{const rec=l.filter(it.R[1]),w=rec.filter(it.R[2]);if(!rec.length)return '<span class="hint">—</span>';const s=w.filter(c=>c.ssi==='Ya').length;return `${pct(w.length,rec.length)}%<span class="ysub">${w.length}/${rec.length}${w.length?` · SSI ${s?`<b style="color:var(--bad)">${pct(s,w.length)}%</b>`:'0%'}`:''}</span>`},
+    (it,l)=>{const rec=l.filter(it.R[1]);return pct(rec.filter(it.R[2]).length,rec.length)},'%');
+}
+
+
+// ================= SSI BY DEPARTMENT (coordinator, all departments) =================
+function deptPanel(list,ML,SK){
+  const title='SSI by department · '+ML;
+  if(isSplit('dept')){const items=JAB.map(j=>({l:j,f:c=>c.jabatan===j}));
+    return splitPanel('dept',esc(title),'Each year: surgeries monitored, SSI cases and SSI rate per department. Chart shows SSI rate per year.',list,items,(it,l)=>rCell(l.filter(it.f)),(it,l)=>{const x=l.filter(it.f);return pct(x.filter(c=>c.ssi==='Ya').length,x.length)},'%')}
+  const R=JAB.map(j=>{const l=list.filter(c=>c.jabatan===j),s=l.filter(c=>c.ssi==='Ya').length;return{j,l,n:l.length,s,r:pct(s,l.length),f:l.filter(c=>complete(c).pct===100).length,sah:S.cases.filter(c=>c.jabatan===j&&status(c).key==='sah').length}});
+  const cfg={title:'SSI by department · '+ML,series:['Surgeries','SSI cases'],def:'table',rows:R.map(r=>({l:r.j,v:[r.n,r.s],lab:[String(r.n),r.s?`${r.s} (${r.r}%)`:'0']}))};CH.dept=cfg;
+  const v=CV('dept'),T=R.reduce((a,r)=>({n:a.n+r.n,s:a.s+r.s}),{n:0,s:0});
+  const body=v!=='table'?chartBody('dept',cfg,v):`<div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
+    ${R.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s?`<button type="button" class="pill b tpill ${S.dsel===r.j?'on':''}" data-dsel="${esc(r.j)}" title="Show SSI patients">${r.s}</button>`:0}</td><td class="num">${r.n?r.r+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
+     <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}
+    <tr class="grp"><td>Total</td><td class="num">${T.n}</td><td class="num">${T.s}</td><td class="num">${pct(T.s,T.n)}%</td><td></td><td></td><td></td></tr></tbody></table></div>
+    ${S.dsel&&R.find(r=>r.j===S.dsel&&r.s)?(()=>{const l=R.find(r=>r.j===S.dsel).l.filter(c=>c.ssi==='Ya').sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
+      return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(S.dsel)} (${l.length})</span><button class="btn sm" data-dsel="${esc(S.dsel)}">✕ Close</button></div><div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}</span></span><span class="pill b">SSI</span></button>`).join('')}</div></div>`})():''}`;
+  return `<div class="panel stack">${chartHead('dept',esc(title))}<p class="hint" style="margin:-6px 0 0">Tap the SSI number to see the patients.</p>${body}</div>`;
 }
 
 // ================= BREAKDOWN BY MONTH / YEAR (shared) =================
@@ -1735,6 +1806,9 @@ document.addEventListener('click',e=>{
   if(D.aicopy){const el=$('#aiText');const txt=el?el.innerText:'';(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Analysis copied'),()=>{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Analysis copied')}catch(e){}ta.remove()});return}
   if(D.cv){const [id,v]=D.cv.split('|');S.cv=Object.assign({},S.cv,{[id]:v});keepY();return}
   if(D.png){chartPNG(D.png);return}
+  if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
+  if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
+  if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
   if(D.mode){S.mode=D.mode;render();return}
