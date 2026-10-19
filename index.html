@@ -49,6 +49,9 @@ button{font:inherit;cursor:pointer;color:inherit}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:3px solid var(--lime);box-shadow:0 2px 10px rgba(15,90,32,.08)}
 .top .in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
 @media(max-width:560px){.brand .lg-s{width:46px;height:46px}.brand h1{font-size:1.25rem}.brand small{font-size:.76rem}}
+.chead h3{margin:0}.vseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.vseg{flex:none}.chead .vseg>button{all:unset;box-sizing:border-box;padding:6px 11px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;border-radius:0;box-shadow:none;background:none}.chead .vseg>button+button{border-left:1px solid var(--line)}
+.chead .vseg>button.on{background:var(--accent);color:#fff}.chead .vseg>button:focus-visible{outline:2px solid var(--deep)}.chartwrap{overflow-x:auto}.chartwrap svg{display:block;max-width:100%;height:auto;min-width:520px}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
 .ysum tr.ysubgrp td{font-weight:800;color:var(--deep);font-size:.8rem;padding-top:10px}
@@ -623,6 +626,7 @@ function liaisonDash(){
    ${dayPanel(ssiM,S.user.jabatan)}
    ${trendPanel(mine.filter(c=>isMon(c)&&rfOk(c)),S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
+   ${woundPanel(list,S.user.jabatan)}
    ${riskPanel(base,S.user.jabatan)}
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
@@ -765,6 +769,7 @@ function coordDash(){
    ${dayPanel(ssiL,DL)}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
    ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
+   ${woundPanel(list,DL)}
    ${riskPanel(base,DL)}
    ${D==='Semua'?`<div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
     ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
@@ -847,6 +852,7 @@ function allCasesView(){
   const cnt=j=>S.cases.filter(c=>(j==='Semua'||c.jabatan===j)&&isMon(c)).length;S.lj=S.lj||'Semua';
   return `<div class="stack"><h2>All cases</h2>
    ${S.lastImp?`<div class="panel row between" style="background:var(--good-soft);border-color:var(--good)"><span>✅ <b>Last import · ${esc(S.lastImp.jab)}</b>: ${S.lastImp.n} cases saved to Google Sheet (${S.lastImp.added} new, ${S.lastImp.updated} already in app) · ${esc(S.lastImp.at)}</span><button class="btn sm" data-act="limpx">Dismiss</button></div>`:''}
+   ${allListPanel()}
    ${importPanel()}
    <div class="panel stack"><h3>Find & check patient records</h3>
     <div class="chips">${['Semua',...JAB].map(j=>`<button class="chip ${S.lj===j?'on':''}" data-lj="${esc(j)}">${j==='Semua'?'All departments':esc(j)} (${cnt(j)})</button>`).join('')}</div>
@@ -1143,6 +1149,117 @@ function importPanel(){
    ${R&&exist?`<p class="flag a" style="margin:0">${exist} patient${exist>1?'s are':' is'} already in the app (same department, date of surgery and MRN or name). They will not be duplicated: data already entered in the app is kept, and only empty fields are filled from Excel.</p>`:''}
    <p class="hint" style="margin:0">Values are converted to the app's options (e.g. YES → Yes, 1030H → 10:30, NOT DONE → Not done). Missing fields show red in the app so liaisons can complete them. The same name with a different surgery date is treated as a separate surgery.</p></div>`;
 }
+
+// ================= IMPORT PATIENT LIST – ALL DEPARTMENTS (coordinator) =================
+// Simple list (name / IC / MRN / department / operation / date). Each row goes to its own department,
+// only monitored surgeries are kept, and patients already in the app or repeated in the file are skipped.
+const MONN={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,MEI:5,JUN:6,JUL:7,AUG:8,OGO:8,SEP:9,OCT:10,OKT:10,NOV:11,DEC:12,DIS:12};
+function alDate(v){const d=toISO(v);if(d)return d;const m=String(v||'').toUpperCase().match(/(\d{1,2})[\s\-\/.]*([A-Z]{3})[A-Z]*[\s\-\/.,]*(\d{2,4})/);
+  if(m&&MONN[m[2]]){let y=+m[3];if(y<100)y+=2000;return isoOf(y,MONN[m[2]],+m[1])}return ''}
+function alDept(v){const s=U(v);if(!s)return '';
+  if(/O\s*&\s*G|O\s*AND\s*G|\bOG\b|OBS|GYN|O\+G|PERBIDANAN|SAKIT PUAN/.test(s))return 'O&G';
+  if(/OMF|ORAL|MAXILL|DENTAL|PERGIGIAN/.test(s))return 'OMFS';
+  if(/ORTH/.test(s))return 'Ortho';
+  if(/SURG|PEMBEDAHAN|\bGS\b|BEDAH|GENERAL/.test(s))return 'Surgery';
+  return ''}
+function alCol(h){const s=U(h).replace(/\s+/g,' ').trim();if(!s)return '';
+  if(/TARIKH|DATE/.test(s))return /LAHIR|BIRTH|DOB|MASUK|ADMI/.test(s)?'':'date';
+  if(/JABATAN|DEPART|DISIPLIN|DISCIPLINE|SPECIAL/.test(s))return 'dept';
+  if(/^(NO\.? ?)?(K\/?P|IC|MYKAD)\b|\bIC\b|KAD PENGENALAN|IDENTIF|PASSPORT|\bNRIC\b/.test(s))return 'ic';
+  if(/MRN|\bRN\b|PENDAFTARAN|REGIST/.test(s))return 'mrn';
+  if(/NAMA|NAME/.test(s))return 'nama';
+  if(/OPERA|PROCED|PROSEDUR|SURGERY|PEMBEDAHAN|\bOP\b|PROCEDURE/.test(s))return 'op';
+  if(/DIAG/.test(s))return 'diag';
+  if(/UMUR|\bAGE\b/.test(s))return 'umur';
+  if(/JANTINA|SEX|GENDER/.test(s))return 'sex';
+  if(/DOCTOR|DOKTOR|SURGEON|PAKAR|\bDR\b/.test(s))return 'dr';
+  return ''}
+function alParse(wb){
+  const out=[],warn=[],seen={},st={rows:0,notMon:0,noDept:0,noDate:0,dupFile:0,exist:0};
+  const keyOf=c=>c.jabatan+'|'+c.tarikhOp+'|'+(c.ic?nKey(c.ic):c.mrn?nKey(c.mrn).replace(/^HTPNK/,''):nKey(c.nama));
+  wb.SheetNames.forEach(sn=>{
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+    let hi=-1,map={};
+    for(let i=0;i<Math.min(rows.length,20);i++){const m={};rows[i].forEach((h,ci)=>{const k=alCol(h);if(k&&m[k]==null)m[k]=ci});if(m.nama!=null&&(m.op!=null||m.date!=null)){hi=i;map=m;break}}
+    if(hi<0)return;
+    for(let i=hi+1;i<rows.length;i++){
+      const r=rows[i],g=k=>map[k]!=null?r[map[k]]:'';
+      const nama=String(g('nama')||'').replace(/\s+/g,' ').trim().toUpperCase();if(!nama)continue;st.rows++;
+      const opT=String(g('op')||'').trim(),where=sn+' row '+(i+1)+' ('+nama+')';
+      let jab=alDept(g('dept')),kat='';
+      if(jab){kat=normProc(jab,'',opT);if(!(PROC[jab]||[]).includes(kat))kat=''}
+      else{for(const j of JAB){const k=normProc(j,'',opT);if((PROC[j]||[]).includes(k)){jab=j;kat=k;break}}}
+      if(!jab){st.noDept++;warn.push(where+': department not recognised');continue}
+      if(!kat){st.notMon++;continue}
+      const tarikhOp=alDate(g('date'));if(!tarikhOp){st.noDate++;warn.push(where+': date of surgery missing or not valid');continue}
+      const c={jabatan:jab,nama,kategori:kat,prosedur:opT.slice(0,160)||kat,tarikhOp,ssi:'Tiada',susulan:[]};
+      let ic=String(g('ic')||'').trim(),mrn=String(g('mrn')||'').trim().toUpperCase().replace(/\s+/g,'');
+      if(/^HTPNK\d{12}$/.test(mrn)&&!ic){ic=mrn.slice(5);mrn=''}
+      const d=ic.replace(/\D/g,'');
+      if(d.length===12){c.ic=d.slice(0,6)+'-'+d.slice(6,8)+'-'+d.slice(8);const y=+d.slice(0,2),mo=+d.slice(2,4),dd=+d.slice(4,6);
+        if(mo>=1&&mo<=12&&dd>=1&&dd<=31){const yr=(y>+TODAYISO.slice(2,4)?1900:2000)+y;c.dob=yr+'-'+d.slice(2,4)+'-'+d.slice(4,6);let ag=+tarikhOp.slice(0,4)-yr;if(tarikhOp.slice(5)<c.dob.slice(5))ag--;if(ag>=0&&ag<120)c.umur=String(ag)}
+        c.jantina=+d.slice(-1)%2?'Lelaki':'Perempuan'}
+      else if(ic){if(!mrn&&/^(HTPNK?)?\d{4,9}$/i.test(ic.replace(/\s+/g,'')))mrn=ic.replace(/\s+/g,'').toUpperCase().replace(/^HTPNK?/,'');else c.ic=ic}
+      if(mrn)c.mrn=/^\d+$/.test(mrn)?'HTPNK'+mrn:mrn;
+      if(g('umur')!==''&&!c.umur)c.umur=String(parseInt(g('umur'))||'');
+      const sx=U(g('sex'));if(sx&&!c.jantina)c.jantina=/^(F|P|PEREMPUAN|FEMALE)/.test(sx)?'Perempuan':/^(M|L|LELAKI|MALE)/.test(sx)?'Lelaki':'';
+      if(g('diag'))c.diagnosis=String(g('diag')).trim();
+      if(g('dr'))c.drNama=String(g('dr')).trim();
+      Object.keys(c).forEach(k=>{if(c[k]==='')delete c[k]});
+      const key=keyOf(c);if(seen[key]){st.dupFile++;continue}seen[key]=1;
+      c.id=hashId('L|'+key);
+      if(S.cases.find(x=>x.id===c.id)||findExisting(c)||S.cases.find(x=>x.jabatan===c.jabatan&&x.tarikhOp===c.tarikhOp&&c.ic&&x.ic&&nKey(x.ic)===nKey(c.ic))){st.exist++;continue}
+      out.push(c);
+    }
+  });
+  return {cases:out,warn,st};
+}
+function alRead(file){
+  const A=S.al;if(!file||!A)return;
+  if(!window.XLSX){toast('Excel reader not loaded. Check your internet connection.');return}
+  A.busy=true;A.fname=file.name;A.err='';A.res=null;keepY();
+  const fr=new FileReader();
+  fr.onload=()=>{try{A.wb=XLSX.read(new Uint8Array(fr.result),{type:'array',cellDates:false});A.res=alParse(A.wb);if(!A.res.st.rows)A.err='No patient list found. The first rows must have column headers such as Name, IC, Department, Operation and Date.'}catch(e){A.err='Could not read this file: '+e.message}A.busy=false;keepY()};
+  fr.onerror=()=>{A.busy=false;A.err='Could not read this file';keepY()};
+  fr.readAsArrayBuffer(file);
+}
+function allListPanel(){
+  const A=S.al;
+  if(!A)return `<div class="panel row between"><div style="min-width:0;flex:1 1 240px"><h3>Import patient list · all departments</h3><p class="hint" style="margin:.2em 0 0">One Excel list with name, IC / MRN, department, operation and date. Each patient goes to their own department, only monitored surgeries are added, and patients already in the app are skipped.</p></div>
+   <div class="row"><button class="btn" data-act="altpl">List template</button><button class="btn pri" data-act="alopen">⬆ Import list</button></div></div>`;
+  const R=A.res,st=R?R.st:null,byJ={};if(R)R.cases.forEach(c=>{byJ[c.jabatan]=(byJ[c.jabatan]||0)+1});
+  return `<div class="panel stack" id="alp"><div class="row between"><h3>Import patient list · all departments</h3><button class="btn sm" data-act="alx">Close</button></div>
+   <label class="f"><span class="req">Excel / CSV file</span><input type="file" id="alfile" accept=".xlsx,.xls,.xlsm,.csv"></label>
+   <p class="hint" style="margin:0">Columns are found by their header: <b>Name</b>, <b>IC</b>, <b>MRN</b>, <b>Department</b>, <b>Operation</b>, <b>Date of surgery</b> (Age, Sex, Diagnosis, Doctor optional). If there is no Department column, the department is worked out from the operation.</p>
+   ${A.fname?`<p class="hint" style="margin:0">File: <b>${esc(A.fname)}</b></p>`:''}
+   ${A.busy?'<p class="hint">Reading file…</p>':''}${A.err?`<p class="flag b" style="margin:0">${esc(A.err)}</p>`:''}
+   ${R&&st.rows?`<div class="calcbox"><div><b>${R.cases.length}</b><span>New patients to add</span></div><div><b>${st.exist}</b><span>Already in app (skipped)</span></div><div><b>${st.dupFile}</b><span>Repeated in file (skipped)</span></div><div><b>${st.notMon}</b><span>Not monitored (left out)</span></div></div>
+    <div class="chips">${JAB.map(j=>`<span class="pill ${byJ[j]?'g':'n'}">${esc(j)}: ${byJ[j]||0}</span>`).join('')}</div>
+    <p class="hint" style="margin:0">${st.rows} rows read${st.noDept?` · ${st.noDept} without a recognised department`:''}${st.noDate?` · ${st.noDate} without a valid date`:''}. A patient is "already in app" when the department, date of surgery and IC, MRN or name match.</p>
+    ${R.warn.length?`<details><summary class="hint" style="cursor:pointer">${R.warn.length} row${R.warn.length>1?'s':''} not added (tap to view)</summary><div class="log" style="margin-top:8px;max-height:220px;overflow-y:auto">${R.warn.map(w=>`<div class="hint">${esc(w)}</div>`).join('')}</div></details>`:''}
+    ${R.cases.length?`<div class="scroll"><table><thead><tr><th>Name</th><th>IC / MRN</th><th>Department</th><th>Surgery</th><th>Date</th></tr></thead><tbody>${R.cases.slice(0,10).map(c=>`<tr><td>${esc(c.nama)}</td><td class="mono">${esc(c.ic||c.mrn||'—')}</td><td>${esc(c.jabatan)}</td><td>${esc(c.kategori)}<div class="hint">${esc(c.prosedur!==c.kategori?c.prosedur:'')}</div></td><td>${fmtD(c.tarikhOp)}</td></tr>`).join('')}</tbody></table></div>
+     ${R.cases.length>10?`<p class="hint" style="margin:0">Showing 10 of ${R.cases.length}.</p>`:''}
+     <div class="row"><button class="btn pri" data-act="algo">Add ${R.cases.length} new patients</button></div>`:'<p class="flag a" style="margin:0">Nothing new to add: every monitored patient in this file is already in the app.</p>'}`:''}
+  </div>`;
+}
+async function alCommit(){
+  const A=S.al;if(!A||!A.res||!A.res.cases.length)return;const list=A.res.cases;
+  const btn=$('[data-act="algo"]');if(btn){btn.disabled=true;btn.textContent='Saving…'}
+  const byJ={};list.forEach(c=>{byJ[c.jabatan]=(byJ[c.jabatan]||0)+1});const jt=JAB.filter(j=>byJ[j]).map(j=>j+' '+byJ[j]).join(', ');
+  try{if(typeof api==='function'){let added=0;for(let i=0;i<list.length;i+=150){if(btn)btn.textContent=`Saving ${Math.min(i+150,list.length)} / ${list.length}…`;const x=await api('importCases',{cases:list.slice(i,i+150)});added+=x.added||0}
+      await reloadData(true)}
+    else list.forEach(c=>S.cases.push(c));
+    S.lastImp={jab:'All departments ('+jt+')',n:list.length,added:list.length,updated:0,at:fmtD(TODAYISO)+' '+new Date().toTimeString().slice(0,5)};
+    S.al=null;S.lj='Semua';S.dy='Semua';S.dm='Semua';S.cq='';keepY();toast(`${list.length} new patients added · ${jt}`)}
+  catch(e){toast('Import failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Add '+list.length+' new patients'}}
+}
+function alTemplate(){
+  if(!window.XLSX){toast('Excel library not loaded. Check your internet connection.');return}
+  const ws=XLSX.utils.aoa_to_sheet([['Name','IC','MRN','Department','Operation','Date of surgery','Doctor in-charge'],['SITI AMINAH BINTI ALI','900101-10-1234','1234567','O&G','EL LSCS','05/01/2026',''],['AHMAD BIN ABU','750505-10-5678','7654321','Surgery','Lap cholecystectomy','06/01/2026','']]);
+  ws['!cols']=[{wch:30},{wch:16},{wch:12},{wch:12},{wch:30},{wch:14},{wch:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'LIST');XLSX.writeFile(wb,'SSI_patient_list_template.xlsx');
+}
+
 async function commitImport(){
   const I=S.imp;if(!I||!I.res||!I.res.cases.length)return;const M=mergeImport(I.res.cases),list=M.rows;
   const btn=$('[data-act="impgo"]');if(btn){btn.disabled=true;btn.textContent='Importing…'}
@@ -1190,7 +1307,7 @@ const inDayB=(c,b)=>{const d=ssiDay(c);return b[1]<0?d==null:d!=null&&d>=b[1]&&d
 const rfOk=c=>S.rf==null||S.rf==='Semua'||RISK[+S.rf][2](c)&&RISK[+S.rf][1](c);
 function rfFilterBar(){return S.rf!=null&&S.rf!=='Semua'?`<div class="flag a row between" style="margin:0"><span>Showing only surgeries with <b>${esc(RISK[+S.rf][0])}</b></span><button class="btn sm" data-rf="Semua">✕ Clear risk filter</button></div>`:''}
 function rfSelect(){return `<select class="inline" id="rfSel" aria-label="Risk factor"><option value="Semua">All risk factors</option>${RISK.map((r,i)=>`<option value="${i}" ${String(S.rf)===String(i)?'selected':''}>${esc(r[0])}</option>`).join('')}</select>`}
-function riskPanel(base,DL){
+function riskPanel0(base,DL){
   const rows=RISK.map((r,i)=>{const rec=base.filter(r[1]),w=rec.filter(r[2]),wo=rec.filter(c=>!r[2](c)),sw=w.filter(c=>c.ssi==='Ya').length,swo=wo.filter(c=>c.ssi==='Ya').length;
     return{i,name:r[0],n:w.length,N:rec.length,p:pct(w.length,rec.length),rw:pct(sw,w.length),rwo:pct(swo,wo.length),sw,hi:w.length&&sw&&pct(sw,w.length)>pct(swo,wo.length)}});
   return `<div class="panel stack"><h3>Risk factors · ${esc(DL)}</h3><p class="hint" style="margin:-6px 0 0">Tap a risk factor to filter the dashboard to those surgeries. SSI rate is compared between surgeries with and without the factor.</p>
@@ -1200,7 +1317,7 @@ function riskPanel(base,DL){
     <td class="num">${r.n?`<span class="${r.hi?'pill b':''}">${r.rw}%</span>`:'—'}</td><td class="num">${r.N-r.n?r.rwo+'%':'—'}</td></tr>`).join('')}
    </tbody></table></div><p class="hint" style="margin:0">Red = SSI rate is higher in surgeries with this factor. Only surgeries where the item was recorded are counted.</p></div>`;
 }
-function dayPanel(ssiL,DL){
+function dayPanel0(ssiL,DL){
   const max=Math.max(1,...DAYB.map(b=>ssiL.filter(c=>inDayB(c,b)).length)),sel=S.dayb!=null?DAYB[+S.dayb]:null;
   const days=ssiL.map(ssiDay).filter(x=>x!=null).sort((a,b)=>a-b),med=days.length?days[Math.floor((days.length-1)/2)]:null;
   const ty=[['Superficial incisional'],['Deep incisional'],['Organ/space']].map(t=>[t[0],ssiL.filter(c=>c.tapak===t[0]).length]);ty.push(['Not classified',ssiL.filter(c=>!['Superficial incisional','Deep incisional','Organ/space'].includes(c.tapak)).length]);
@@ -1256,6 +1373,9 @@ function yearSummary(src,depts,DL){
   RISK.forEach(R=>{if(!l0.some(R[1]))return;h+=row(esc(R[0]),l=>{const rec=l.filter(R[1]),w=rec.filter(R[2]),wo=rec.filter(c=>!R[2](c));if(!rec.length)return '<span class="hint">—</span>';
     const rw=pct(ss(w).length,w.length),rwo=pct(ss(wo).length,wo.length),hi=w.length&&ss(w).length&&rw>rwo;
     return `${pct(w.length,rec.length)}%<span class="ysub">${w.length}/${rec.length}${w.length?` · SSI <span class="${hi?'pill b':''}">${rw}%</span>`:''}</span>`})});
+  h+=sec('Type of surgery (wound class) <span class="hint" style="font-weight:600">· surgeries · SSI · rate</span>');
+  WCL.forEach(w=>{h+=row(w,l=>rateCell(l.filter(c=>c.jenisLuka===w)))});
+  h+=row('<span class="hint">Not recorded</span>',l=>rateCell(l.filter(c=>!WCL.includes(c.jenisLuka))));
   h+=sec('Type of SSI');
   TYP.forEach(t=>{h+=row(t,l=>ss(l).filter(c=>c.tapak===t).length)});
   h+=row('Not classified',l=>{const n=ss(l).filter(c=>!TYP.includes(c.tapak)).length;return n?`<span class="pill w">${n}</span>`:'0'});
@@ -1311,7 +1431,7 @@ function aiPanel(list,src,ctx){
 }
 
 // ================= SURGERY TYPES (expandable to patient & procedure detail) =================
-function procTable(list,depts,title){
+function procTable0(list,depts,title){
   const row=(j,p)=>{const l=list.filter(c=>c.jabatan===j&&c.kategori===p),n=l.length,sN=l.filter(c=>c.ssi==='Ya').length,key=j+'|'+p,op=S.opx===key;
     return `<tr class="prow ${op?'open':''} ${n?'':'zero'}" ${n?`data-opx="${esc(key)}" tabindex="0" role="button" aria-expanded="${op}"`:''}><td>${n?`<span class="caret">${op?'▾':'▸'}</span>`:'<span class="caret"></span>'}${esc(p)}</td><td class="num">${n}</td><td class="num">${sN?`<b style="color:var(--bad)">${sN}</b>`:0}</td><td class="num">${n?pct(sN,n)+'%':'—'}</td></tr>
      ${op?`<tr class="pdet"><td colspan="4"><div class="plist">${l.sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||'')).map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.prosedur&&c.prosedur!==c.kategori?c.prosedur:'(no procedure detail)')}${c.drNama?' · Dr '+esc(c.drNama):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></td></tr>`:''}`};
@@ -1319,6 +1439,92 @@ function procTable(list,depts,title){
   return `<div class="panel stack"><h3>${title}</h3><p class="hint" style="margin:-6px 0 0">Tap a surgery to see the patients and procedure details.</p><div class="scroll"><table class="ptab"><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
    ${depts.map(j=>(depts.length>1?`<tr class="grp"><td colspan="4">${esc(j)}</td></tr>`:'')+PROC[j].map(p=>row(j,p)).join('')).join('')}
    <tr class="grp"><td>Total</td><td class="num">${tot}</td><td class="num">${ts}</td><td class="num">${tot?pct(ts,tot)+'%':'—'}</td></tr></tbody></table></div></div>`;
+}
+
+
+// ================= CHART VIEWS (table / horizontal / vertical) + PNG download =================
+const CH={};
+const CV=(id,d)=>(S.cv||{})[id]||d||'table';
+const CCOL=['#1f8a35','#b0281c','#9aa59c','#d08a1e'];
+function chartHead(id,title,def){const v=CV(id,def);
+  return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><div class="vseg" role="group" aria-label="View">${[['table','Table'],['h','Horizontal'],['v','Vertical']].map(([k,l])=>`<button type="button" class="${v===k?'on':''}" data-cv="${id}|${k}">${l}</button>`).join('')}</div><button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button></div></div>`}
+function wrapTxt(s,n,maxL){const w=String(s).split(/\s+/).flatMap(x=>x.length>n?x.match(new RegExp('.{1,'+(n-1)+'}','g')).map((y,i,a)=>i<a.length-1?y+'-':y):[x]),L=[];let cur='';w.forEach(x=>{if((cur+' '+x).trim().length>n&&cur){L.push(cur);cur=x}else cur=(cur+' '+x).trim()});if(cur)L.push(cur);
+  if(L.length>maxL){L.length=maxL;L[maxL-1]=L[maxL-1].slice(0,n-1)+'…'}return L}
+function svgChart(cfg,o){
+  const R=cfg.rows,nS=cfg.series.length,col=cfg.colors||CCOL,pct_=cfg.unit==='%';
+  const mx=Math.max(pct_?1:1,...R.flatMap(r=>r.v));const F='font-family="Arial,Helvetica,sans-serif"';
+  const legend=(x,y)=>nS>1?cfg.series.map((s,i)=>`<rect x="${x+i*190}" y="${y-9}" width="12" height="12" rx="2" fill="${col[i]}"/><text x="${x+i*190+17}" y="${y+1}" font-size="12" fill="#333" ${F}>${esc(s)}</text>`).join(''):'';
+  const fmt=(r,i)=>esc(r.lab?r.lab[i]:r.v[i]+(pct_?'%':''));
+  if(!R.length)return `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="80" viewBox="0 0 760 80"><rect width="760" height="80" fill="#fff"/><text x="20" y="45" font-size="13" fill="#666" ${F}>No data for this selection.</text></svg>`;
+  let top=(cfg.title?30:8)+(nS>1?24:4);
+  if(o==='h'){
+    const W=780,LW=240,bh=nS>1?13:18,gap=3,rh=nS*bh+(nS-1)*gap+16,PW=W-LW-90,H=top+R.length*rh+16;
+    let g=`<rect width="${W}" height="${H}" fill="#fff"/>`;
+    if(cfg.title)g+=`<text x="12" y="20" font-size="14" font-weight="700" fill="#0f5a20" ${F}>${esc(cfg.title)}</text>`;
+    g+=legend(LW,top-10);
+    R.forEach((r,k)=>{const y0=top+k*rh+8,L=wrapTxt(r.l,34,2),cy=y0+(rh-16)/2;
+      g+=L.map((t,j)=>`<text x="${LW-10}" y="${cy+4+(j-(L.length-1)/2)*13}" text-anchor="end" font-size="11.5" fill="#222" ${F}>${esc(t)}</text>`).join('');
+      r.v.forEach((v,i)=>{const y=y0+i*(bh+gap),w=Math.max(v>0?2:0,v/mx*PW);g+=`<rect x="${LW}" y="${y}" width="${w}" height="${bh}" rx="3" fill="${col[i]}"/><text x="${LW+w+6}" y="${y+bh-3}" font-size="11" font-weight="700" fill="#222" ${F}>${fmt(r,i)}</text>`});
+      if(k<R.length-1)g+=`<line x1="12" x2="${W-12}" y1="${y0+rh-8}" y2="${y0+rh-8}" stroke="#eef1ec"/>`});
+    g+=`<line x1="${LW}" x2="${LW}" y1="${top}" y2="${H-8}" stroke="#bbb"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  }
+  const slot=Math.max(nS>1?84:56,Math.min(130,700/R.length)),W=Math.max(780,60+slot*R.length+20),PH=240,lc=Math.max(8,Math.floor(slot/6.6)),LH=14*3+10,H=top+PH+LH+20;
+  const bw=Math.min(34,(slot*.72)/nS);let g=`<rect width="${W}" height="${H}" fill="#fff"/>`;
+  if(cfg.title)g+=`<text x="12" y="20" font-size="14" font-weight="700" fill="#0f5a20" ${F}>${esc(cfg.title)}</text>`;
+  g+=legend(60,top-10);const base=top+PH+10;
+  [0,.5,1].forEach(f=>{const y=base-f*PH;g+=`<line x1="50" x2="${W-10}" y1="${y}" y2="${y}" stroke="${f?'#eef1ec':'#bbb'}"/><text x="44" y="${y+4}" text-anchor="end" font-size="10" fill="#777" ${F}>${Math.round(mx*f*10)/10}${pct_?'%':''}</text>`});
+  R.forEach((r,k)=>{const cx=60+k*slot+slot/2,x0=cx-nS*bw/2;
+    r.v.forEach((v,i)=>{const h=Math.max(v>0?2:0,v/mx*PH),x=x0+i*bw;g+=`<rect x="${x+1}" y="${base-h}" width="${bw-2}" height="${h}" rx="3" fill="${col[i]}"/><text x="${x+bw/2}" y="${base-h-4}" text-anchor="middle" font-size="10" font-weight="700" fill="#222" ${F}>${nS>1?esc(v+(pct_?'%':'')):fmt(r,i)}</text>`});
+    wrapTxt(r.l,lc,3).forEach((t,j)=>{g+=`<text x="${cx}" y="${base+16+j*14}" text-anchor="middle" font-size="11" fill="#222" ${F}>${esc(t)}</text>`})});
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+function chartBody(id,cfg,o){CH[id]=cfg;return `<div class="chartwrap">${svgChart(Object.assign({},cfg,{title:''}),o)}</div>`}
+function chartPNG(id){
+  const cfg=CH[id];if(!cfg){toast('Chart not ready');return}
+  const o=CV(id,cfg.def)==='v'?'v':'h',svg=svgChart(cfg,o),m=svg.match(/width="(\d+(?:\.\d+)?)" height="(\d+(?:\.\d+)?)"/),W=+m[1],H=+m[2];
+  const img=new Image();img.onload=()=>{const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;const x=cv.getContext('2d');x.scale(2,2);x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(img,0,0,W,H);
+    const name=(cfg.title||'SSI chart').replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,80)+'.png';
+    cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);toast('Chart downloaded')},'image/png')};
+  img.onerror=()=>toast('Could not create the image');img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
+const injHead=(html,id,def)=>html.replace(/<h3>([\s\S]*?)<\/h3>/,(m,t)=>chartHead(id,t,def));
+// Surgery types
+function procTable(list,depts,title){
+  const rows=[];depts.forEach(j=>PROC[j].forEach(p=>{const l=list.filter(c=>c.jabatan===j&&c.kategori===p),n=l.length,s=l.filter(c=>c.ssi==='Ya').length;if(n)rows.push({l:(depts.length>1?j+' · ':'')+p,v:[n,s],lab:[String(n),s?`${s} (${pct(s,n)}%)`:'0']})}));
+  const cfg={title:title.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&'),series:['Surgeries','SSI cases'],rows,def:'table'};CH.proc=cfg;
+  const v=CV('proc');if(v==='table')return injHead(procTable0(list,depts,title),'proc');
+  return `<div class="panel stack">${chartHead('proc',title)}<p class="hint" style="margin:-6px 0 0">Surgeries monitored and SSI cases (rate) per surgery type. Switch to Table to see the patients.</p>${chartBody('proc',cfg,v)}</div>`;
+}
+// Risk factors
+function riskPanel(base,DL){
+  const rows=RISK.map(R=>{const rec=base.filter(R[1]),w=rec.filter(R[2]),wo=rec.filter(c=>!R[2](c)),sw=w.filter(c=>c.ssi==='Ya').length,swo=wo.filter(c=>c.ssi==='Ya').length;
+    return rec.length?{l:R[0],v:[pct(sw,w.length),pct(swo,wo.length)],lab:[`${pct(sw,w.length)}% (${sw}/${w.length})`,`${pct(swo,wo.length)}%`]}:null}).filter(Boolean);
+  const cfg={title:'Risk factors · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI rate with factor','SSI rate without'],colors:['#b0281c','#9aa59c'],unit:'%',rows,def:'table'};CH.risk=cfg;
+  const v=CV('risk');if(v==='table')return injHead(riskPanel0(base,DL),'risk');
+  return `<div class="panel stack">${chartHead('risk','Risk factors · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">SSI rate in surgeries with each risk factor compared with surgeries without it. Switch to Table to filter by a factor.</p>${chartBody('risk',cfg,v)}</div>`;
+}
+// Day SSI identified
+function dayPanel(ssiL,DL){
+  const rows=DAYB.map(b=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return{l:b[0],v:[n],lab:[`${n}${ssiL.length?' ('+pct(n,ssiL.length)+'%)':''}`]}});
+  const cfg={title:'Day SSI identified · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI cases'],colors:['#b0281c'],rows:ssiL.length?rows:[],def:'h'};CH.day=cfg;
+  const v=CV('day','h'),orig=dayPanel0(ssiL,DL);
+  if(v==='h'||!ssiL.length)return injHead(orig,'day','h');
+  const ty=(orig.match(/<div><span class="flabel">Type of SSI[\s\S]*<\/div><\/div>/)||[''])[0];
+  const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Day identified</th><th class="num">SSI cases</th><th class="num">% of SSI</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.l)}</td><td class="num">${r.v[0]}</td><td class="num">${pct(r.v[0],ssiL.length)}%</td></tr>`).join('')}<tr class="grp"><td>Total</td><td class="num">${ssiL.length}</td><td class="num">100%</td></tr></tbody></table></div>`:chartBody('day',cfg,'v');
+  return `<div class="panel stack">${chartHead('day','Day SSI identified · '+esc(DL),'h')}${body}${ty}</div>`;
+}
+// Type of surgery (wound class)
+const WCL=['Clean','Clean contaminated','Contaminated'];
+function woundPanel(list,DL){
+  const grp=WCL.map(w=>[w,list.filter(c=>c.jenisLuka===w)]).concat([['Not recorded',list.filter(c=>!WCL.includes(c.jenisLuka))]]);
+  const rows=grp.filter(g=>g[1].length).map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return{l:w,v:[l.length,s],lab:[String(l.length),s?`${s} (${pct(s,l.length)}%)`:'0'],r:pct(s,l.length),s}});
+  const cfg={title:'Type of surgery (wound class) · '+DL+' · '+pLabel(S.dy,S.dm),series:['Surgeries','SSI cases'],rows,def:'table'};CH.wound=cfg;
+  const v=CV('wound');
+  const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Type of surgery</th><th class="num">Surgeries</th><th class="num">% of surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
+    ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'':'zero'}"><td>${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td></tr>`}).join('')}
+    <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td></tr></tbody></table></div>`:chartBody('wound',cfg,v);
+  return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate.</p>${body}</div>`;
 }
 
 // ================= BREAKDOWN BY MONTH / YEAR (shared) =================
@@ -1511,6 +1717,8 @@ document.addEventListener('click',e=>{
   if(D.rf!==undefined){S.rf=D.rf;keepY();return}
   if(D.ai!==undefined){S.ai=D.ai==='1';keepY();return}
   if(D.aicopy){const el=$('#aiText');const txt=el?el.innerText:'';(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Analysis copied'),()=>{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Analysis copied')}catch(e){}ta.remove()});return}
+  if(D.cv){const [id,v]=D.cv.split('|');S.cv=Object.assign({},S.cv,{[id]:v});keepY();return}
+  if(D.png){chartPNG(D.png);return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
   if(D.mode){S.mode=D.mode;render();return}
@@ -1550,6 +1758,10 @@ document.addEventListener('click',e=>{
   if(a==='addfu'){const c=S.cases.find(x=>x.id===S.cur),tt=$('#fu_t').value,nn=$('#fu_n').value.trim();if(!tt){toast('Choose a follow-up date');return}
     c.susulan=c.susulan||[];c.susulan.push({t:tt,cara:S.fu.cara,nota:nn||'—'});c.susulan.sort((x,y)=>x.t.localeCompare(y.t));persist(c);S.fu={t:TODAYISO,cara:'Phone',nota:''};keepY();toast('Follow-up recorded')}
   if(a==='cpwsave'){const v=$('#cpw').value;if(v.length<4){toast('Password must be at least 4 characters');return}api('changeCoordPw',{pw:v}).then(()=>{$('#cpw').value='';toast('Coordinator password changed')}).catch(fail)}
+  if(a==='alopen'){S.al={};keepY()}
+  if(a==='alx'){S.al=null;keepY()}
+  if(a==='algo'){alCommit();return}
+  if(a==='altpl'){alTemplate();return}
   if(a==='impopen'){S.imp={jab:'O&G',autoClose:true,skipOther:true};keepY()}
   if(a==='impx'){S.imp=null;keepY()}
   if(a==='impgo')commitImport();
@@ -1609,6 +1821,7 @@ document.addEventListener('change',e=>{
   if(id==='otfile'||id==='otcam'){otRead(T.files[0]);return}
   if(T.dataset.otf){const [i,k]=T.dataset.otf.split(':');S.ot.rows[+i][k]=T.value;T.classList.toggle('miss',!T.value&&['nama','ic','mrn'].includes(k));return}
   if(T.dataset.otc!==undefined){S.ot.rows[+T.dataset.otc].on=T.checked;const b=$('[data-act="otadd"]');if(b)b.textContent='Add '+S.ot.rows.filter(r=>r.on).length+' patients';return}
+  if(id==='alfile'){alRead(T.files[0]);return}
   if(id==='impfile'){impRead(T.files[0]);return}
   if((id==='impauto'||id==='impskip')&&S.imp){S.imp[id==='impauto'?'autoClose':'skipOther']=T.checked;impReparse();keepY();return}
   if(id==='ljab'){S.ljab=T.value;S.lerr='';render();return}
