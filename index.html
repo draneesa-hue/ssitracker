@@ -1587,8 +1587,15 @@ function woundPanel(list,DL){
     <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td></tr></tbody></table></div>`:chartBody('wound',cfg,v);
   return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate. Tap a type to see the patients.</p>${body}
    ${v!=='table'?`<div class="chips">${grp.filter(g=>g[1].length).map(([w,l])=>`<button type="button" class="chip ${S.wsel===w?'on':''}" data-wsel="${esc(w)}">${esc(w)} (${l.length})</button>`).join('')}</div>`:''}
-   ${(()=>{const g=grp.find(x=>x[0]===S.wsel);if(!g||!g[1].length)return '';const l=g[1].slice().sort((x,y)=>(y.ssi==='Ya')-(x.ssi==='Ya')||(y.tarikhOp||'').localeCompare(x.tarikhOp||''));const s=l.filter(c=>c.ssi==='Ya').length;
-     return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">${esc(g[0])} · ${l.length} patients · ${s} SSI</span><button class="btn sm" data-wsel="${esc(g[0])}">✕ Close</button></div><div class="plist plong">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')}${c.prosedur&&c.prosedur!==c.kategori?' · '+esc(c.prosedur):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></div>`})()}</div>`;
+   ${(()=>{const g=grp.find(x=>x[0]===S.wsel);if(!g||!g[1].length)return '';const all=g[1];
+     const byS={};all.forEach(c=>{const k=c.jabatan+' · '+(c.kategori||'—');(byS[k]=byS[k]||[]).push(c)});
+     const sk=Object.entries(byS).sort((x,y)=>y[1].length-x[1].length),sub=S.wsub&&byS[S.wsub]?S.wsub:null;
+     const l=(sub?byS[sub]:all).slice().sort((x,y)=>(y.ssi==='Ya')-(x.ssi==='Ya')||(y.tarikhOp||'').localeCompare(x.tarikhOp||''));const s=l.filter(c=>c.ssi==='Ya').length;
+     return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">${esc(g[0])} · which surgeries</span><button class="btn sm" data-wsel="${esc(g[0])}">✕ Close</button></div>
+      <div class="scroll" style="margin:8px 0"><table class="ptab"><thead><tr><th>Surgery performed</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
+       ${sk.map(([k,x])=>{const n=x.filter(c=>c.ssi==='Ya').length;return `<tr class="prow ${sub===k?'open':''}" data-wsub="${esc(k)}" tabindex="0" role="button"><td><span class="caret">${sub===k?'▾':'▸'}</span>${esc(k)}</td><td class="num">${x.length}</td><td class="num">${n?`<b style="color:var(--bad)">${n}</b>`:0}</td><td class="num">${pct(n,x.length)}%</td></tr>`}).join('')}
+       <tr class="grp"><td>Total ${esc(g[0])}</td><td class="num">${all.length}</td><td class="num">${all.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(all.filter(c=>c.ssi==='Ya').length,all.length)}%</td></tr></tbody></table></div>
+      <div class="row between"><span class="flabel" style="margin:0">${sub?esc(sub):'All '+esc(g[0])} · ${l.length} patients · ${s} SSI</span>${sub?`<button class="btn sm" data-wsub="${esc(sub)}">Show all ${esc(g[0])}</button>`:''}</div><div class="plist plong">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')}${c.prosedur&&c.prosedur!==c.kategori?' · '+esc(c.prosedur):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></div>`})()}</div>`;
 }
 
 
@@ -1914,7 +1921,7 @@ const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel]');if(!t)return;const D=t.dataset;
+  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
   if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
@@ -1937,7 +1944,8 @@ document.addEventListener('click',e=>{
   if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
-  if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;keepY();return}
+  if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;S.wsub=null;keepY();return}
+  if(D.wsub){S.wsub=S.wsub===D.wsub?null:D.wsub;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
