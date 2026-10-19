@@ -505,19 +505,22 @@ function persist(c){if(!c)return;api('saveCase',{c}).catch(e=>toast('Not saved: 
 const fail=e=>toast('Not saved: '+e.message);
 async function exportReport(){
   if(!S.rmonths.length){toast('Select at least one month');return}
-  if(typeof api!=='function'){toast('Download works on the live app (Vercel)');return}
   const btn=$('[data-act="xlsdl"]');if(btn){btn.disabled=true;btn.textContent='Generating Excel…'}
-  try{const r=await api('exportReport',{months:S.rmonths});
-    const bin=atob(r.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-    const url=URL.createObjectURL(new Blob([u8],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-    const a=document.createElement('a');a.href=url;a.download=r.file;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
-    toast('Downloaded '+r.file)}
-  catch(e){toast('Download failed: '+e.message)}
+  try{const R=await buildReportXLSX(S.rmonths);saveBlob(new Blob([R.buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),R.name);toast('Downloaded '+R.name)}
+  catch(e){
+    if(typeof api!=='function'){toast('Download failed: '+e.message);return}
+    // fallback: build on the server (slower)
+    try{if(btn)btn.textContent='Generating on server…';const r=await api('exportReport',{months:S.rmonths});
+      const bin=atob(r.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+      saveBlob(new Blob([u8],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),r.file);toast('Downloaded '+r.file)}
+    catch(e2){toast('Download failed: '+e2.message)}}
   finally{const b=$('[data-act="xlsdl"]');if(b){b.disabled=false;b.textContent='⬇ Download Excel report'}}
 }
 async function sendReport(m){
-  const btn=$('[data-act="mailsend"]');if(btn){btn.disabled=true;btn.textContent='Generating & sending…'}
-  try{const r=await api('sendReport',{months:S.rmonths,to:m.to.trim(),cc:m.cc.trim(),subj:m.subj,msg:m.msg});
+  const btn=$('[data-act="mailsend"]');if(btn){btn.disabled=true;btn.textContent='Preparing report…'}
+  try{let file=null;try{const R=await buildReportXLSX(S.rmonths);file={name:R.name,data:b64buf(R.buf)}}catch(e){file=null}
+    if(btn)btn.textContent='Sending…';
+    const r=await api('sendReport',{months:S.rmonths,to:m.to.trim(),cc:m.cc.trim(),subj:m.subj,msg:m.msg,file});
     S.rmonths.forEach(x=>S.sent[x]=r.sentDate);S.mailLog.unshift({bulan:monthsText(S.rmonths),tarikh:r.sentDate,to:m.to.trim(),cc:m.cc.trim()});
     S.mail=null;keepY();toast('Report emailed to '+m.to.trim())}
   catch(e){toast('Email not sent: '+e.message);if(btn){btn.disabled=false;btn.textContent='Send email'}}
@@ -1465,7 +1468,7 @@ const CH={};
 const CV=(id,d)=>(S.cv||{})[id]||d||'table';
 const CCOL=['#1f8a35','#b0281c','#9aa59c','#d08a1e'];
 function chartHead(id,title,def){const v=CV(id,def);
-  return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><div class="vseg" role="group" aria-label="View">${[['table','Table'],['h','Horizontal'],['v','Vertical']].map(([k,l])=>`<button type="button" class="${v===k?'on':''}" data-cv="${id}|${k}">${l}</button>`).join('')}</div>${canSplit()&&['proc','day','wound','risk','dept'].includes(id)?`<button type="button" class="byy ${isSplit(id)?'on':''}" data-byy="${id}" title="Show each year separately">By year</button>`:''}<button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button></div></div>`}
+  return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><div class="vseg" role="group" aria-label="View">${[['table','Table'],['h','Horizontal'],['v','Vertical']].map(([k,l])=>`<button type="button" class="${v===k?'on':''}" data-cv="${id}|${k}">${l}</button>`).join('')}</div>${canSplit()&&['proc','day','wound','risk','dept'].includes(id)?`<button type="button" class="byy ${isSplit(id)?'on':''}" data-byy="${id}" title="Show each year separately">By year</button>`:''}<button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button><button type="button" class="btn sm" data-xlsx="${id}" title="Download data and chart as Excel">⬇ Excel</button></div></div>`}
 function wrapTxt(s,n,maxL){const w=String(s).split(/\s+/).flatMap(x=>x.length>n?x.match(new RegExp('.{1,'+(n-1)+'}','g')).map((y,i,a)=>i<a.length-1?y+'-':y):[x]),L=[];let cur='';w.forEach(x=>{if((cur+' '+x).trim().length>n&&cur){L.push(cur);cur=x}else cur=(cur+' '+x).trim()});if(cur)L.push(cur);
   if(L.length>maxL){L.length=maxL;L[maxL-1]=L[maxL-1].slice(0,n-1)+'…'}return L}
 function svgChart(cfg,o){
@@ -1498,13 +1501,43 @@ function svgChart(cfg,o){
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
 }
 function chartBody(id,cfg,o){CH[id]=cfg;return `<div class="chartwrap">${svgChart(Object.assign({},cfg,{title:''}),o)}</div>`}
+function chartImg(cfg,o){return new Promise((res,rej)=>{
+  const svg=svgChart(cfg,o),m=svg.match(/width="(\d+(?:\.\d+)?)" height="(\d+(?:\.\d+)?)"/),W=+m[1],H=+m[2];
+  const img=new Image();img.onload=()=>{const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;const x=cv.getContext('2d');x.scale(2,2);x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(img,0,0,W,H);res({cv,W,H})};
+  img.onerror=()=>rej(new Error('image'));img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+const fileBase=cfg=>(cfg.title||'SSI chart').replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'').slice(0,80);
+function saveBlob(b,name){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 function chartPNG(id){
   const cfg=CH[id];if(!cfg){toast('Chart not ready');return}
-  const o=CV(id,cfg.def)==='v'?'v':'h',svg=svgChart(cfg,o),m=svg.match(/width="(\d+(?:\.\d+)?)" height="(\d+(?:\.\d+)?)"/),W=+m[1],H=+m[2];
-  const img=new Image();img.onload=()=>{const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;const x=cv.getContext('2d');x.scale(2,2);x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(img,0,0,W,H);
-    const name=(cfg.title||'SSI chart').replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,80)+'.png';
-    cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);toast('Chart downloaded')},'image/png')};
-  img.onerror=()=>toast('Could not create the image');img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  chartImg(cfg,CV(id,cfg.def)==='v'?'v':'h').then(({cv})=>cv.toBlob(b=>{saveBlob(b,fileBase(cfg)+'.png');toast('Chart downloaded')},'image/png')).catch(()=>toast('Could not create the image'));
+}
+// Excel: data table + the chart picture in one sheet (ExcelJS loaded only when needed)
+let _xj=null;
+function loadExcelJS(){if(window.ExcelJS)return Promise.resolve();if(_xj)return _xj;
+  _xj=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';s.onload=res;s.onerror=()=>{_xj=null;rej(new Error('load'))};document.head.appendChild(s)});return _xj}
+async function chartXLSX(id){
+  const cfg=CH[id];if(!cfg){toast('Chart not ready');return}
+  const pc=cfg.unit==='%',head=['Item'].concat(cfg.series.map(s=>s+(pc?' (%)':''))),hasLab=cfg.rows.some(r=>r.lab);
+  const rows=cfg.rows.map(r=>[r.l].concat(r.v));
+  toast('Preparing Excel…');
+  try{
+    await loadExcelJS();
+    const wb=new ExcelJS.Workbook();wb.creator='SSI Tracker HTPN';const ws=wb.addWorksheet('Chart',{views:[{showGridLines:false}]});
+    ws.getCell('A1').value=cfg.title||'SSI chart';ws.getCell('A1').font={bold:true,size:14,color:{argb:'FF0F5A20'}};
+    ws.getCell('A2').value='SSI Tracker HTPN · generated '+fmtD(TODAYISO);ws.getCell('A2').font={italic:true,size:9,color:{argb:'FF666666'}};
+    const hr=ws.getRow(4);head.concat(hasLab?['Label']:[]).forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={bold:true};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9EAD3'}};c.border={bottom:{style:'thin'}}});
+    rows.forEach((r,k)=>{const rw=ws.getRow(5+k);r.forEach((v,i)=>{const c=rw.getCell(i+1);c.value=v;if(i&&pc)c.numFmt='0.0"%"'});if(hasLab)rw.getCell(r.length+1).value=(cfg.rows[k].lab||[]).join(' | ')});
+    ws.getColumn(1).width=38;for(let i=2;i<=head.length;i++)ws.getColumn(i).width=Math.max(14,head[i-1].length+2);if(hasLab)ws.getColumn(head.length+1).width=28;
+    const {cv,W,H}=await chartImg(cfg,CV(id,cfg.def)==='v'?'v':'h');
+    const imgId=wb.addImage({base64:cv.toDataURL('image/png'),extension:'png'});
+    const w=Math.min(W,900),h=H*w/W;ws.addImage(imgId,{tl:{col:0,row:6+rows.length},ext:{width:w,height:h}});
+    const buf=await wb.xlsx.writeBuffer();saveBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fileBase(cfg)+'.xlsx');toast('Excel downloaded');
+  }catch(e){
+    // fallback: data only (no internet for the chart library)
+    if(!window.XLSX){toast('Could not create Excel. Check your internet connection.');return}
+    const ws=XLSX.utils.aoa_to_sheet([[cfg.title||'SSI chart'],[],head].concat(rows));ws['!cols']=[{wch:38}].concat(cfg.series.map(()=>({wch:16})));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Chart data');XLSX.writeFile(wb,fileBase(cfg)+'.xlsx');toast('Excel downloaded (data only)');
+  }
 }
 const injHead=(html,id,def)=>html.replace(/<h3>([\s\S]*?)<\/h3>/,(m,t)=>chartHead(id,t,def));
 // Surgery types
@@ -1613,6 +1646,92 @@ function deptPanel(list,ML,SK){
       return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(S.dsel)} (${l.length})</span><button class="btn sm" data-dsel="${esc(S.dsel)}">✕ Close</button></div><div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}</span></span><span class="pill b">SSI</span></button>`).join('')}</div></div>`})():''}`;
   return `<div class="panel stack">${chartHead('dept',esc(title))}<p class="hint" style="margin:-6px 0 0">Tap the SSI number to see the patients.</p>${body}</div>`;
 }
+
+
+// ================= JKNS REPORT BUILT IN THE BROWSER (fast) =================
+// Same layout as the server report: SUMMARY, ANALYSIS (with charts) and one sheet per department per month.
+const SHEETNM={'O&G':'O&G','Surgery':'PEMBEDAHAN','Ortho':'ORTHO','OMFS':'OMFS'};
+const MONU=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const JKN_X=['NUM','NAME OF PATIENT','IDENTIFICATION NUMBER /PASSPORT NUMBER','D.O.B/AGE','GENDER/RACE','DIAGNOSIS','DISCIPLINE/DEPARTMENT','DATE SURGERY PERFORMED','DURATION OF SURGERY','TYPE OF SURGERY(CLEAN/CLEAN CONTAMINATED/CONTAMINATED','PRIMARY SURGEON','READMITTED FOR SSI','BODY MASS INDEX (BMI)','1ST LAYER','2ND LAYER','ANTIMICROBIAL IMPREGNATED SUTURES','ANTIBIOTIC PROPHYLAXIS','TIME GIVEN','REDOSING','UNCONTROLLED SUGAR >10 MMOL/L','DURATION OF POST OP ANTIBIOTICS','DURATION OF POST OP ANTIBIOTICS','SSI','DATE OF SSI IDENTIFIED-POST OP','SITE OF SSI','DIAGNOSIS'];
+function monthsTextU(ms){const a=[...ms].sort(),ys=[...new Set(a.map(m=>m.slice(0,4)))];return ys.length===1?a.map(m=>MONU[+m.slice(5)-1]).join(', ')+' '+ys[0]:a.map(m=>MONU[+m.slice(5)-1]+' '+m.slice(0,4)).join(', ')}
+function reportName(ms){const a=[...ms].sort(),m3=m=>MONU[+m.slice(5)-1].slice(0,3);return 'SSI_Report_HTPN_'+(a.length===1?m3(a[0])+'_'+a[0].slice(0,4):m3(a[0])+'-'+m3(a[a.length-1])+'_'+a[a.length-1].slice(0,4))+'.xlsx'}
+async function buildReportXLSX(months){
+  await loadExcelJS();
+  const a=[...months].sort(),ST=Object.assign({HOSPITAL:'KAJANG',REPORTER_NAME:'ANEESA BINTI THAREK',REPORTER_TITLE:'SEKRETARIAT JK SSI',REPORTER_PHONE:'013-7386497',VERIFIER_NAME:'MR MOHD FIRDAUS BIN OSMAN',VERIFIER_TITLE:'CHAMPION JK SSI'},S.set||{});
+  const wb=new ExcelJS.Workbook();wb.creator='SSI Tracker HTPN';
+  const F={name:'Arial',size:9},TH={style:'thin'},BOX={top:TH,left:TH,bottom:TH,right:TH};
+  const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c.replace('#','')}});
+  const boxR=(ws,r1,c1,r2,c2)=>{for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)ws.getCell(r,c).border=BOX};
+  const today=fmtD(TODAYISO),inM=c=>a.includes((c.tarikhOp||'').slice(0,7));
+  const mon=S.cases.filter(c=>isMon(c)&&inM(c)),ssiAll=mon.filter(c=>c.ssi==='Ya');
+  // ---- SUMMARY
+  {const ws=wb.addWorksheet('SUMMARY');ws.getColumn(1).width=26;ws.getColumn(2).width=24;ws.getColumn(3).width=10;ws.getColumn(4).width=14;
+   ws.mergeCells(1,1,1,6);ws.getCell(1,1).value='RINGKASAN LAPORAN SSI – HOSPITAL '+ST.HOSPITAL;ws.getCell(1,1).font={name:'Arial',bold:true,size:12};
+   ws.mergeCells(2,1,2,6);ws.getCell(2,1).value='BULAN/TAHUN: '+monthsTextU(a);ws.getCell(2,1).font={name:'Arial',bold:true,size:10};
+   let r=4;const tot=[];
+   const head=(r,t)=>{ws.mergeCells(r,1,r,4);const c=ws.getCell(r,1);c.value=t;c.font={name:'Arial',bold:true};c.fill=fill('#93c47d')};
+   const hdr=(r,v)=>v.forEach((x,i)=>{const c=ws.getCell(r,i+1);c.value=x;c.font={name:'Arial',bold:true};c.fill=fill('#d9ead3');c.alignment={horizontal:'center',wrapText:true}});
+   const line=(r,v,b)=>v.forEach((x,i)=>{const c=ws.getCell(r,i+1);c.value=x;c.font={name:'Arial',bold:!!b};if(i)c.alignment={horizontal:'center'};if(b)c.fill=fill('#d9ead3')});
+   JAB.forEach(d=>{head(r,SHEETNM[d]);r++;hdr(r,['Month','Total selected surgery','SSI','Percentage']);const t0=r;r++;let T=0,N=0;
+     a.forEach(m=>{const l=mon.filter(c=>c.jabatan===d&&c.tarikhOp.slice(0,7)===m),n=l.filter(c=>c.ssi==='Ya').length;T+=l.length;N+=n;line(r,[MONU[+m.slice(5)-1]+' '+m.slice(0,4),l.length,n,pct(n,l.length)+'%']);r++});
+     line(r,['TOTAL',T,N,pct(N,T)+'%'],1);boxR(ws,t0,1,r,4);tot.push([SHEETNM[d],T,N]);r+=3});
+   head(r,'ALL DEPARTMENTS');r++;hdr(r,['Department','Total selected surgery','SSI','Percentage']);const t0=r;r++;let T=0,N=0;
+   tot.forEach(x=>{T+=x[1];N+=x[2];line(r,[x[0],x[1],x[2],pct(x[2],x[1])+'%']);r++});line(r,['TOTAL',T,N,pct(N,T)+'%'],1);boxR(ws,t0,1,r,4)}
+  // ---- ANALYSIS
+  {const ws=wb.addWorksheet('ANALYSIS');const NAMES=JAB.map(d=>SHEETNM[d]),by=d=>mon.filter(c=>c.jabatan===d);
+   ws.getColumn(1).width=36;for(let i=2;i<=8;i++)ws.getColumn(i).width=14;
+   ws.mergeCells(1,1,1,10);ws.getCell(1,1).value='ANALISIS SSI – HOSPITAL '+ST.HOSPITAL;ws.getCell(1,1).font={name:'Arial',bold:true,size:13};
+   ws.mergeCells(2,1,2,10);ws.getCell(2,1).value='BULAN/TAHUN: '+monthsTextU(a)+'   ·   Operasi dipantau sahaja';ws.getCell(2,1).font={name:'Arial',bold:true};
+   const head=(r,t)=>{ws.mergeCells(r,1,r,8);const c=ws.getCell(r,1);c.value=t;c.font={name:'Arial',bold:true,size:11};c.fill=fill('#93c47d')};
+   const hdr=(r,v)=>v.forEach((x,i)=>{const c=ws.getCell(r,i+1);c.value=x;c.font={name:'Arial',bold:true};c.fill=fill('#d9ead3');c.alignment={wrapText:true,vertical:'middle'}});
+   const rows=(r,R,pc)=>R.forEach((row,k)=>row.forEach((x,i)=>{const c=ws.getCell(r+k,i+1);c.value=x;c.font={name:'Arial'};if(pc&&i>0&&i<=JAB.length)c.numFmt='0.0"%"'}));
+   const pic=async(cfg,o,r)=>{const {cv,W,H}=await chartImg(cfg,o);const id=wb.addImage({base64:cv.toDataURL('image/png'),extension:'png'});const w=Math.min(W,820);ws.addImage(id,{tl:{col:0,row:r},ext:{width:w,height:H*w/W}});return Math.ceil(H*w/W/20)+2};
+   let r=4;
+   head(r,'1. FAKTOR RISIKO DIPANTAU (% daripada operasi dengan data direkod)');r++;hdr(r,['Risk factor',...NAMES,'All depts (n/N)','In SSI cases (n/N)']);const r1=r;r++;
+   const RR=RISK.map(R=>{const row=[R[0]];JAB.forEach(d=>{const b=by(d).filter(R[1]);row.push(pct(b.filter(R[2]).length,b.length))});const ab=mon.filter(R[1]),sb=ssiAll.filter(R[1]);row.push(ab.filter(R[2]).length+'/'+ab.length,sb.filter(R[2]).length+'/'+sb.length);return row});
+   rows(r,RR,1);boxR(ws,r1,1,r+RR.length-1,JAB.length+3);r+=RR.length;
+   ws.getCell(r,1).value='Surgeries monitored: '+JAB.map(d=>SHEETNM[d]+' '+by(d).length).join(' · ')+'  ·  SSI cases: '+ssiAll.length;ws.getCell(r,1).font={name:'Arial',italic:true};r+=2;
+   r+=await pic({title:'Risk factors by department (% of surgeries)',series:NAMES,colors:YCOL2,unit:'%',rows:RR.map(x=>({l:x[0],v:x.slice(1,1+JAB.length)}))},'h',r);
+   const BK=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90 (implant)',31,90],['Day not recorded',-1,-1]];
+   head(r,'2. HARI SSI DIKESAN SELEPAS OPERASI (bilangan kes SSI)');r++;hdr(r,['Day identified',...NAMES,'Total']);const r2=r;r++;
+   const DR=BK.map(b=>{const row=[b[0]];let t=0;JAB.forEach(d=>{const n=ssiAll.filter(c=>c.jabatan===d&&inDayB(c,b)).length;row.push(n);t+=n});row.push(t);return row});
+   rows(r,DR);boxR(ws,r2,1,r+DR.length-1,JAB.length+2);r+=DR.length;
+   const days=ssiAll.map(ssiDay).filter(x=>x!=null).sort((x,y)=>x-y);ws.getCell(r,1).value=days.length?'Median day of SSI: '+days[Math.floor((days.length-1)/2)]+'  ·  Earliest: day '+days[0]+'  ·  Latest: day '+days[days.length-1]:'No SSI with a recorded date.';ws.getCell(r,1).font={name:'Arial',italic:true};r+=2;
+   r+=await pic({title:'Day SSI identified post-op',series:NAMES,colors:YCOL2,rows:DR.map(x=>({l:x[0],v:x.slice(1,1+JAB.length)}))},'v',r);
+   const TYx=[['Superficial incisional',c=>c.tapak==='Superficial incisional'],['Deep incisional',c=>c.tapak==='Deep incisional'],['Organ/space',c=>c.tapak==='Organ/space'],['Not classified',c=>!['Superficial incisional','Deep incisional','Organ/space'].includes(c.tapak)]];
+   head(r,'3. JENIS SSI');r++;hdr(r,['Type of SSI',...NAMES,'Total']);const r3=r;r++;
+   const TR=TYx.map(t=>{const row=[t[0]];let s=0;JAB.forEach(d=>{const n=ssiAll.filter(c=>c.jabatan===d&&t[1](c)).length;row.push(n);s+=n});row.push(s);return row});
+   rows(r,TR);r+=TR.length;rows(r,[['Lab confirmed',ssiAll.filter(c=>c.diagJenis==='Lab confirmed').length,'Clinical',ssiAll.filter(c=>c.diagJenis==='Clinical').length]]);boxR(ws,r3,1,r,JAB.length+2);r+=2;
+   r+=await pic({title:'Type of SSI by department',series:NAMES,colors:YCOL2,rows:TR.map(x=>({l:x[0],v:x.slice(1,1+JAB.length)}))},'v',r);
+   const WR=WCL.map(w=>{const row=[w];JAB.forEach(d=>{const l=by(d).filter(c=>c.jenisLuka===w);row.push(l.length?pct(l.filter(c=>c.ssi==='Ya').length,l.length):0)});const l=mon.filter(c=>c.jenisLuka===w);row.push(l.filter(c=>c.ssi==='Ya').length+'/'+l.length);return row});
+   head(r,'4. JENIS PEMBEDAHAN (kadar SSI %)');r++;hdr(r,['Type of surgery',...NAMES,'All depts SSI/n']);const r4=r;r++;rows(r,WR,1);boxR(ws,r4,1,r+WR.length-1,JAB.length+2);r+=WR.length+2;
+   head(r,'5. SENARAI KES SSI');r++;hdr(r,['Department','Name','MRN','Surgery','Date of surgery','Day identified','Site of SSI','Diagnosis','Organism','Readmitted']);const r5=r;r++;
+   const LR=ssiAll.slice().sort((x,y)=>x.tarikhOp.localeCompare(y.tarikhOp)).map(c=>[SHEETNM[c.jabatan],c.nama||'',c.mrn||'',c.kategori||'',fmtD(c.tarikhOp),ssiDay(c)!=null?'Day '+ssiDay(c):'',ssiSite(c),c.diagJenis||'',c.organisma||'',yn(c.readmit)]);
+   if(LR.length){rows(r,LR);r+=LR.length}else{ws.getCell(r,1).value='No SSI cases in the selected month(s).';r++}boxR(ws,r5,1,r-1,10)}
+  // ---- one sheet per department per month
+  a.forEach(m=>JAB.forEach(d=>{
+    const ws=wb.addWorksheet(SHEETNM[d]+' '+MONU[+m.slice(5)-1].slice(0,3)+' '+m.slice(0,4),{views:[{state:'frozen',ySplit:5}]});
+    const all=mon.filter(c=>c.jabatan===d&&c.tarikhOp.slice(0,7)===m),ssi=all.filter(c=>c.ssi==='Ya').sort((x,y)=>x.tarikhOp.localeCompare(y.tarikhOp)),N=26;
+    for(let i=1;i<=N;i++)ws.getColumn(i).width=13;[[1,6],[2,23],[3,18],[6,26],[26,23]].forEach(([i,w])=>ws.getColumn(i).width=w);
+    const set=(r,c,v,st)=>{const x=ws.getCell(r,c);x.value=v;x.font=Object.assign({},F,st&&st.font);if(st&&st.fill)x.fill=fill(st.fill);if(st&&st.al)x.alignment=st.al;return x};
+    ws.mergeCells(1,1,1,N);set(1,1,'LAPORAN BULANAN SURGICAL SITE INFECTION (SSI) PREVENTION AND SURVEILLANCE',{font:{bold:true,size:12},al:{horizontal:'center'}});
+    ws.mergeCells(2,1,2,6);set(2,1,'HOSPITAL: '+ST.HOSPITAL,{font:{bold:true}});ws.mergeCells(2,8,2,15);set(2,8,'BULAN/TAHUN: '+MONU[+m.slice(5)-1]+' '+m.slice(0,4),{font:{bold:true}});
+    [[3,13,7,'PREOPERATIVE DETAILS','#93c47d'],[3,20,7,'POSTOPERATIVE','#93c47d'],[4,14,3,'SKIN PREPARATION','#d9ead3'],[4,17,3,'ANTIBIOTIC PROPHYLAXIS','#d9ead3'],[4,21,1,'CARDIAC & VASCULAR','#d9ead3'],[4,22,1,'NON CARDIAC & VASCULAR','#d9ead3'],[4,23,4,'TYPE OF SSI','#d9ead3']]
+      .forEach(g=>{if(g[2]>1)ws.mergeCells(g[0],g[1],g[0],g[1]+g[2]-1);set(g[0],g[1],g[3],{font:{bold:true},fill:g[4],al:{horizontal:'center',vertical:'middle',wrapText:true}})});
+    JKN_X.forEach((h,i)=>set(5,i+1,h,{font:{bold:true},fill:'#b6d7a8',al:{horizontal:'center',vertical:'middle',wrapText:true}}));ws.getRow(5).height=48;
+    const nR=Math.max(ssi.length,1);
+    if(ssi.length)ssi.forEach((c,k)=>jknCells(c,k).forEach((v,i)=>set(6+k,i+1,v,{al:{wrapText:true,vertical:'top'}})));
+    else{ws.mergeCells(6,1,6,N);set(6,1,'NO SSI CASE',{font:{italic:true},al:{horizontal:'center'}})}
+    boxR(ws,3,1,5+nR,N);
+    const fr=6+nR+2,left=[['Dilaporkan oleh:',1],['NAMA: '+ST.REPORTER_NAME],['JAWATAN: '+ST.REPORTER_TITLE],['NO. TELEFON/ FAKS/EMAIL: '+ST.REPORTER_PHONE],['TARIKH: '+today],[''],['Laporan Diverifikasi Oleh:',1],['NAMA: '+ST.VERIFIER_NAME],['JAWATAN: '+ST.VERIFIER_TITLE],['NO. TELEFON/ FAKS/EMAIL: '],['TARIKH: '],[''],['TARIKH PENYERAHAN KEPADA JKN: '+today,1]];
+    left.forEach((x,k)=>{ws.mergeCells(fr+k,1,fr+k,5);set(fr+k,1,x[0],{font:{bold:!!x[1]}})});
+    ws.mergeCells(fr,8,fr,11);set(fr,8,'Calculation for Surveillance',{font:{bold:true}});
+    [['Number of SSI in the selected Surgery',ssi.length],['Total Number of Selected Surgery',all.length],['Percentage',pct(ssi.length,all.length)+'%']].forEach((x,k)=>{ws.mergeCells(fr+1+k,8,fr+1+k,10);set(fr+1+k,8,x[0]);set(fr+1+k,11,x[1],{font:{bold:true},al:{horizontal:'center'}})});
+    boxR(ws,fr+1,8,fr+3,11);ws.mergeCells(fr+5,8,fr+5,15);set(fr+5,8,'* adalah mengikut jenis pembedahan dalam jabatan',{font:{italic:true}});
+  }));
+  return {buf:await wb.xlsx.writeBuffer(),name:reportName(a)};
+}
+const b64buf=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
 
 // ================= BREAKDOWN BY MONTH / YEAR (shared) =================
 function brkHTML(base,DL){
@@ -1806,6 +1925,7 @@ document.addEventListener('click',e=>{
   if(D.aicopy){const el=$('#aiText');const txt=el?el.innerText:'';(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Analysis copied'),()=>{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Analysis copied')}catch(e){}ta.remove()});return}
   if(D.cv){const [id,v]=D.cv.split('|');S.cv=Object.assign({},S.cv,{[id]:v});keepY();return}
   if(D.png){chartPNG(D.png);return}
+  if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
