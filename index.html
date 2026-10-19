@@ -59,6 +59,18 @@ button{font:inherit;cursor:pointer;color:inherit}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--accent);padding-inline:4px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding-bottom:env(safe-area-inset-bottom,0px)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--sunk);border-radius:14px;padding:5px}
+.seg2 button{border:0;background:transparent;border-radius:10px;padding:11px 8px;font-weight:700;color:var(--muted)}
+.seg2 button.on{background:var(--surface);color:var(--accent);box-shadow:0 2px 8px rgba(15,90,32,.12)}
+a.btn.wa{background:#25d366;border-color:#25d366;color:#fff}
+table.ot input,table.ot select{padding:6px 8px;font-size:.85rem;min-width:110px}
+table.ot td{vertical-align:middle}
+tr.dupr td{opacity:.6}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,30,15,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.modalc{background:var(--surface);border-radius:16px;padding:20px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;line-height:1.5}
+table.ot input.miss{border-color:var(--bad);background:var(--bad-soft)}
 .mdd{position:relative}
 .mddbtn{width:100%;text-align:left;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mddp{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:12px;max-height:420px;overflow-y:auto}
@@ -282,6 +294,8 @@ const SECTIONS=[
   {k:'ic',l:'ID No. / Passport',t:'text'},
   {k:'mrn',l:'MRN No.',t:'text',req:1,ph:'HTPNK…'},
   {k:'telefon',l:'Contact No.',t:'text'},
+  {k:'drNama',l:'Doctor in-charge',t:'text',ph:'e.g. Dr Ahmad'},
+  {k:'drTel',l:"Doctor's phone No.",t:'text',ph:'01x-xxxxxxx'},
   {k:'tarikhOp',l:'Date of surgery',t:'date',req:1},
   {k:'masaMula',l:'Surgery start time',t:'time',req:1},
   {k:'masaTamat',l:'Surgery end time',t:'time',req:1},
@@ -578,6 +592,7 @@ function liaisonDash(){
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
+   ${brkHTML(mine,S.user.jabatan)}
    <div class="panel stack"><h3>Surgery types · ${ML}</h3>
     <div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${esc(r.p)}</td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
@@ -601,7 +616,9 @@ function updateHeads(secs,c,pref){secs.forEach((s,i)=>{const h=$('#'+pref+i);if(
 function entryView(){
   if(!S.draft){S.draft={jabatan:S.user.jabatan||'O&G',tarikhOp:TODAYISO,ssi:'Tiada',susulan:[]};S.open=null}
   const c=S.draft,cp=complete(c);
-  return `<div class="panel" id="form"><div class="stack">
+  const seg=c.id?'':`<div class="seg2"><button type="button" class="${S.mode!=='ot'?'on':''}" data-mode="manual">✍️ Enter manually</button><button type="button" class="${S.mode==='ot'?'on':''}" data-mode="ot">📷 From OT list (photo / PDF)</button></div>`;
+  if(S.mode==='ot'&&!c.id)return `<div class="stack">${seg}${S.user.role==='coord'?`<div class="f"><span class="flabel">Department</span><div class="chips">${JAB.map(j=>`<button type="button" class="chip ${c.jabatan===j?'on':''}" data-s="draft" data-k="jabatan" data-v="${esc(j)}">${esc(j)}</button>`).join('')}</div></div>`:''}${otPanel()}</div>`;
+  return `<div class="stack">${seg}<div class="panel" id="form"><div class="stack">
    <div class="row between"><div><h2>${c.id?'Edit surgery data':'New entry'}</h2><p class="hint" style="margin:.2em 0 0">Department ${esc(c.jabatan)} · follows the SSI Data Collection Form</p></div>
     ${c.id?'<button class="btn sm" data-act="canceledit">Cancel</button>':''}</div>
    ${S.user.role==='coord'?`<div class="f"><span class="flabel">Department</span><div class="chips">${JAB.map(j=>`<button type="button" class="chip ${c.jabatan===j?'on':''}" data-s="draft" data-k="jabatan" data-v="${esc(j)}">${esc(j)}</button>`).join('')}</div></div>`:''}
@@ -609,7 +626,7 @@ function entryView(){
    <p class="hint" style="margin:0">Tap each section to fill it in. <b style="color:var(--bad)">Red</b> = required fields missing, <b style="color:var(--good)">green</b> = complete. TYPE OF SSI is filled in later through the SSI form during the 30-day follow-up.</p>
   </div>
   <div class="formbar"><div class="meter"><i id="meter" class="${cp.pct===100?'done':''}" style="width:${cp.pct}%"></i></div><span class="hint" id="meterTxt">${cp.pct}% complete${cp.missing?' · '+cp.missing+' required left':''}</span>
-   <button class="btn pri" data-act="save">Save</button></div></div>`;
+   <button class="btn pri" data-act="save">Save</button></div></div></div>`;
 }
 function patientsView(){
   const f=S.pf,mine=myCases().filter(c=>pMatch(c,S.py,S.pm));
@@ -635,6 +652,7 @@ function caseView(){
     <div class="kv"><div><span>MRN</span><b class="mono">${esc(c.mrn)}</b></div><div><span>IC No.</span><b class="mono">${esc(c.ic||'—')}</b></div>
      <div><span>Surgery</span><b>${esc(c.kategori)}</b></div><div><span>Date of surgery</span><b>${fmtD(c.tarikhOp)}</b></div></div>
     ${c.ssi!=='Ya'&&!c.tutup?`<div class="row"><div class="meter"><i style="width:${Math.min(d/p,1)*100}%"></i></div><span class="hint">Day ${Math.max(d,0)} of ${p}${d<p?' · ends '+fmtD(new Date(new Date(c.tarikhOp).getTime()+p*864e5).toISOString().slice(0,10)):''}</span></div>`:''}
+    ${(c.drNama||c.drTel)?`<div class="row"><span class="hint">Doctor in-charge: <b>${esc(c.drNama||'-')}</b>${c.drTel?' · '+esc(c.drTel):''}</span>${missingSecs(c).length?waBtn(c,true):''}</div>`:`<p class="hint" style="margin:0">No doctor in-charge recorded. Add the name and phone in <b>Edit data → Patient detail</b> to send a WhatsApp reminder.</p>`}
     ${c.ssi==='Ya'?`<div class="row"><button class="btn pri" data-act="formv">📄 View SSI form</button>${miss?`<span class="pill w">${miss} fields missing</span>`:'<span class="pill g">Form complete</span>'}</div>`:''}
    </div>
    ${isSSI?'':`<div class="panel stack"><div class="row between"><h3>Surgery summary</h3><button class="btn sm" data-act="editcase">Edit data</button></div>
@@ -702,27 +720,38 @@ function formView(){
 
 // ================= KOORDINATOR =================
 function coordDash(){
+  const D=S.cjab,inD=c=>D==='Semua'||c.jabatan===D,DL=D==='Semua'?'All departments':D;
   const all=S.cases.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),ML=pLabel(S.dy,S.dm),SK=S.dy!=='Semua'&&S.dm!=='Semua'?S.dy+'-'+S.dm:'';
-  const list=all.filter(c=>S.cjab==='Semua'||c.jabatan===S.cjab);
-  const ssi=list.filter(c=>c.ssi==='Ya').length,full=list.filter(c=>complete(c).pct===100).length,sah=S.cases.filter(c=>status(c).key==='sah').length;
+  const list=all.filter(inD);
+  const ssiL=list.filter(c=>c.ssi==='Ya'),ssi=ssiL.length,full=list.filter(c=>complete(c).pct===100).length;
+  const pend=S.cases.filter(c=>inD(c)&&status(c).key==='sah');
   const perJ=JAB.map(j=>{const l=all.filter(c=>c.jabatan===j);return{j,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,f:l.filter(c=>complete(c).pct===100).length,sah:S.cases.filter(c=>c.jabatan===j&&status(c).key==='sah').length}});
+  // breakdown by month (one year chosen) or by year (all years)
+  const base=S.cases.filter(c=>isMon(c)&&inD(c)&&(S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm));
+  const brk=S.dy!=='Semua'
+    ?BULAN.map((b,i)=>{const m=String(i+1).padStart(2,'0'),l=base.filter(c=>(c.tarikhOp||'').startsWith(S.dy+'-'+m));return{k:b+' '+S.dy,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,on:S.dm==='Semua'||S.dm===m}}).filter(r=>r.on)
+    :yearsList().slice().reverse().map(y=>{const l=base.filter(c=>(c.tarikhOp||'').startsWith(y));return{k:y+(S.dm==='Semua'?'':' · '+BULAN[+S.dm-1]),n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
+  const bt=brk.reduce((a,r)=>({n:a.n+r.n,s:a.s+r.s}),{n:0,s:0});
   const wa=list.filter(c=>c.abx);
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">
-   <div class="row between"><h2>All departments summary</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${S.cjab===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select></div></div>
-   <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
+   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select></div></div>
+   <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
-   <div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
+   <div class="panel stack"><h3>${S.dy!=='Semua'?'By month':'By year'} · ${esc(DL)}${S.dy!=='Semua'?' · '+S.dy:''}</h3><div class="scroll"><table><thead><tr><th>${S.dy!=='Semua'?'Month':'Year'}</th><th class="num">Surgeries monitored</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
+    ${brk.map(r=>`<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num">${r.s?`<b style="color:var(--bad)">${r.s}</b>`:0}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
+    <tr class="grp"><td>Total</td><td class="num">${bt.n}</td><td class="num">${bt.s}</td><td class="num">${bt.n?pct(bt.s,bt.n)+'%':'—'}</td></tr></tbody></table></div></div>
+   ${D==='Semua'?`<div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
     ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
-     <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>
-   <div class="panel stack"><h3>Surgery types · ${ML}</h3><div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th></tr></thead><tbody>
-    ${JAB.filter(j=>S.cjab==='Semua'||j===S.cjab).map(j=>`<tr class="grp"><td colspan="3">${esc(j)}</td></tr>`+PROC[j].map(p=>{const l=all.filter(c=>c.jabatan===j&&c.kategori===p);return`<tr><td>${esc(p)}</td><td class="num">${l.length}</td><td class="num">${l.filter(c=>c.ssi==='Ya').length}</td></tr>`}).join('')).join('')}
+     <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+   <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
+   <div class="panel stack"><h3>Surgery types · ${esc(DL)} · ${ML}</h3><div class="scroll"><table><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th></tr></thead><tbody>
+    ${JAB.filter(j=>D==='Semua'||j===D).map(j=>`<tr class="grp"><td colspan="3">${esc(j)}</td></tr>`+PROC[j].map(p=>{const l=all.filter(c=>c.jabatan===j&&c.kategori===p);return`<tr><td>${esc(p)}</td><td class="num">${l.length}</td><td class="num">${l.filter(c=>c.ssi==='Ya').length}</td></tr>`}).join('')).join('')}
     </tbody></table></div></div>
-   <div class="panel"><h3>Monthly trend · ${S.cjab==='Semua'?'all departments':esc(S.cjab)}</h3>${trendYear(S.cases.filter(c=>isMon(c)&&(S.cjab==='Semua'||c.jabatan===S.cjab)))}</div>
-   <div class="panel stack"><h3>SSI bundle compliance</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
-   <div class="panel"><h3>SSI patients, all departments (${S.cases.filter(c=>c.ssi==='Ya').length})</h3>${S.cases.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,true)).join('')||'<div class="empty">No SSI patients.</div>'}</div>
-   ${sah?`<div class="panel"><h3>Awaiting liaison confirmation (${sah})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> (reminder card on the liaison dashboard) so that month's report is final.</p>${S.cases.filter(c=>status(c).key==='sah').map(c=>caseRow(c,true)).join('')}</div>`:''}
+   <div class="panel"><h3>Monthly trend · ${esc(DL)}</h3>${trendYear(S.cases.filter(c=>isMon(c)&&inD(c)))}</div>
+   <div class="panel stack"><h3>SSI bundle compliance · ${esc(DL)}</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
+   ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
   </div>`;
 }
 // 26 lajur — sama seperti templat LAPORAN BULANAN SSI (APRIL 2025 PELAPORAN SSI HTPN.xlsx)
@@ -795,11 +824,36 @@ function mailPanel(allInc){
    <p class="hint" style="margin:0">The Excel file has a separate sheet for each department and month (${S.rmonths.length*4} sheets) and is emailed directly from the UKI Google account.</p></div>`;
 }
 function allCasesView(){
-  return `<div class="stack"><h2>All cases</h2>${importPanel()}<div class="search">${IC.search}<input id="cq" placeholder="Name, IC No., MRN" value="${esc(S.cq)}" autocomplete="off"></div>
+  const cnt=j=>S.cases.filter(c=>(j==='Semua'||c.jabatan===j)&&isMon(c)).length;S.lj=S.lj||'Semua';
+  return `<div class="stack"><h2>All cases</h2>
+   ${S.lastImp?`<div class="panel row between" style="background:var(--good-soft);border-color:var(--good)"><span>✅ <b>Last import · ${esc(S.lastImp.jab)}</b>: ${S.lastImp.n} cases saved to Google Sheet (${S.lastImp.added} new, ${S.lastImp.updated} already in app) · ${esc(S.lastImp.at)}</span><button class="btn sm" data-act="limpx">Dismiss</button></div>`:''}
+   ${importPanel()}
+   <div class="panel stack"><h3>Find & check patient records</h3>
+    <div class="chips">${['Semua',...JAB].map(j=>`<button class="chip ${S.lj===j?'on':''}" data-lj="${esc(j)}">${j==='Semua'?'All departments':esc(j)} (${cnt(j)})</button>`).join('')}</div>
+    <div class="search">${IC.search}<input id="cq" placeholder="Name, IC No. or MRN" value="${esc(S.cq)}" autocomplete="off"></div>
+    <div class="fgrid">
+     <label class="f"><span>Year</span><select id="lyS"><option value="Semua">All years</option>${yearsList().map(y=>`<option ${S.ly===y?'selected':''}>${y}</option>`).join('')}</select></label>
+     <label class="f"><span>Month</span><select id="lmS"><option value="Semua">All months</option>${BULAN.map((b,i)=>{const v=String(i+1).padStart(2,'0');return `<option value="${v}" ${S.lm===v?'selected':''}>${b}</option>`}).join('')}</select></label>
+     <label class="f"><span>Surgery performed</span><select id="lkS"><option value="Semua">All surgeries</option>${(S.lj&&S.lj!=='Semua'?[S.lj]:JAB).map(d=>`<optgroup label="${esc(d)}">${PROC[d].map(p=>`<option value="${esc(p)}" ${S.lk===p?'selected':''}>${esc(p)}</option>`).join('')}</optgroup>`).join('')}<option value="_not" ${S.lk==='_not'?'selected':''}>Not monitored</option></select></label>
+     <label class="f"><span>Status</span><select id="lsS">${[['Semua','All'],['kosong','Incomplete data'],['ssi','SSI'],['aktif','In surveillance'],['sah','Needs confirmation'],['selesai','Completed']].map(([v,l])=>`<option value="${v}" ${S.ls===v?'selected':''}>${l}</option>`).join('')}</select></label>
+    </div>
+    <div class="row between"><span class="hint" id="cqcount"></span><button class="btn sm" data-act="lreset">Clear filters</button></div>
+   </div>
    <div id="cqres" class="panel">${allRes()}</div></div>`;
 }
-function allRes(){const q=S.cq.trim().toLowerCase();const l=S.cases.filter(c=>!q||(c.nama+' '+(c.ic||'')+' '+c.mrn+' '+c.jabatan).toLowerCase().includes(q)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).slice(0,60);
-  return l.length?l.map(c=>caseRow(c,true)).join(''):'<div class="empty">No matches.</div>'}
+function allFiltered(){
+  const q=S.cq.trim().toLowerCase(),D=S.lj||'Semua',Y=S.ly||'Semua',Mo=S.lm||'Semua',K=S.lk||'Semua',St=S.ls||'Semua';
+  return S.cases.filter(c=>(D==='Semua'||c.jabatan===D)&&pMatch(c,Y,Mo)
+    &&(K==='Semua'||(K==='_not'?!isMon(c):c.kategori===K))
+    &&(St==='Semua'||(St==='kosong'?complete(c).pct<100:status(c).key===St))
+    &&(!q||(c.nama+' '+(c.ic||'')+' '+(c.mrn||'')+' '+(c.prosedur||'')+' '+(c.drNama||'')).toLowerCase().includes(q)))
+   .sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||''));
+}
+function allRes(){
+  const l=allFiltered(),lim=S.lim||50,sh=l.slice(0,lim);
+  setTimeout(()=>{const e=$('#cqcount');if(e)e.textContent=`${l.length} patient${l.length===1?'':'s'} found${l.length>lim?' · showing '+lim:''}`},0);
+  return (sh.length?sh.map(c=>caseRow(c,true)).join(''):'<div class="empty">No patients match these filters.</div>')+(l.length>lim?`<div class="row" style="justify-content:center;margin-top:10px"><button class="btn" data-act="lmore">Show ${Math.min(50,l.length-lim)} more</button></div>`:'');
+}
 
 // ================= LIAISON JABATAN (koordinator) =================
 function liaisonAdmin(){
@@ -1030,7 +1084,7 @@ function mergeImport(list){
     return m});
   return {rows,matched};
 }
-function impReparse(){const I=S.imp;if(!I||!I.wb)return;try{I.res=parseWorkbook(I.wb,I.jab,I);I.err=''}catch(e){I.res=null;I.err='Could not read this file: '+e.message}}
+function impReparse(){const I=S.imp;if(!I||!I.wb)return;try{I.res=parseWorkbook(I.wb,I.jab,I);I.err='';I.guess=guessDept(I)}catch(e){I.res=null;I.err='Could not read this file: '+e.message}}
 function impRead(file){
   const I=S.imp;if(!file||!I)return;
   if(!window.XLSX){toast('Excel reader not loaded. Check your internet connection.');return}
@@ -1050,6 +1104,7 @@ function importPanel(){
   const notList=R?R.cases.filter(c=>!(PROC[I.jab]||[]).includes(c.kategori)).length:0;
   return `<div class="panel stack" id="impp"><div class="row between"><h3>Import from Excel</h3><button class="btn sm" data-act="impx">Close</button></div>
    <div class="f"><span class="flabel req">Department of this file</span><div class="chips">${JAB.map(j=>`<button type="button" class="chip ${I.jab===j?'on':''}" data-ijab="${esc(j)}">${esc(j)}</button>`).join('')}</div></div>
+   ${I.guess?`<div class="flag b" style="margin:0;display:flex;flex-direction:column;gap:6px">⚠ This file looks like <b>${esc(I.guess.best)}</b> data: ${I.guess.n} surgeries match the ${esc(I.guess.best)} monitored list, only ${I.guess.mine} match ${esc(I.jab)}.<span><button type="button" class="btn sm" data-ijab="${esc(I.guess.best)}">Switch to ${esc(I.guess.best)}</button></span></div>`:''}
    <label class="f"><span class="req">Excel file (.xlsx)</span><input type="file" id="impfile" accept=".xlsx,.xls,.xlsm,.csv"></label>
    ${I.fname?`<p class="hint" style="margin:0">File: <b>${esc(I.fname)}</b></p>`:''}
    <label class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" id="impauto" ${I.autoClose?'checked':''} style="width:auto;margin-top:3px"><span>Mark patients past the surveillance period with no SSI recorded as <b>Completed · no SSI</b></span></label>
@@ -1062,7 +1117,7 @@ function importPanel(){
     ${R.warn.length?`<details><summary class="hint" style="cursor:pointer">${R.warn.length} warning${R.warn.length>1?'s':''} (tap to view)</summary><div class="log" style="margin-top:8px;max-height:220px;overflow-y:auto">${R.warn.map(w=>`<div class="hint">${esc(w)}</div>`).join('')}</div></details>`:''}
     ${R.cases.length?`<div class="scroll"><table><thead><tr><th>Name</th><th>MRN</th><th>Date</th><th>Surgery performed</th><th>SSI</th><th>Missing</th></tr></thead><tbody>${R.cases.slice(0,8).map(c=>`<tr class="${c.ssi==='Ya'?'ssi':''}"><td>${esc(c.nama)}</td><td class="mono">${esc(c.mrn||'—')}</td><td>${fmtD(c.tarikhOp)}</td><td>${esc(c.kategori||'—')}</td><td>${c.ssi==='Ya'?'Yes':'No'}</td><td class="num">${complete(c).missing}</td></tr>`).join('')}</tbody></table></div>
      ${R.cases.length>8?`<p class="hint" style="margin:0">Showing 8 of ${R.cases.length}.</p>`:''}
-     <div class="row"><button class="btn pri" data-act="impgo">Import ${R.cases.length} cases</button></div>`:''}`:''}
+     <div class="row"><button class="btn pri" data-act="impgo">Import ${R.cases.length} cases${I.guess?' anyway':''}</button></div>`:''}`:''}
    ${R&&exist?`<p class="flag a" style="margin:0">${exist} patient${exist>1?'s are':' is'} already in the app (same department, date of surgery and MRN or name). They will not be duplicated: data already entered in the app is kept, and only empty fields are filled from Excel.</p>`:''}
    <p class="hint" style="margin:0">Values are converted to the app's options (e.g. YES → Yes, 1030H → 10:30, NOT DONE → Not done). Missing fields show red in the app so liaisons can complete them. The same name with a different surgery date is treated as a separate surgery.</p></div>`;
 }
@@ -1074,9 +1129,11 @@ async function commitImport(){
       let added=0,updated=0;for(let i=0;i<list.length;i+=150){if(btn)btn.textContent=`Saving ${Math.min(i+150,list.length)} / ${list.length}…`;const x=await api('importCases',{cases:list.slice(i,i+150)});added+=x.added||0;updated+=x.updated||0}
       r={added,updated};const before=S.dy;await reloadData(true);
       const ids=new Set(S.cases.map(c=>c.id)),missing=list.filter(c=>!ids.has(c.id)).length;
+      S.lastImp={jab:I.jab,n:list.length,added,updated,at:fmtD(TODAYISO)+' '+new Date().toTimeString().slice(0,5)};S.lj=I.jab;
       S.imp=null;S.dy='Semua';S.dm='Semua';S.cq='';keepY();
       toast(missing?`Warning: ${missing} of ${list.length} cases were not saved. Try importing again.`:`Saved to Google Sheet: ${list.length} cases (${added} new, ${updated} updated)`);return}
     const pos={};S.cases.forEach((c,i)=>pos[c.id]=i);list.forEach(c=>{if(pos[c.id]!=null)S.cases[pos[c.id]]=c;else S.cases.push(c)});
+    S.lastImp={jab:I.jab,n:list.length,added:list.length-M.matched,updated:M.matched,at:fmtD(TODAYISO)};S.lj=I.jab;
     S.imp=null;S.dy='Semua';S.dm='Semua';S.cq='';keepY();toast(`Imported ${list.length} cases · ${list.length-M.matched} new, ${M.matched} already in app`)}
   catch(e){toast('Import failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Import '+list.length+' cases'}}
 }
@@ -1086,6 +1143,166 @@ function downloadTemplate(){
   BULAN.forEach((b,i)=>{const ws=XLSX.utils.aoa_to_sheet([['SSI Data Collection'],['HOSPITAL: KAJANG','','','','','','','BULAN/TAHUN: '+b.toUpperCase()+' '+y],[],TPL_HEAD]);
     ws['!cols']=TPL_HEAD.map((h,j)=>({wch:j===1?28:Math.min(Math.max(h.length,10),22)}));XLSX.utils.book_append_sheet(wb,ws,b.slice(0,3).toUpperCase())});
   try{XLSX.writeFile(wb,`SSI_Data_Collection_Template_${y}.xlsx`);toast('Template downloaded')}catch(e){toast('Download blocked by this browser')}
+}
+
+// ================= BREAKDOWN BY MONTH / YEAR (shared) =================
+function brkHTML(base,DL){
+  base=base.filter(c=>isMon(c)&&(S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm));
+  const rows=S.dy!=='Semua'
+    ?BULAN.map((b,i)=>{const m=String(i+1).padStart(2,'0'),l=base.filter(c=>(c.tarikhOp||'').startsWith(S.dy+'-'+m));return{k:b+' '+S.dy,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,on:S.dm==='Semua'||S.dm===m}}).filter(r=>r.on)
+    :yearsList().slice().reverse().map(y=>{const l=base.filter(c=>(c.tarikhOp||'').startsWith(y));return{k:y+(S.dm==='Semua'?'':' · '+BULAN[+S.dm-1]),n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
+  const t=rows.reduce((a,r)=>({n:a.n+r.n,s:a.s+r.s}),{n:0,s:0});
+  return `<div class="panel stack"><h3>${S.dy!=='Semua'?'By month':'By year'} · ${esc(DL)}${S.dy!=='Semua'?' · '+S.dy:''}</h3><div class="scroll"><table><thead><tr><th>${S.dy!=='Semua'?'Month':'Year'}</th><th class="num">Surgeries monitored</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
+   ${rows.map(r=>`<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num">${r.s?`<b style="color:var(--bad)">${r.s}</b>`:0}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td></tr>`).join('')}
+   <tr class="grp"><td>Total</td><td class="num">${t.n}</td><td class="num">${t.s}</td><td class="num">${t.n?pct(t.s,t.n)+'%':'—'}</td></tr></tbody></table></div></div>`;
+}
+
+// ================= WHATSAPP REMINDER TO DOCTOR IN-CHARGE =================
+function waNum(t){let d=String(t||'').replace(/\D/g,'');if(!d)return'';if(d.startsWith('0'))d='6'+d;else if(!d.startsWith('6'))d='60'+d;return d}
+function missingSecs(c){const m=SECTIONS.filter(s=>!secStat(s,c).ok).map(s=>s.t);if(c.ssi==='Ya'&&!secStat(SSI_SEC,c).ok)m.push('TYPE OF SSI');return m}
+function waLink(c){
+  const n=waNum(c.drTel);if(!n)return'';
+  const ms=missingSecs(c),url=location.origin&&location.origin!=='null'?location.origin:'https://ssitracker.vercel.app';
+  const msg=`Assalamualaikum ${c.drNama?'Dr '+c.drNama:'Dr'},\n\nMohon bantuan melengkapkan data SSI pesakit berikut dalam SSI Tracker HTPN:\n• ${c.nama} (${c.mrn||'-'})\n• Operasi: ${c.kategori||'-'} pada ${fmtD(c.tarikhOp)}\n${ms.length?'• Belum lengkap: '+ms.join(', ')+'\n':''}\nSila log masuk: ${url}\nPilih *Department Liaison* → ${c.jabatan}, masukkan kata laluan jabatan, kemudian cari pesakit di tab *Patients*.\n\nTerima kasih.`;
+  return 'https://wa.me/'+n+'?text='+encodeURIComponent(msg);
+}
+function waBtn(c,sm){const l=waLink(c);return l?`<a class="btn ${sm?'sm':''} wa" href="${l}" target="_blank" rel="noopener">💬 WhatsApp Dr${c.drNama?' '+esc(c.drNama.split(' ')[0]):''}</a>`:''}
+
+// ================= ENTRY FROM OT LIST (photo / PDF / pasted text) =================
+const NAME_STOP=/^(NAME|NAMA|PATIENT|DIAGNOSIS|OPERATION|PROCEDURE|WARD|WAD|SURGEON|ANAES|ANAESTHESIA|GA|SA|LA|OT|DR|HOSPITAL|KAJANG|LIST|SENARAI|DATE|TARIKH|AGE|UMUR|SEX|RN|MRN|IC|NO|REMARKS|CATATAN|ELECTIVE|EMERGENCY|THEATRE|DEWAN|BEDAH|TIME|MASA)$/;
+// HTPN OT list style: each patient cell starts with "NAME :", then MRN and IC NO lines
+function nameAfterLabel(seg){
+  const out=[];const lines=seg.split('\n');
+  for(let i=0;i<lines.length&&i<6;i++){
+    const ln=lines[i].replace(/^[\s\d.,|:;\-–_"“”']+/,'');
+    if(/^(M+RN|RN\b|HTPN|I\s*C\s*N|I\s*C\b|IC\s*NO|1CNO|YENO|AGE\b)/i.test(ln))break;
+    const toks=ln.split(/\s+/),w=[];
+    for(const t of toks){const m=t.match(/^([A-Z][A-Z@'’\/.\-]*)([,:;]?)$/);if(!m)break;const x=m[1].replace(/[.\-]+$/,'');if(x.length>1&&!NAME_STOP.test(x)&&!/^(DSA|DR|MR|MRS|MS|NKDA|NKMI|IV|GA|LA)$/.test(x))w.push(x);if(m[2])break}
+    if(w.length)out.push(w.join(' '));
+  }
+  return out.join(' ').replace(/\s+/g,' ').trim();
+}
+function parseOTLabels(T,jab){
+  const up=T.toUpperCase(),labs=[...up.matchAll(/\bNAME(?!\s*\/)\s*[:\-]?/g)];
+  if(!labs.length)return null;
+  const icRe=/\b(\d{2})(\d{2})(\d{2})[-\s]?(\d{2})[-\s]?(\d{4})\b/,mrnRe=/(?:HTPN\s*K?\s*|\bM*RN\s*[:.]?\s*)(\d{5,8})\b/;
+  const dm=up.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|\d{2})\b/);const gDate=dm?toISO(dm[0]):'';
+  const rows=[],skipped=[];
+  labs.forEach((m,k)=>{
+    const st=m.index+m[0].length,en=k<labs.length-1?labs[k+1].index:up.length,seg=T.slice(st,en),su=up.slice(st,en);
+    if(!mrnRe.test(su)&&!icRe.test(su))return;
+    const c={nama:nameAfterLabel(seg)};
+    const mm=su.match(mrnRe);if(mm)c.mrn='HTPNK'+mm[1];
+    const im=su.match(icRe);if(im&&+im[2]>=1&&+im[2]<=12&&+im[3]>=1&&+im[3]<=31){c.ic=im[1]+im[2]+im[3]+'-'+im[4]+'-'+im[5];c._y=+im[1];c._m=+im[2];c._d=+im[3];c._l=+im[5]}
+    let kat=normProc(jab,'',su);if(!(PROC[jab]||[]).includes(kat)){kat='';for(const ln of su.split('\n')){const k2=normProc(jab,'',ln);if((PROC[jab]||[]).includes(k2)){kat=k2;break}}}
+    const op=(seg.match(/(open reduction[^\n]*|[^\n]*(LSCS|hysterect|TAH|arthroplasty|hernio|cholecyst|thyroid|mastect|colect|AVF|fistula|extraction|removal)[^\n]*)/i)||[])[0]||'';
+    c.kategori=kat;c.prosedur=(op.trim()||kat).slice(0,120);c.tarikhOp=gDate||TODAYISO;
+    if(!c.nama&&!c.mrn&&!c.ic)return;
+    if(kat)rows.push(c);else skipped.push(c.nama||c.mrn||c.ic);
+  });
+  rows.forEach(c=>{if(c.ic){const cy=+TODAYISO.slice(2,4),yr=(c._y>cy?1900:2000)+c._y;c.dob=yr+'-'+String(c._m).padStart(2,'0')+'-'+String(c._d).padStart(2,'0');c.jantina=c._l%2?'Lelaki':'Perempuan';let ag=+c.tarikhOp.slice(0,4)-yr;if(c.tarikhOp.slice(5)<c.dob.slice(5))ag--;if(ag>=0&&ag<120)c.umur=String(ag)}['_y','_m','_d','_l'].forEach(k=>delete c[k])});
+  return rows.length||skipped.length?{rows,skipped}:null;
+}
+function parseOT(text,jab){
+  {const L=parseOTLabels(String(text||'').replace(/\r/g,''),jab);if(L)return L}
+  const T=String(text||'').replace(/\r/g,''),up=T.toUpperCase();
+  const icRe=/\b(\d{2})(\d{2})(\d{2})[-\s]?(\d{2})[-\s]?(\d{4})\b/g, mrnRe=/\b(?:HTPN\s*K?\s*|MRN[:\s]*|RN[:\s]*)(\d{5,8})\b/g;
+  let A=[...up.matchAll(icRe)].map(m=>({i:m.index,e:m.index+m[0].length,ic:m[1]+m[2]+m[3]+'-'+m[4]+'-'+m[5],y:+m[1],mo:+m[2],d:+m[3],last:+m[5]})).filter(a=>a.mo>=1&&a.mo<=12&&a.d>=1&&a.d<=31);
+  if(!A.length)A=[...up.matchAll(mrnRe)].map(m=>({i:m.index,e:m.index+m[0].length}));
+  const dm=up.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);const gDate=dm?toISO(dm[0]):'';
+  const out=[],skipped=[];
+  A.forEach((a,k)=>{
+    // row = the line holding this IC; fall back to text between neighbouring ICs (for OCR that splits cells over lines)
+    const ls=i=>up.lastIndexOf('\n',i-1)+1,le=i=>{const x=up.indexOf('\n',i);return x<0?up.length:x};
+    const prevE=k?A[k-1].e:0,nxt=k<A.length-1?A[k+1]:null;
+    const s0=Math.max(prevE,ls(a.i)),e0=nxt?(ls(nxt.i)>a.e?ls(nxt.i):nxt.i):up.length;
+    let before=up.slice(s0,a.i);const after=up.slice(a.e,e0);
+    const wide=up.slice(k?le(A[k-1].e):0,a.i);
+    const win=before+' '+after;
+    // name: nearest capitalised word group before the IC (prefer BIN/BINTI/A/L/A/P)
+    const cands=[...before.matchAll(/([A-Z][A-Z'@.\/]+(?:[ \t]+[A-Z][A-Z'@.\/]+){1,7})/g)].map(m=>m[1].split(/\s+/).filter(w=>!NAME_STOP.test(w)).join(' ')).filter(x=>x.split(' ').length>=2&&!/LSCS|LAPARO|HERNI|THYROID|MASTECT|CHOLE|ARTHRO|OMF|ORIF|EXCISION|BIOPSY/.test(x));
+    const pref=cands.filter(x=>/\b(BIN|BINTI|BT|BTE|A\/L|A\/P|@)\b/.test(x));
+    let nama=(pref.length?pref[pref.length-1]:cands[cands.length-1])||'';
+    if(!nama&&wide!==before){const cw=[...wide.matchAll(/([A-Z][A-Z'@.\/]+(?:[ \t]+[A-Z][A-Z'@.\/]+){1,7})/g)].map(m=>m[1]).filter(x=>x.split(' ').length>=2&&!NAME_STOP.test(x.split(' ')[0]));const pw=cw.filter(x=>/\b(BIN|BINTI|BT|BTE|A\/L|A\/P|@)\b/.test(x));nama=(pw.length?pw[pw.length-1]:cw[cw.length-1])||''}
+    if(!nama){const c2=[...after.matchAll(/([A-Z][A-Z'@.\/]+(?:[ \t]+[A-Z][A-Z'@.\/]+){1,7})/g)].map(m=>m[1]).filter(x=>/\b(BIN|BINTI|A\/L|A\/P)\b/.test(x));nama=c2[0]||''}
+    // surgery: first line in the window that maps to this department's monitored list
+    const lines=(after+'\n'+before).split(/\n+/).map(x=>x.trim()).filter(Boolean);let kat='',pros='';
+    for(const ln of lines){const k2=normProc(jab,'',ln);if((PROC[jab]||[]).includes(k2)){kat=k2;pros=ln.slice(0,120);break}}
+    const anyProc=lines.some(ln=>{const k3=normProc(jab,'',ln);return k3&&k3!==ln.trim()&&k3!==ln})||/S\s*&\s*C|SUCTION|CURETTAGE|EM\s*-?LSCS|EMLSCS|BIOPSY|EXCISION/.test(win);
+    if(!kat&&!anyProc){const k2=normProc(jab,'',win);if((PROC[jab]||[]).includes(k2))kat=k2}
+    const mm=[...after.matchAll(mrnRe)][0]||[...before.matchAll(mrnRe)][0],dd=win.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/);
+    const c={nama:nama.trim(),ic:a.ic||'',mrn:mm?'HTPNK'+mm[1]:'',tarikhOp:(dd&&toISO(dd[0]))||gDate||TODAYISO,kategori:kat,prosedur:pros||kat};
+    if(a.ic){const cy=+TODAYISO.slice(2,4),yr=(a.y>cy?1900:2000)+a.y;c.dob=yr+'-'+String(a.mo).padStart(2,'0')+'-'+String(a.d).padStart(2,'0');c.jantina=a.last%2?'Lelaki':'Perempuan';
+      if(c.dob){let ag=+c.tarikhOp.slice(0,4)-yr;if(c.tarikhOp.slice(5)<c.dob.slice(5))ag--;if(ag>=0&&ag<120)c.umur=String(ag)}}
+    if(!c.nama&&!c.ic)return;
+    if(kat)out.push(c);else skipped.push(c.nama||c.ic);
+  });
+  return {rows:out,skipped};
+}
+function otPanel(){
+  const O=S.ot||{},jab=(S.draft&&S.draft.jabatan)||S.user.jabatan;
+  return `<div class="panel stack">
+   <div><h2>Add from OT list</h2><p class="hint" style="margin:.2em 0 0">Take a photo of the OT list, upload a PDF, or paste the text. The app finds name, IC, MRN and surgery, and keeps only surgeries monitored by ${esc(jab)}.</p></div>
+   <div class="row"><button type="button" class="btn pri" data-act="otcam">📷 Take photo</button><button type="button" class="btn" data-act="otup">📄 Upload PDF / image</button></div>
+   <p class="hint" style="margin:0">Tip: a <b>PDF of the OT list</b> gives the most accurate result.</p>
+   <input type="file" id="otcam" accept="image/*" capture="environment" hidden><input type="file" id="otfile" accept="image/*,application/pdf" hidden>
+   ${O.tips?`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="tipsT"><div class="modalc stack"><h3 id="tipsT">📷 Before you take the photo</h3>
+    <ul class="tips"><li>Hold the phone <b>straight above</b> the page. Fit the whole page, not tilted.</li><li><b>Bright light</b>, no shadow and no glare.</li><li>Keep it <b>in focus</b>. Zoom in to check the text is sharp before sending.</li><li><b>One photo per page.</b></li></ul>
+    <p class="hint" style="margin:0">If the PDF of the OT list is available, upload it instead for the most accurate result.</p>
+    <div class="row"><button type="button" class="btn pri" data-act="otcamgo">OK, take photo</button><button type="button" class="btn" data-act="otupgo">Upload PDF instead</button><button type="button" class="btn ghost" data-act="otx">Cancel</button></div></div></div>`:''}
+   <details ${O.showPaste?'open':''}><summary class="hint" style="cursor:pointer">Or paste text instead</summary>
+    <textarea id="ottext" placeholder="Paste the OT list text here" style="margin-top:8px">${esc(O.text||'')}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-act="otparse">Read text</button></div></details>
+   ${O.busy?'<p class="hint">Reading the OT list… (may take up to 30 seconds)</p>':''}${O.err?`<p class="flag b" style="margin:0">${esc(O.err)}</p>`:''}
+   ${O.rows?`${(()=>{const miss=O.rows.filter(r=>!r.nama||!r.ic||!r.mrn).length;
+     return !O.rows.length?`<div class="flag b" style="margin:0">The app could not find any monitored surgery in this ${O.src==='pdf'?'file':'photo'}. ${O.src!=='pdf'?'Retake the photo following the tips, or <b>upload the PDF of the OT list</b> for a more accurate result.':'Check the department is correct, or paste the text.'}</div>`
+     :miss?`<div class="flag w" style="margin:0">⚠ ${miss} patient${miss>1?'s have':' has'} details the app could not read (<b style="color:var(--bad)">red boxes</b>). Please fill them in before adding${O.src!=='pdf'?', or <b>upload the PDF of the OT list</b> for a more accurate result':''}.</div>`
+     :`<div class="flag g" style="margin:0">✓ All details found. Please still check each row before adding.</div>`})()}
+    <div class="calcbox"><div><b>${O.rows.length}</b><span>Monitored surgeries found</span></div><div><b>${O.skipped.length}</b><span>Not monitored (left out)</span></div><div><b>${O.rows.filter(r=>r.dup).length}</b><span>Already in app</span></div></div>
+    ${O.rows.length?`<p class="hint" style="margin:0">Check every row before adding. Untick rows you do not want, correct any wrong text.</p>
+    <div class="scroll"><table class="ot"><thead><tr><th>Add</th><th>Name</th><th>IC No.</th><th>MRN</th><th>Date of surgery</th><th>Surgery performed</th></tr></thead><tbody>
+    ${O.rows.map((r,i)=>`<tr class="${r.dup?'dupr':''}"><td><input type="checkbox" data-otc="${i}" ${r.on?'checked':''}>${r.dup?'<br><span class="hint">in app</span>':''}</td>
+     <td><input data-otf="${i}:nama" class="${r.nama?'':'miss'}" placeholder="${r.nama?'':'Not read – fill in'}" value="${esc(r.nama)}"></td><td><input data-otf="${i}:ic" class="${r.ic?'':'miss'}" placeholder="${r.ic?'':'Not read – fill in'}" value="${esc(r.ic)}"></td><td><input data-otf="${i}:mrn" class="${r.mrn?'':'miss'}" placeholder="${r.mrn?'':'Not read – fill in'}" value="${esc(r.mrn)}"></td>
+     <td><input type="date" data-otf="${i}:tarikhOp" value="${esc(r.tarikhOp)}"></td>
+     <td><select data-otf="${i}:kategori">${(PROC[jab]||[]).map(p=>`<option ${p===r.kategori?'selected':''}>${esc(p)}</option>`).join('')}</select><div class="hint">${esc(r.prosedur||'')}</div></td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-act="otadd">Add ${O.rows.filter(r=>r.on).length} patients</button><button class="btn" data-act="otclear">Clear</button></div>
+    <p class="hint" style="margin:0">Added patients are saved with the details found. Their sections stay red until you complete the rest (pre-op, intra-op, post-op).</p>`:'<div class="empty">No monitored surgeries were found. Check the photo is clear, or paste the text.</div>'}
+    ${O.skipped.length?`<details><summary class="hint" style="cursor:pointer">${O.skipped.length} not monitored (tap to view)</summary><p class="hint">${O.skipped.map(esc).join(' · ')}</p></details>`:''}`:''}
+  </div>`;
+}
+function otApply(text){
+  const jab=(S.draft&&S.draft.jabatan)||S.user.jabatan,R=parseOT(text,jab);
+  R.rows.forEach(r=>{r.jabatan=jab;r.dup=!!findExisting(r);r.on=!r.dup});
+  S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:''});keepY();
+}
+function otRead(file){
+  if(!file)return;
+  const isPdf=/pdf/i.test(file.type)||/\.pdf$/i.test(file.name);
+  S.ot=Object.assign(S.ot||{},{busy:true,err:'',rows:null,tips:false,src:isPdf?'pdf':'photo'});keepY();
+  const send=(b64,mime)=>{if(typeof api!=='function'){S.ot.busy=false;S.ot.err='Photo/PDF reading works on the live app. In this preview, paste the text instead.';S.ot.showPaste=true;keepY();return}
+    api('ocrFile',{data:b64,mime,name:file.name}).then(r=>otApply(r.text)).catch(e=>{S.ot.busy=false;S.ot.err='Could not read the file: '+e.message+'. '+(isPdf?'Try again, or paste the text.':'Retake the photo following the tips, or upload the PDF of the OT list for a more accurate result.');S.ot.showPaste=true;keepY()})};
+  if(isPdf){if(file.size>10e6){S.ot.busy=false;S.ot.err='PDF is larger than 10 MB.';keepY();return}const fr=new FileReader();fr.onload=()=>send(String(fr.result).split(',')[1],'application/pdf');fr.readAsDataURL(file);return}
+  const img=new Image(),u=URL.createObjectURL(file);
+  img.onload=()=>{const k=Math.min(1,2200/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(u);send(cv.toDataURL('image/jpeg',.88).split(',')[1],'image/jpeg')};
+  img.onerror=()=>{S.ot.busy=false;S.ot.err='This image could not be opened.';keepY()};img.src=u;
+}
+async function otAdd(){
+  const O=S.ot,jab=(S.draft&&S.draft.jabatan)||S.user.jabatan;if(!O||!O.rows)return;
+  const list=O.rows.filter(r=>r.on&&r.nama&&r.tarikhOp).map(r=>{const c={id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),jabatan:jab,ssi:'Tiada',susulan:[]};
+    ['nama','ic','mrn','dob','umur','jantina','tarikhOp','kategori','prosedur'].forEach(k=>{if(r[k])c[k]=k==='nama'?r[k].toUpperCase():r[k]});return c});
+  if(!list.length){toast('Tick at least one patient with a name');return}
+  const btn=$('[data-act="otadd"]');if(btn){btn.disabled=true;btn.textContent='Saving…'}
+  try{if(typeof api==='function'){await api('importCases',{cases:list});await reloadData(true)}else list.forEach(c=>S.cases.push(c));
+    S.ot=null;S.mode='manual';S.tab=S.user.role==='liaison'?'pesakit':'kes';S.pf='kosong';S.py='Semua';S.pm='Semua';render();scrollTo(0,0);toast(`${list.length} patients added · complete their details`)}
+  catch(e){toast('Not saved: '+e.message);if(btn){btn.disabled=false;btn.textContent='Add patients'}}
+}
+// Which department does an imported file look like?
+function guessDept(I){
+  if(!I||!I.wb)return null;const cnt={};
+  JAB.forEach(j=>{try{cnt[j]=parseWorkbook(I.wb,j,{autoClose:false,skipOther:true}).cases.length}catch(e){cnt[j]=0}});
+  const best=JAB.reduce((a,b)=>cnt[b]>cnt[a]?b:a);
+  return best!==I.jab&&cnt[best]>=3&&cnt[best]>cnt[I.jab]*1.5?{best,n:cnt[best],mine:cnt[I.jab]}:null;
 }
 
 // ================= EVENTS =================
@@ -1108,6 +1325,9 @@ document.addEventListener('click',e=>{
     return}
   if(D.fu){S.fu.cara=D.fu;S.fu.t=$('#fu_t').value;S.fu.nota=$('#fu_n').value;keepY();return}
   if(D.pf){S.pf=D.pf;render();return}
+  if(D.mode){S.mode=D.mode;render();return}
+  if(D.lj){S.lj=D.lj;S.lim=50;if(S.lk&&S.lk!=='Semua'&&S.lk!=='_not'&&D.lj!=='Semua'&&!PROC[D.lj].includes(S.lk))S.lk='Semua';keepY();return}
+  if(D.otc!==undefined){S.ot.rows[+D.otc].on=!S.ot.rows[+D.otc].on;return}
   if(D.ijab){S.imp.jab=D.ijab;impReparse();keepY();return}
   if(D.sheet){S.rsheet=D.sheet;keepY();return}
   if(D.rm){const m=D.rm;S.rmonths=S.rmonths.includes(m)?S.rmonths.filter(x=>x!==m):[...S.rmonths,m].sort();S.mail=null;keepY();return}
@@ -1152,6 +1372,16 @@ document.addEventListener('click',e=>{
     const done=()=>{S.cases=S.cases.filter(x=>x.id!==id);S.cur=null;S.delAsk=false;S.formv=false;render();scrollTo(0,0);toast((c?c.nama:'Patient')+' deleted')};
     if(typeof api==='function')api('deleteCase',{id}).then(done).catch(e=>toast('Not deleted: '+e.message));else done()}
   if(a==='reload')reloadData(false);
+  if(a==='lmore'){S.lim=(S.lim||50)+50;$('#cqres').innerHTML=allRes()}
+  if(a==='lreset'){Object.assign(S,{lj:'Semua',ly:'Semua',lm:'Semua',lk:'Semua',ls:'Semua',cq:'',lim:50});keepY()}
+  if(a==='limpx'){S.lastImp=null;keepY()}
+  if(a==='otparse'){const t=$('#ottext').value;if(!t.trim()){toast('Paste the OT list text first');return}otApply(t)}
+  if(a==='otclear'){S.ot=null;keepY()}
+  if(a==='otcam'){S.ot=Object.assign(S.ot||{},{tips:true});keepY()}
+  if(a==='otx'){S.ot.tips=false;keepY()}
+  if(a==='otcamgo'){const i=$('#otcam');S.ot.tips=false;i&&i.click();setTimeout(()=>{const m=$('.modal');m&&m.remove()},0)}
+  if(a==='otupgo'||a==='otup'){const i=$('#otfile');if(S.ot)S.ot.tips=false;i&&i.click();setTimeout(()=>{const m=$('.modal');m&&m.remove()},0)}
+  if(a==='otadd')otAdd();
   if(a==='remtog'){S.remOpen=!S.remOpen;keepY()}
   if(a==='seepend'){S.tab='pesakit';S.pf='sah';S.py='Semua';S.pm='Semua';render();scrollTo(0,0)}
   if(a==='close1'){S.closeAsk=true;keepY()}
@@ -1183,10 +1413,14 @@ document.addEventListener('input',e=>{
     T.classList.toggle('miss',(T.dataset.s==='sd'?reqAll(S.sd):reqFields(S.draft)).includes(k)&&T.value==='');
     liveCalc();return}
   if(T.id==='q'){S.q=T.value;$('#qres').innerHTML=searchRes(S.q,myCases());return}
-  if(T.id==='cq'){S.cq=T.value;$('#cqres').innerHTML=allRes();return}
+  if(T.id==='cq'){S.cq=T.value;S.lim=50;$('#cqres').innerHTML=allRes();return}
 });
 document.addEventListener('change',e=>{
   const T=e.target,id=T.id;
+  if(['lyS','lmS','lkS','lsS'].includes(id)){S[{lyS:'ly',lmS:'lm',lkS:'lk',lsS:'ls'}[id]]=T.value;S.lim=50;keepY();return}
+  if(id==='otfile'||id==='otcam'){otRead(T.files[0]);return}
+  if(T.dataset.otf){const [i,k]=T.dataset.otf.split(':');S.ot.rows[+i][k]=T.value;T.classList.toggle('miss',!T.value&&['nama','ic','mrn'].includes(k));return}
+  if(T.dataset.otc!==undefined){S.ot.rows[+T.dataset.otc].on=T.checked;const b=$('[data-act="otadd"]');if(b)b.textContent='Add '+S.ot.rows.filter(r=>r.on).length+' patients';return}
   if(id==='impfile'){impRead(T.files[0]);return}
   if((id==='impauto'||id==='impskip')&&S.imp){S.imp[id==='impauto'?'autoClose':'skipOther']=T.checked;impReparse();keepY();return}
   if(id==='ljab'){S.ljab=T.value;S.lerr='';render();return}
