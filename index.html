@@ -47,11 +47,14 @@ button{font:inherit;cursor:pointer;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .preview{background:var(--warn-soft);color:var(--warn);font-size:.78rem;font-weight:700;padding:5px 16px;text-align:center}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:3px solid var(--lime);box-shadow:0 2px 10px rgba(15,90,32,.08)}
-.top .in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:10px 16px;flex-wrap:wrap}
+.top .in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
+@media(max-width:560px){.brand .lg-s{width:46px;height:46px}.brand h1{font-size:1.25rem}.brand small{font-size:.76rem}}
+.ai .aitxt ul{margin:.3em 0 .8em;padding-left:1.2em;line-height:1.55}.ai .aitxt li{margin:.25em 0}.ai .up{color:var(--bad)}.ai .dn{color:var(--accent)}
+
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
-.brand .lg-s{width:42px;height:42px;border-radius:50%;flex:none;object-fit:cover;background:#fff}
-.brand h1{font-size:1.1rem;line-height:1.1;color:var(--deep)}
-.brand small{display:block;font-size:.72rem;color:var(--muted);font-weight:600}
+.brand .lg-s{width:58px;height:58px;border-radius:50%;flex:none;object-fit:cover;background:#fff}
+.brand h1{font-size:1.5rem;line-height:1.1;color:var(--deep)}
+.brand small{display:block;font-size:.85rem;color:var(--muted);font-weight:600}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:700}
 .btn.pri{background:linear-gradient(90deg,var(--accent),#3ea33b);color:var(--accent-ink);border-color:var(--accent)}
 .btn.danger{color:var(--bad);border-color:var(--bad)}
@@ -613,10 +616,11 @@ function liaisonDash(){
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
+   ${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah})}
    ${dayPanel(ssiM,S.user.jabatan)}
+   ${trendPanel(mine.filter(c=>isMon(c)&&rfOk(c)),S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
    ${riskPanel(base,S.user.jabatan)}
-   <div class="panel"><h3>Monthly: surgeries & SSI cases</h3>${trendYear(mine.filter(isMon))}</div>
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
 }
@@ -753,14 +757,15 @@ function coordDash(){
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
+   ${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
    ${dayPanel(ssiL,DL)}
+   ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
    ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
    ${riskPanel(base,DL)}
    ${D==='Semua'?`<div class="panel stack"><h3>By department · ${ML}</h3><div class="scroll"><table><thead><tr><th>Department</th><th class="num">Surgeries</th><th class="num">SSI</th><th class="num">Rate</th><th>Complete</th><th class="num">To confirm</th><th>JKNS</th></tr></thead><tbody>
     ${perJ.map(r=>`<tr><td><b>${esc(r.j)}</b></td><td class="num">${r.n}</td><td class="num">${r.s}</td><td class="num">${r.n?pct(r.s,r.n)+'%':'—'}</td><td><span class="pill ${r.f===r.n?'g':'w'}">${r.f}/${r.n}</span></td><td class="num">${r.sah}</td>
      <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:''}
    <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
-   <div class="panel"><h3>Monthly trend · ${esc(DL)}</h3>${trendYear(S.cases.filter(c=>isMon(c)&&inD(c)))}</div>
    <div class="panel stack"><h3>SSI bundle compliance · ${esc(DL)}</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
    ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
   </div>`;
@@ -1204,6 +1209,68 @@ function dayPanel(ssiL,DL){
    :'<div class="empty">No SSI cases for this selection.</div>'}</div>`;
 }
 
+
+// ================= TREND (monthly for one year; yearly when "All years") =================
+function trendPanel(src,DL){
+  if(S.dy!=='Semua')return `<div class="panel"><h3>Monthly trend · ${esc(DL)}</h3>${trendYear(src)}</div>`;
+  const l0=src.filter(c=>S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm);
+  const ys=[...new Set(l0.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean))].sort();
+  if(!ys.length)return `<div class="panel"><h3>Yearly trend · ${esc(DL)}</h3><div class="empty">No surgeries recorded.</div></div>`;
+  const data=ys.map(y=>{const l=l0.filter(c=>(c.tarikhOp||'').startsWith(y));const s=l.filter(c=>c.ssi==='Ya').length;return{y,n:l.length,s,r:pct(s,l.length)}});
+  const max=Math.max(1,...data.map(d=>d.n)),rmax=Math.max(1,...data.map(d=>d.r));
+  return `<div class="panel stack"><h3>Yearly trend · ${esc(DL)}${S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''}</h3>
+   <p class="hint" style="margin:-6px 0 0">Surgeries monitored and SSI cases per year. Choose a year above to see its monthly trend.</p>
+   <div class="trend" style="grid-template-columns:repeat(${data.length},minmax(0,90px));justify-content:center">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
+    <span class="pill ${d.s?'b':'n'}">${d.s} SSI</span><span class="tlab">${d.y}</span></div>`).join('')}</div>
+   <div><span class="flabel">SSI rate by year</span><div class="stack" style="gap:6px;margin-top:6px">${data.map(d=>`<div class="bar"><span>${d.y}</span><div class="trk"><i class="lo" style="width:${d.r/rmax*100}%"></i></div><span class="v">${d.r}%</span></div>`).join('')}</div></div></div>`;
+}
+
+// ================= SMART ANALYSIS (computed in the app from the filtered data) =================
+function aiPanel(list,src,ctx){
+  const head=`<div class="panel stack ai"><div class="row between"><h3>✨ Smart analysis · ${esc(ctx.DL)} · ${esc(ctx.ML)}</h3><div class="row">${S.ai?`<button class="btn sm" data-aicopy="1">Copy text</button><button class="btn sm" data-ai="0">Hide</button>`:`<button class="btn sm primary" data-ai="1">✨ Analyse this selection</button>`}</div></div>`;
+  if(!S.ai)return head+`<p class="hint" style="margin:-4px 0 0">Reads the data you have filtered (year, month, department, risk factor) and writes key findings and suggested actions. Calculated inside the app; no patient data is sent anywhere.</p></div>`;
+  const F=[],A=[],n=list.length,ssiL=list.filter(c=>c.ssi==='Ya'),s=ssiL.length,r=pct(s,n);
+  const rate=l=>pct(l.filter(c=>c.ssi==='Ya').length,l.length);
+  if(!n)return head+`<div class="empty">No monitored surgeries in this selection.</div></div>`;
+  F.push(`<b>${n}</b> monitored surgeries with <b>${s}</b> SSI case${s===1?'':'s'}, an SSI rate of <b>${r}%</b>${ctx.rf?` (only surgeries with ${esc(ctx.rf)})`:''}.`);
+  // Comparison with previous period
+  if(S.dy!=='Semua'){const py=String(+S.dy-1),pl=src.filter(c=>pMatch(c,py,S.dm));
+    if(pl.length){const pr=rate(pl),d=Math.round((r-pr)*10)/10;F.push(`Compared with the same period in ${py} (${pl.length} surgeries, ${pr}%), the SSI rate is ${d>0?`<b class="up">up ${d} points</b>`:d<0?`<b class="dn">down ${-d} points</b>`:'unchanged'}.`)}}
+  else{const l0=src.filter(c=>S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm),ys=[...new Set(l0.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean))].sort();
+    if(ys.length>1){const yr=ys.map(y=>{const l=l0.filter(c=>(c.tarikhOp||'').startsWith(y));return{y,n:l.length,r:rate(l)}});
+      const hi=yr.reduce((a,b)=>b.r>a.r?b:a),last=yr[yr.length-1],prev=yr[yr.length-2],d=Math.round((last.r-prev.r)*10)/10;
+      F.push(`Yearly SSI rate: ${yr.map(x=>`${x.y} ${x.r}%`).join(' → ')}. Highest in <b>${hi.y}</b>. ${last.y} vs ${prev.y}: ${d>0?`<b class="up">up ${d} points</b>`:d<0?`<b class="dn">down ${-d} points</b>`:'unchanged'}${last.y===TODAYISO.slice(0,4)?' (current year, still in progress)':''}.`)}}
+  // Department
+  if(ctx.depts.length>1){const dj=ctx.depts.map(j=>{const l=list.filter(c=>c.jabatan===j);return{j,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,r:rate(l)}}).filter(x=>x.n);
+    const top=dj.filter(x=>x.s).sort((a,b)=>b.r-a.r);if(top.length)F.push(`Highest SSI rate by department: <b>${esc(top[0].j)}</b> ${top[0].r}% (${top[0].s}/${top[0].n})${top[1]?`, then ${esc(top[1].j)} ${top[1].r}%`:''}.`)}
+  // Surgery type
+  const tp={};list.forEach(c=>{const k=c.jabatan+' · '+(c.kategori||'—');(tp[k]=tp[k]||[]).push(c)});
+  const tt=Object.entries(tp).map(([k,l])=>({k,n:l.length,s:l.filter(c=>c.ssi==='Ya').length})).filter(x=>x.s).map(x=>({...x,r:pct(x.s,x.n)}));
+  if(tt.length){const most=tt.slice().sort((a,b)=>b.s-a.s)[0],hr=tt.filter(x=>x.n>=5).sort((a,b)=>b.r-a.r)[0];
+    F.push(`Most SSI cases: <b>${esc(most.k)}</b> (${most.s} of ${most.n}, ${most.r}%).${hr&&hr.k!==most.k?` Highest rate among surgeries with ≥5 cases: <b>${esc(hr.k)}</b> ${hr.r}% (${hr.s}/${hr.n}).`:''}`)}
+  // Risk factors
+  const rk=RISK.map(R=>{const rec=list.filter(R[1]),w=rec.filter(R[2]),wo=rec.filter(c=>!R[2](c));const sw=w.filter(c=>c.ssi==='Ya').length;return{name:R[0],w:w.length,N:rec.length,sw,rw:rate(w),rwo:rate(wo),p:pct(w.length,rec.length)}});
+  const strong=rk.filter(x=>x.w>=3&&x.sw>0&&x.rw>x.rwo).sort((a,b)=>(b.rw-b.rwo)-(a.rw-a.rwo)).slice(0,3);
+  if(!ctx.rf&&strong.length)F.push(`Risk factors linked with higher SSI: ${strong.map(x=>`<b>${esc(x.name)}</b> ${x.rw}% vs ${x.rwo}% without (${x.sw} SSI in ${x.w} surgeries)`).join('; ')}.`);
+  const MOD={'No pre-op bathing':'Reinforce pre-op bathing / chlorhexidine wash before surgery.','Hair removal by shaving':'Replace shaving with clipping (or no hair removal).','Skin prep not chlorhexidine':'Use chlorhexidine-alcohol for skin preparation.','Prophylaxis not given':'Check prophylactic antibiotic is given where indicated.','Prophylaxis > 60 min before incision':'Time prophylaxis within 60 minutes before incision.','Post-op antibiotic ≥ 24 h':'Stop post-op prophylaxis within 24 hours.','Uncontrolled sugar (>11.1)':'Optimise peri-operative glucose control.'};
+  rk.filter(x=>MOD[x.name]&&x.N>=5&&x.p>=20).sort((a,b)=>b.p-a.p).forEach(x=>A.push(`<b>${esc(x.name)}</b> in ${x.p}% of surgeries (${x.w}/${x.N}). ${MOD[x.name]}`));
+  // Day of SSI & type
+  if(s){const dd=ssiL.map(ssiDay).filter(x=>x!=null).sort((a,b)=>a-b);
+    if(dd.length){const med=dd[Math.floor((dd.length-1)/2)],early=dd.filter(x=>x<=7).length,late=dd.filter(x=>x>14).length;
+      F.push(`SSI identified at a median of <b>day ${med}</b> post-op (range ${dd[0]}–${dd[dd.length-1]}). ${early} of ${dd.length} within the first week; ${late} after day 14${late?' — post-discharge follow-up is picking these up, keep it going':''}.`)}
+    const nr=s-dd.length;if(nr)A.push(`${nr} SSI case${nr>1?'s have':' has'} no date SSI identified. Ask the liaison to complete it.`);
+    const ty=['Superficial incisional','Deep incisional','Organ/space'].map(t=>[t,ssiL.filter(c=>c.tapak===t).length]).filter(t=>t[1]).sort((a,b)=>b[1]-a[1]),unc=s-ty.reduce((a,t)=>a+t[1],0);
+    if(ty.length)F.push(`Type of SSI: ${ty.map(t=>`${t[0]} ${t[1]}`).join(', ')}${unc?`, not classified ${unc}`:''}.`);
+    if(unc)A.push(`${unc} SSI case${unc>1?'s are':' is'} not classified (superficial / deep / organ-space). Complete the Type of SSI section.`)}
+  else F.push('No SSI cases in this selection.');
+  // Data quality
+  const full=pct(list.filter(c=>complete(c).pct===100).length,n);if(full<80)A.push(`Only ${full}% of records are complete. Incomplete risk-factor fields make the analysis less reliable.`);
+  if(ctx.pend)A.push(`${ctx.pend} patient${ctx.pend>1?'s have':' has'} finished surveillance and still need SSI / no SSI confirmation.`);
+  const cav=n<30||s<5?`<p class="hint" style="margin:0">Small numbers (${n} surgeries, ${s} SSI): one case changes the rate a lot, so read trends with caution.</p>`:'';
+  return head+`<div id="aiText" class="aitxt"><span class="flabel">Key findings</span><ul>${F.map(x=>`<li>${x}</li>`).join('')}</ul>
+   ${A.length?`<span class="flabel">Suggested actions</span><ul>${A.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div>${cav}</div>`;
+}
+
 // ================= SURGERY TYPES (expandable to patient & procedure detail) =================
 function procTable(list,depts,title){
   const row=(j,p)=>{const l=list.filter(c=>c.jabatan===j&&c.kategori===p),n=l.length,sN=l.filter(c=>c.ssi==='Ya').length,key=j+'|'+p,op=S.opx===key;
@@ -1325,7 +1392,7 @@ function otPanel(){
     <div class="row" style="margin-top:8px"><button class="btn sm" data-act="otparse">Read text</button></div></details>
    ${O.busy?'<p class="hint">Reading the OT list… (may take up to 30 seconds)</p>':''}${O.err?`<p class="flag b" style="margin:0">${esc(O.err)}</p>`:''}
    ${O.rows?`${(()=>{const miss=O.rows.filter(r=>!r.nama||!r.ic||!r.mrn).length;
-     return !O.rows.length?`<div class="flag b" style="margin:0">The app could not find any monitored surgery in this ${O.src==='pdf'?'file':'photo'}. ${O.src!=='pdf'?'Retake the photo following the tips, or <b>upload the PDF of the OT list</b> for a more accurate result.':'Check the department is correct, or paste the text.'}</div>`
+     return !O.rows.length?`<div class="flag b" style="margin:0">The app could not find any monitored surgery in this ${O.src==='pdf'?'file':'photo'}. ${O.src!=='pdf'?'Retake the photo following the tips, or <b>upload the PDF of the OT list</b> for a more accurate result.':'Check the department is correct, or paste the text.'}${O.text?`<br><span style="font-weight:600">The text the app read is shown in the box above${O.skipped&&O.skipped.length?` (${O.skipped.length} surgeries found but not monitored by ${esc((S.draft&&S.draft.jabatan)||S.user.jabatan)})`:''}. You can correct it and tap <b>Read text</b>.</span>`:''}</div>`
      :miss?`<div class="flag w" style="margin:0">⚠ ${miss} patient${miss>1?'s have':' has'} details the app could not read (<b style="color:var(--bad)">red boxes</b>). Please fill them in before adding${O.src!=='pdf'?', or <b>upload the PDF of the OT list</b> for a more accurate result':''}.</div>`
      :`<div class="flag g" style="margin:0">✓ All details found. Please still check each row before adding.</div>`})()}
     <div class="calcbox"><div><b>${O.rows.length}</b><span>Monitored surgeries found</span></div><div><b>${O.skipped.length}</b><span>Not monitored (left out)</span></div><div><b>${O.rows.filter(r=>r.dup).length}</b><span>Already in app</span></div></div>
@@ -1343,14 +1410,21 @@ function otPanel(){
 function otApply(text){
   const jab=(S.draft&&S.draft.jabatan)||S.user.jabatan,R=parseOT(text,jab);
   R.rows.forEach(r=>{r.jabatan=jab;r.dup=!!findExisting(r);r.on=!r.dup});
-  S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:''});keepY();
+  S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:'',showPaste:!R.rows.length});keepY();
+}
+function ocrErr(m,isPdf){
+  if(/OCR_SETUP/.test(m))return 'Photo/PDF reading is not switched on in the server yet (Drive API service). Coordinator: open Apps Script → Services (+) → Drive API → v3 → Add, then Deploy → New version.';
+  if(/OCR_AUTH/.test(m))return 'The server has no permission to read photos yet. Coordinator: in Apps Script select the function testOCR → Run → Allow, then Deploy → New version.';
+  if(/Unknown action/.test(m))return 'The server code is an old version. Coordinator: paste the latest Code.gs, then Deploy → Manage deployments → Edit → New version.';
+  if(/No connection/.test(m))return m;
+  return 'Could not read the file: '+m+'. '+(isPdf?'Try again, or paste the text.':'Retake the photo following the tips, or upload the PDF of the OT list for a more accurate result.');
 }
 function otRead(file){
   if(!file)return;
   const isPdf=/pdf/i.test(file.type)||/\.pdf$/i.test(file.name);
   S.ot=Object.assign(S.ot||{},{busy:true,err:'',rows:null,tips:false,src:isPdf?'pdf':'photo'});keepY();
   const send=(b64,mime)=>{if(typeof api!=='function'){S.ot.busy=false;S.ot.err='Photo/PDF reading works on the live app. In this preview, paste the text instead.';S.ot.showPaste=true;keepY();return}
-    api('ocrFile',{data:b64,mime,name:file.name}).then(r=>otApply(r.text)).catch(e=>{S.ot.busy=false;S.ot.err='Could not read the file: '+e.message+'. '+(isPdf?'Try again, or paste the text.':'Retake the photo following the tips, or upload the PDF of the OT list for a more accurate result.');S.ot.showPaste=true;keepY()})};
+    api('ocrFile',{data:b64,mime,name:file.name}).then(r=>{const t=String(r.text||'').trim();if(!t){S.ot.busy=false;S.ot.err=isPdf?'No text was found in this PDF. If it is a scanned PDF, try a clearer copy or paste the text.':'No text could be read from this photo. Retake it closer, straight and in bright light, or upload the PDF of the OT list.';S.ot.showPaste=true;keepY();return}otApply(t)}).catch(e=>{S.ot.busy=false;S.ot.err=ocrErr(e.message,isPdf);S.ot.showPaste=true;keepY()})};
   if(isPdf){if(file.size>10e6){S.ot.busy=false;S.ot.err='PDF is larger than 10 MB.';keepY();return}const fr=new FileReader();fr.onload=()=>send(String(fr.result).split(',')[1],'application/pdf');fr.readAsDataURL(file);return}
   const img=new Image(),u=URL.createObjectURL(file);
   img.onload=()=>{const k=Math.min(1,2200/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
@@ -1396,6 +1470,8 @@ document.addEventListener('click',e=>{
   if(D.fu){S.fu.cara=D.fu;S.fu.t=$('#fu_t').value;S.fu.nota=$('#fu_n').value;keepY();return}
   if(D.pf){S.pf=D.pf;render();return}
   if(D.rf!==undefined){S.rf=D.rf;keepY();return}
+  if(D.ai!==undefined){S.ai=D.ai==='1';keepY();return}
+  if(D.aicopy){const el=$('#aiText');const txt=el?el.innerText:'';(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Analysis copied'),()=>{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Analysis copied')}catch(e){}ta.remove()});return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
   if(D.mode){S.mode=D.mode;render();return}
