@@ -55,6 +55,7 @@ button{font:inherit;cursor:pointer;color:inherit}
 .tpill{border:0;cursor:pointer;font-family:inherit}.tpill:hover,.tpill.on{outline:2px solid var(--bad);outline-offset:1px}
 .plong{max-height:460px;overflow-y:auto}
 @media(max-width:640px){.trend .ssiw{display:none}.trend .pill{padding:2px 6px;font-size:.7rem}.trend{gap:3px}}
+.wcl{font-weight:700;color:var(--deep)}
 .tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
@@ -578,7 +579,7 @@ function fieldHTML(f,c,scope){
 function caseRow(c,showJab){
   const cp=complete(c),st=status(c);
   return `<button class="case" data-open="${c.id}"><div><div class="t">${esc(c.nama)}</div>
-   <div class="hint"><span class="mono">${esc(c.mrn)}</span> · ${fmtD(c.tarikhOp)} · ${esc(c.kategori||'—')}${showJab?' · '+esc(c.jabatan):''}</div></div>
+   <div class="hint"><span class="mono">${esc(c.mrn)}</span> · ${fmtD(c.tarikhOp)} · ${esc(c.kategori||'—')}${c.jenisLuka?' · '+esc(c.jenisLuka):''}${showJab?' · '+esc(c.jabatan):''}</div></div>
    <div class="tags">${isMon(c)?'':'<span class="pill w">Not monitored · excluded</span>'}${c.ssi==='Ya'?(reqAll(c).some(k=>c[k]===undefined||c[k]==='')?'<span class="pill w">SSI form incomplete</span>':'<span class="pill g">SSI form complete</span>'):(cp.pct<100?`<span class="pill n">${cp.missing} fields empty</span>`:'')}<span class="pill ${st.k}">${st.t}</span></div></button>`;
 }
 function pendRow(c){const p=survDays(c);
@@ -666,11 +667,11 @@ function entryView(){
    <button class="btn pri" data-act="save">Save</button></div></div></div>`;
 }
 function patientsView(){
-  const f=S.pf,mine=myCases().filter(c=>pMatch(c,S.py,S.pm));
+  const f=S.pf,mine=myCases().filter(c=>pMatch(c,S.py,S.pm)&&wOk(c,S.pw));
   const cnt=k=>k==='Semua'?mine.length:k==='kosong'?mine.filter(c=>complete(c).pct<100).length:mine.filter(c=>status(c).key===k).length;
   const opts=[['Semua','All'],['aktif','In surveillance'],['sah','Needs confirmation'],['ssi','SSI'],['selesai','Completed'],['kosong','Incomplete']];
   const l=mine.filter(c=>f==='Semua'||(f==='kosong'?complete(c).pct<100:status(c).key===f)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
-  return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}</div></div>
+  return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}<select class="inline" id="pwS" aria-label="Type of surgery"><option value="Semua">All types</option>${[['Clean','Clean'],['Clean contaminated','Clean contaminated'],['Contaminated','Contaminated'],['_none','Not recorded']].map(([v,l])=>`<option value="${v}" ${S.pw===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
    <div class="chips">${opts.map(([k,lb])=>`<button class="chip ${f===k?'on':''}" data-pf="${k}">${lb} (${cnt(k)})</button>`).join('')}</div>
    <div class="panel">${l.length?l.map(c=>status(c).key==='sah'?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
 }
@@ -866,17 +867,20 @@ function allCasesView(){
      <label class="f"><span>Year</span><select id="lyS"><option value="Semua">All years</option>${yearsList().map(y=>`<option ${S.ly===y?'selected':''}>${y}</option>`).join('')}</select></label>
      <label class="f"><span>Month</span><select id="lmS"><option value="Semua">All months</option>${BULAN.map((b,i)=>{const v=String(i+1).padStart(2,'0');return `<option value="${v}" ${S.lm===v?'selected':''}>${b}</option>`}).join('')}</select></label>
      <label class="f"><span>Surgery performed</span><select id="lkS"><option value="Semua">All surgeries</option>${(S.lj&&S.lj!=='Semua'?[S.lj]:JAB).map(d=>`<optgroup label="${esc(d)}">${PROC[d].map(p=>`<option value="${esc(p)}" ${S.lk===p?'selected':''}>${esc(p)}</option>`).join('')}</optgroup>`).join('')}<option value="_not" ${S.lk==='_not'?'selected':''}>Not monitored</option></select></label>
+     <label class="f"><span>Type of surgery (wound)</span><select id="lwS" aria-label="Type of surgery"><option value="Semua">All types</option>${[['Clean','Clean'],['Clean contaminated','Clean contaminated'],['Contaminated','Contaminated'],['_none','Not recorded']].map(([v,l])=>`<option value="${v}" ${S.lw===v?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="f"><span>Status</span><select id="lsS">${[['Semua','All'],['kosong','Incomplete data'],['ssi','SSI'],['aktif','In surveillance'],['sah','Needs confirmation'],['selesai','Completed']].map(([v,l])=>`<option value="${v}" ${S.ls===v?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
     <div class="row between"><span class="hint" id="cqcount"></span><button class="btn sm" data-act="lreset">Clear filters</button></div>
    </div>
    <div id="cqres" class="panel">${allRes()}</div></div>`;
 }
+const wOk=(c,W)=>!W||W==='Semua'||(W==='_none'?!['Clean','Clean contaminated','Contaminated'].includes(c.jenisLuka):c.jenisLuka===W);
 function allFiltered(){
-  const q=S.cq.trim().toLowerCase(),D=S.lj||'Semua',Y=S.ly||'Semua',Mo=S.lm||'Semua',K=S.lk||'Semua',St=S.ls||'Semua';
+  const q=S.cq.trim().toLowerCase(),D=S.lj||'Semua',Y=S.ly||'Semua',Mo=S.lm||'Semua',K=S.lk||'Semua',St=S.ls||'Semua',W=S.lw||'Semua';
   return S.cases.filter(c=>(D==='Semua'||c.jabatan===D)&&pMatch(c,Y,Mo)
     &&(K==='Semua'||(K==='_not'?!isMon(c):c.kategori===K))
     &&(St==='Semua'||(St==='kosong'?complete(c).pct<100:status(c).key===St))
+    &&wOk(c,W)
     &&(!q||(c.nama+' '+(c.ic||'')+' '+(c.mrn||'')+' '+(c.prosedur||'')+' '+(c.drNama||'')).toLowerCase().includes(q)))
    .sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||''));
 }
@@ -1330,7 +1334,7 @@ function dayPanel0(ssiL,DL){
   return `<div class="panel stack"><h3>Day SSI identified · ${esc(DL)}</h3>
    ${ssiL.length?`<p class="hint" style="margin:-6px 0 0">${days.length?`Median day ${med} · earliest day ${days[0]} · latest day ${days[days.length-1]}. `:''}Tap a bar to see the patients.</p>
    <div class="dbars">${DAYB.map((b,i)=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return `<button class="dbar ${String(S.dayb)===String(i)?'on':''}" data-dayb="${String(S.dayb)===String(i)?'x':i}" ${n?'':'disabled'}><span class="dl">${b[0]}</span><span class="trk"><i style="width:${n/max*100}%"></i></span><span class="v">${n}</span></button>`}).join('')}</div>
-   ${sel?`<div class="plist">${pick.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">Day ${ssiDay(c)??'?'}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}</span></span><span class="pill b">SSI</span></button>`).join('')}</div>`:''}
+   ${sel?`<div class="plist">${pick.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">Day ${ssiDay(c)??'?'}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b></span></span><span class="pill b">SSI</span></button>`).join('')}</div>`:''}
    <div><span class="flabel">Type of SSI</span><div class="chips" style="margin-top:6px">${ty.map(t=>`<span class="pill ${t[0]==='Not classified'?(t[1]?'w':'n'):'b'}">${esc(t[0])}: ${t[1]}</span>`).join('')}</div></div>`
    :'<div class="empty">No SSI cases for this selection.</div>'}</div>`;
 }
@@ -1594,7 +1598,7 @@ function tselList(list,key){
   const l=list.filter(c=>c.ssi==='Ya'&&(c.tarikhOp||'').startsWith(key)).sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
   const lab=key.length===4?key:shortMonth(key)+' '+key.slice(0,4);
   return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(lab)} (${l.length})</span><button class="btn sm" data-tsel="${key}">✕ Close</button></div>
-   <div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}${c.tapak&&c.tapak!==ssiSite(c)?' · '+esc(c.tapak):''}</span></span><span class="pill b">SSI</span></button>`).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
+   <div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b>${c.tapak&&c.tapak!==ssiSite(c)?' · '+esc(c.tapak):''}</span></span><span class="pill b">SSI</span></button>`).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
 }
 const tpill=(k,s)=>s?`<button type="button" class="pill b tpill ${S.tsel===k?'on':''}" data-tsel="${k}" title="Show SSI patients">${s}<span class="ssiw"> SSI</span></button>`:`<span class="pill n">0<span class="ssiw"> SSI</span></span>`;
 
@@ -1648,7 +1652,7 @@ function deptPanel(list,ML,SK){
      <td>${!SK?`<span class="pill n">${Object.keys(S.sent).filter(k=>S.dy==='Semua'||k.startsWith(S.dy)).length} months sent</span>`:S.sent[SK]?`<span class="pill g">Sent ${S.sent[SK]}</span>`:'<span class="pill n">Not yet</span>'}</td></tr>`).join('')}
     <tr class="grp"><td>Total</td><td class="num">${T.n}</td><td class="num">${T.s}</td><td class="num">${pct(T.s,T.n)}%</td><td></td><td></td><td></td></tr></tbody></table></div>
     ${S.dsel&&R.find(r=>r.j===S.dsel&&r.s)?(()=>{const l=R.find(r=>r.j===S.dsel).l.filter(c=>c.ssi==='Ya').sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
-      return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(S.dsel)} (${l.length})</span><button class="btn sm" data-dsel="${esc(S.dsel)}">✕ Close</button></div><div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}</span></span><span class="pill b">SSI</span></button>`).join('')}</div></div>`})():''}`;
+      return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(S.dsel)} (${l.length})</span><button class="btn sm" data-dsel="${esc(S.dsel)}">✕ Close</button></div><div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b></span></span><span class="pill b">SSI</span></button>`).join('')}</div></div>`})():''}`;
   return `<div class="panel stack">${chartHead('dept',esc(title))}<p class="hint" style="margin:-6px 0 0">Tap the SSI number to see the patients.</p>${body}</div>`;
 }
 
@@ -1989,7 +1993,7 @@ document.addEventListener('click',e=>{
     if(typeof api==='function')api('deleteCase',{id}).then(done).catch(e=>toast('Not deleted: '+e.message));else done()}
   if(a==='reload')reloadData(false);
   if(a==='lmore'){S.lim=(S.lim||50)+50;$('#cqres').innerHTML=allRes()}
-  if(a==='lreset'){Object.assign(S,{lj:'Semua',ly:'Semua',lm:'Semua',lk:'Semua',ls:'Semua',cq:'',lim:50});keepY()}
+  if(a==='lreset'){Object.assign(S,{lj:'Semua',ly:'Semua',lm:'Semua',lk:'Semua',ls:'Semua',lw:'Semua',cq:'',lim:50});keepY()}
   if(a==='limpx'){S.lastImp=null;keepY()}
   if(a==='otparse'){const t=$('#ottext').value;if(!t.trim()){toast('Paste the OT list text first');return}otApply(t)}
   if(a==='otclear'){S.ot=null;keepY()}
@@ -2033,7 +2037,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   const T=e.target,id=T.id;
-  if(['lyS','lmS','lkS','lsS'].includes(id)){S[{lyS:'ly',lmS:'lm',lkS:'lk',lsS:'ls'}[id]]=T.value;S.lim=50;keepY();return}
+  if(['lyS','lmS','lkS','lsS','lwS'].includes(id)){S[{lyS:'ly',lmS:'lm',lkS:'lk',lsS:'ls',lwS:'lw'}[id]]=T.value;S.lim=50;keepY();return}
   if(id==='otfile'||id==='otcam'){otRead(T.files[0]);return}
   if(T.dataset.otf){const [i,k]=T.dataset.otf.split(':');S.ot.rows[+i][k]=T.value;T.classList.toggle('miss',!T.value&&['nama','ic','mrn'].includes(k));return}
   if(T.dataset.otc!==undefined){S.ot.rows[+T.dataset.otc].on=T.checked;const b=$('[data-act="otadd"]');if(b)b.textContent='Add '+S.ot.rows.filter(r=>r.on).length+' patients';return}
@@ -2048,6 +2052,7 @@ document.addEventListener('change',e=>{
   if(id==='ysMetric'){S.ysm=T.value;keepY();return}
   if(id==='dY'){S.dy=T.value;keepY()}
   if(id==='dM'){S.dm=T.value;keepY()}
+  if(id==='pwS'){S.pw=T.value;keepY();return}
   if(id==='pY'){S.py=T.value;keepY()}
   if(id==='pM'){S.pm=T.value;keepY()}
   if(id==='cjabSel'){S.cjab=T.value;keepY()}
