@@ -53,6 +53,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .vseg{flex:none}.chead .vseg>button{all:unset;box-sizing:border-box;padding:6px 11px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;border-radius:0;box-shadow:none;background:none}.chead .vseg>button+button{border-left:1px solid var(--line)}
 .chead .vseg>button.on{background:var(--accent);color:#fff}.chead .vseg>button:focus-visible{outline:2px solid var(--deep)}.chartwrap{overflow-x:auto}.chartwrap svg{display:block;max-width:100%;height:auto;min-width:520px}
 .tpill{border:0;cursor:pointer;font-family:inherit}.tpill:hover,.tpill.on{outline:2px solid var(--bad);outline-offset:1px}
+.plong{max-height:460px;overflow-y:auto}
+@media(max-width:640px){.trend .ssiw{display:none}.trend .pill{padding:2px 6px;font-size:.7rem}.trend{gap:3px}}
 .tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
@@ -593,7 +595,7 @@ function trendHTML(list,keys){
   const data=keys.map(k=>{const l=list.filter(c=>monthKey(c)===k);return{k,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const max=Math.max(1,...data.map(d=>d.n));
   return `<div class="trend" style="grid-template-columns:repeat(${data.length},1fr)">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
-   ${tpill(d.k,d.s)}<span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div>${keys.map(k=>tselList(list,k)).join('')}`;
+   ${tpill(d.k,d.s)}<span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div><p class="hint trhint" style="margin:6px 0 0">Number under each bar = SSI cases. Tap a red number to see the patients.</p>${keys.map(k=>tselList(list,k)).join('')}`;
 }
 // Period filter: separate Year and Month dropdowns
 const yearsList=()=>[...new Set(S.cases.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean).concat([TODAYISO.slice(0,4)]))].sort().reverse();
@@ -1577,9 +1579,12 @@ function woundPanel(list,DL){
   const cfg={title:'Type of surgery (wound class) · '+DL+' · '+pLabel(S.dy,S.dm),series:['Surgeries','SSI cases'],rows,def:'table'};CH.wound=cfg;
   const v=CV('wound');
   const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Type of surgery</th><th class="num">Surgeries</th><th class="num">% of surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
-    ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'':'zero'}"><td>${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td></tr>`}).join('')}
+    ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'prow':'zero'} ${S.wsel===w?'open':''}" ${l.length?`data-wsel="${esc(w)}" tabindex="0" role="button"`:''}><td>${l.length?`<span class="caret">${S.wsel===w?'▾':'▸'}</span>`:'<span class="caret"></span>'}${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td></tr>`}).join('')}
     <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td></tr></tbody></table></div>`:chartBody('wound',cfg,v);
-  return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate.</p>${body}</div>`;
+  return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate. Tap a type to see the patients.</p>${body}
+   ${v!=='table'?`<div class="chips">${grp.filter(g=>g[1].length).map(([w,l])=>`<button type="button" class="chip ${S.wsel===w?'on':''}" data-wsel="${esc(w)}">${esc(w)} (${l.length})</button>`).join('')}</div>`:''}
+   ${(()=>{const g=grp.find(x=>x[0]===S.wsel);if(!g||!g[1].length)return '';const l=g[1].slice().sort((x,y)=>(y.ssi==='Ya')-(x.ssi==='Ya')||(y.tarikhOp||'').localeCompare(x.tarikhOp||''));const s=l.filter(c=>c.ssi==='Ya').length;
+     return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">${esc(g[0])} · ${l.length} patients · ${s} SSI</span><button class="btn sm" data-wsel="${esc(g[0])}">✕ Close</button></div><div class="plist plong">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')}${c.prosedur&&c.prosedur!==c.kategori?' · '+esc(c.prosedur):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></div>`})()}</div>`;
 }
 
 
@@ -1591,7 +1596,7 @@ function tselList(list,key){
   return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(lab)} (${l.length})</span><button class="btn sm" data-tsel="${key}">✕ Close</button></div>
    <div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')}${c.tapak&&c.tapak!==ssiSite(c)?' · '+esc(c.tapak):''}</span></span><span class="pill b">SSI</span></button>`).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
 }
-const tpill=(k,s)=>s?`<button type="button" class="pill b tpill ${S.tsel===k?'on':''}" data-tsel="${k}" title="Show SSI patients">${s} SSI</button>`:`<span class="pill n">0 SSI</span>`;
+const tpill=(k,s)=>s?`<button type="button" class="pill b tpill ${S.tsel===k?'on':''}" data-tsel="${k}" title="Show SSI patients">${s}<span class="ssiw"> SSI</span></button>`:`<span class="pill n">0<span class="ssiw"> SSI</span></span>`;
 
 // ================= SPLIT BY YEAR (when "All years") =================
 const canSplit=()=>S.dy==='Semua'&&yearsList().length>1;
@@ -1905,7 +1910,7 @@ const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-open],[data-opx],[data-rf]');if(!t)return;const D=t.dataset;
+  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
   if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
@@ -1928,6 +1933,7 @@ document.addEventListener('click',e=>{
   if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
+  if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
