@@ -478,6 +478,7 @@ async function doLogin(){
 function applyData(r){
   S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};
   S.tab='dash';S.draft=null;S.cur=null;const ms=months().filter(m=>m<CURM);S.rmonths=[ms.length?ms[ms.length-1]:CURM];
+  if(S.user&&S.user.role==='coord')setTimeout(autoPullLinks,1500);
 }
 
 // Reload latest data from the Google Sheet (keeps the current screen)
@@ -532,7 +533,7 @@ async function sendReport(m){
 // ================= SHELL =================
 function navTabs(){return S.user.role==='liaison'
   ?[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['pesakit','Patients',IC.list],['latihan','Training',IC.book]]
-  :[['dash','Dashboard',IC.dash],['laporan','Reports',IC.doc],['latihan','Training',IC.book],['kes','All Cases',IC.list],['liaison','Liaison',IC.users]]}
+  :[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['kes','All Cases',IC.list],['laporan','Reports',IC.doc],['latihan','Training',IC.book],['liaison','Liaison',IC.users]]}
 function render(){
   const app=$('#app');
   if(!S.user){app.innerHTML=loginView();return}
@@ -858,6 +859,7 @@ function allCasesView(){
   const cnt=j=>S.cases.filter(c=>(j==='Semua'||c.jabatan===j)&&isMon(c)).length;S.lj=S.lj||'Semua';
   return `<div class="stack"><h2>All cases</h2>
    ${S.lastImp?`<div class="panel row between" style="background:var(--good-soft);border-color:var(--good)"><span>✅ <b>Last import · ${esc(S.lastImp.jab)}</b>: ${S.lastImp.n} cases saved to Google Sheet (${S.lastImp.added} new, ${S.lastImp.updated} already in app) · ${esc(S.lastImp.at)}</span><button class="btn sm" data-act="limpx">Dismiss</button></div>`:''}
+   ${linkPanel()}
    ${allListPanel()}
    ${importPanel()}
    <div class="panel stack"><h3>Find & check patient records</h3>
@@ -1232,6 +1234,49 @@ function alRead(file){
   fr.onerror=()=>{A.busy=false;A.err='Could not read this file';keepY()};
   fr.readAsArrayBuffer(file);
 }
+
+// ================= LINKED EXCEL / GOOGLE SHEET (auto-pull, new patients only) =================
+function getLinks(){try{const a=JSON.parse((S.set||{}).LINKED_LISTS||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
+async function setLinks(a){S.set=Object.assign({},S.set,{LINKED_LISTS:JSON.stringify(a)});if(typeof api==='function')await api('saveSetting',{key:'LINKED_LISTS',value:S.set.LINKED_LISTS})}
+const LTYPES=[['list','Patient list · all departments'],...JAB.map(j=>[j,'SSI Data Collection form · '+j])];
+async function pullLink(L){
+  if(typeof api!=='function')throw new Error('Linked files work on the live app');
+  if(!window.XLSX)throw new Error('Excel reader not loaded');
+  const r=await api('fetchLink',{url:L.url});
+  const bin=atob(r.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  const wb=XLSX.read(u8,{type:'array',cellDates:false});
+  let list,skip=0;
+  if(L.type==='list'){const R=alParse(wb);list=R.cases;skip=R.st.exist+R.st.dupFile}
+  else{const R=parseWorkbook(wb,L.type,{autoClose:true,skipOther:true});list=R.cases.filter(c=>{const ex=findExisting(c);if(ex)skip++;return !ex})}
+  let added=0;for(let i=0;i<list.length;i+=150){const x=await api('importCases',{cases:list.slice(i,i+150)});added+=x.added||0}
+  return {added,skip,file:r.name};
+}
+async function pullLinks(ids,quiet){
+  const all=getLinks(),todo=all.filter(L=>ids?ids.includes(L.id):L.auto);if(!todo.length)return;
+  let tot=0;const msg=[];
+  for(const L of todo){try{const x=await pullLink(L);Object.assign(L,{last:fmtD(TODAYISO)+' '+new Date().toTimeString().slice(0,5),lastAdded:x.added,lastSkip:x.skip,err:''});tot+=x.added;msg.push(L.name+': '+x.added+' new')}
+    catch(e){L.err=e.message;msg.push(L.name+': '+e.message)}}
+  try{await setLinks(all)}catch(e){}
+  if(tot)await reloadData(true);else keepY();
+  if(!quiet||tot)toast(tot?`Linked files: ${tot} new patient${tot>1?'s':''} added`:'Linked files checked · nothing new');
+}
+function autoPullLinks(){if(S.user&&S.user.role==='coord'&&typeof api==='function'){const l=getLinks().filter(x=>x.auto);if(l.length)pullLinks(null,true)}}
+function linkPanel(){
+  const L=getLinks(),A=S.ladd;
+  return `<div class="panel stack" id="linkp"><div class="row between"><div style="min-width:0;flex:1 1 260px"><h3>Linked Excel / Google Sheet</h3><p class="hint" style="margin:.2em 0 0">Save a link once. The app pulls it automatically each time you open the app (or tap <b>Pull now</b>) and adds <b>only patients not already in the app</b>, so names are never doubled.</p></div>
+   <div class="row">${L.length?`<button class="btn" data-act="lkpullall">⟳ Pull all now</button>`:''}<button class="btn pri" data-act="lkadd">+ Add link</button></div></div>
+   ${A?`<div class="stack" style="border:1px solid var(--line);border-radius:12px;padding:12px">
+     <label class="f"><span class="req">Name</span><input id="lk_n" value="${esc(A.name||'')}" placeholder="e.g. OT list 2026 (all departments)"></label>
+     <label class="f"><span class="req">Link</span><input id="lk_u" type="url" value="${esc(A.url||'')}" placeholder="https://docs.google.com/spreadsheets/d/..."></label>
+     <label class="f"><span class="req">File format</span><select id="lk_t">${LTYPES.map(([v,l])=>`<option value="${esc(v)}" ${A.type===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+     <label class="row" style="gap:8px"><input type="checkbox" id="lk_a" ${A.auto!==false?'checked':''} style="width:auto"><span>Pull automatically when I open the app</span></label>
+     <p class="hint" style="margin:0">Google Sheets / Google Drive: share the file (Viewer) with the UKI Google account that runs the app. OneDrive / SharePoint Excel: share as <b>Anyone with the link</b>.</p>
+     <div class="row"><button class="btn pri" data-act="lksave">Save &amp; pull now</button><button class="btn" data-act="lkcancel">Cancel</button></div></div>`:''}
+   ${L.length?`<div class="plist">${L.map(x=>`<div class="pitem" style="cursor:default"><span class="pd">${x.auto?'🔄 Auto':'Manual'}</span><span class="pn"><b>${esc(x.name)}</b><span class="hint">${esc((LTYPES.find(t=>t[0]===x.type)||[0,''])[1])} · ${x.last?'last pulled '+esc(x.last)+' · '+(x.lastAdded||0)+' new, '+(x.lastSkip||0)+' already in app':'not pulled yet'}</span>${x.err?`<span class="hint" style="color:var(--bad)">⚠ ${esc(x.err)}</span>`:''}</span>
+     <span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-lkpull="${x.id}">Pull now</button><button class="btn sm" data-lkauto="${x.id}">${x.auto?'Turn off auto':'Turn on auto'}</button><button class="btn sm danger" data-lkdel="${x.id}">Remove</button></span></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No linked file yet.</p>'}
+  </div>`;
+}
+
 function allListPanel(){
   const A=S.al;
   if(!A)return `<div class="panel row between"><div style="min-width:0;flex:1 1 240px"><h3>Import patient list · all departments</h3><p class="hint" style="margin:.2em 0 0">One Excel list with name, IC / MRN, department, operation and date. Each patient goes to their own department, only monitored surgeries are added, and patients already in the app are skipped.</p></div>
@@ -1847,9 +1892,9 @@ function otPanel(){
   const O=S.ot||{},jab=(S.draft&&S.draft.jabatan)||S.user.jabatan;
   return `<div class="panel stack">
    <div><h2>Add from OT list</h2><p class="hint" style="margin:.2em 0 0">Take a photo of the OT list, upload a PDF, or paste the text. The app finds name, IC, MRN and surgery, and keeps only surgeries monitored by ${esc(jab)}.</p></div>
-   <div class="row"><button type="button" class="btn pri" data-act="otcam">📷 Take photo</button><button type="button" class="btn" data-act="otup">📄 Upload PDF / image</button></div>
+   <div class="row"><button type="button" class="btn pri" data-act="otcam">📷 Take photo</button><button type="button" class="btn" data-act="otgal">🖼️ From gallery</button><button type="button" class="btn" data-act="otup">📄 Upload PDF</button></div>
    <p class="hint" style="margin:0">Tip: a <b>PDF of the OT list</b> gives the most accurate result.</p>
-   <input type="file" id="otcam" accept="image/*" capture="environment" hidden><input type="file" id="otfile" accept="image/*,application/pdf" hidden>
+   <input type="file" id="otcam" accept="image/*" capture="environment" hidden><input type="file" id="otfile" accept="image/*,application/pdf" hidden><input type="file" id="otgal" accept="image/*" hidden>
    ${O.tips?`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="tipsT"><div class="modalc stack"><h3 id="tipsT">📷 Before you take the photo</h3>
     <ul class="tips"><li>Hold the phone <b>straight above</b> the page. Fit the whole page, not tilted.</li><li><b>Bright light</b>, no shadow and no glare.</li><li>Keep it <b>in focus</b>. Zoom in to check the text is sharp before sending.</li><li><b>One photo per page.</b></li></ul>
     <p class="hint" style="margin:0">If the PDF of the OT list is available, upload it instead for the most accurate result.</p>
@@ -1944,6 +1989,9 @@ document.addEventListener('click',e=>{
   if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
+  if(D.lkpull){pullLinks([D.lkpull],false);toast('Pulling…');return}
+  if(D.lkauto){const L=getLinks(),x=L.find(y=>y.id===D.lkauto);if(x){x.auto=!x.auto;setLinks(L).then(keepY).catch(e=>toast(e.message))}return}
+  if(D.lkdel){if(!confirm('Remove this link? Patients already added stay in the app.'))return;setLinks(getLinks().filter(y=>y.id!==D.lkdel)).then(keepY).catch(e=>toast(e.message));return}
   if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;S.wsub=null;keepY();return}
   if(D.wsub){S.wsub=S.wsub===D.wsub?null:D.wsub;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
@@ -2005,6 +2053,14 @@ document.addEventListener('click',e=>{
   if(a==='limpx'){S.lastImp=null;keepY()}
   if(a==='otparse'){const t=$('#ottext').value;if(!t.trim()){toast('Paste the OT list text first');return}otApply(t)}
   if(a==='otclear'){S.ot=null;keepY()}
+  if(a==='otgal'){const i=$('#otgal');i&&i.click()}
+  if(a==='lkadd'){S.ladd={type:'list',auto:true};keepY()}
+  if(a==='lkcancel'){S.ladd=null;keepY()}
+  if(a==='lkpullall'){pullLinks(getLinks().map(x=>x.id),false)}
+  if(a==='lksave'){const n=$('#lk_n').value.trim(),u=$('#lk_u').value.trim(),t=$('#lk_t').value,au=$('#lk_a').checked;
+    if(!n||!/^https:\/\//.test(u)){toast('Enter a name and a full https:// link');return}
+    const L=getLinks(),x={id:'L'+Date.now().toString(36),name:n,url:u,type:t,auto:au};L.push(x);S.ladd=null;
+    setLinks(L).then(()=>{keepY();pullLinks([x.id],false)}).catch(e=>toast('Not saved: '+e.message));return}
   if(a==='otcam'){S.ot=Object.assign(S.ot||{},{tips:true});keepY()}
   if(a==='otx'){S.ot.tips=false;keepY()}
   if(a==='otcamgo'){const i=$('#otcam');S.ot.tips=false;i&&i.click();setTimeout(()=>{const m=$('.modal');m&&m.remove()},0)}
@@ -2046,7 +2102,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const T=e.target,id=T.id;
   if(['lyS','lmS','lkS','lsS','lwS'].includes(id)){S[{lyS:'ly',lmS:'lm',lkS:'lk',lsS:'ls',lwS:'lw'}[id]]=T.value;S.lim=50;keepY();return}
-  if(id==='otfile'||id==='otcam'){otRead(T.files[0]);return}
+  if(id==='otfile'||id==='otcam'||id==='otgal'){otRead(T.files[0]);T.value='';return}
   if(T.dataset.otf){const [i,k]=T.dataset.otf.split(':');S.ot.rows[+i][k]=T.value;T.classList.toggle('miss',!T.value&&['nama','ic','mrn'].includes(k));return}
   if(T.dataset.otc!==undefined){S.ot.rows[+T.dataset.otc].on=T.checked;const b=$('[data-act="otadd"]');if(b)b.textContent='Add '+S.ot.rows.filter(r=>r.on).length+' patients';return}
   if(id==='alfile'){alRead(T.files[0]);return}
