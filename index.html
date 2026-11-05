@@ -57,6 +57,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 @media(max-width:640px){.trend .ssiw{display:none}.trend .pill{padding:2px 6px;font-size:.7rem}.trend{gap:3px}}
 .wcl{font-weight:700;color:var(--deep)}
 .prow2{display:flex;gap:6px;align-items:stretch}.prow2 .pitem{flex:1;min-width:0}.prow2 .btn{align-self:center;flex:none}
+details.info{border-bottom:1px solid var(--line);padding:4px 0}details.info:last-child{border-bottom:0}details.info summary{cursor:pointer;font-weight:800;padding:8px 2px;color:var(--deep)}
+.infob{padding:0 4px 10px;line-height:1.6}.infob ul{margin:.2em 0;padding-left:1.2em}.infob td{padding:6px 8px;vertical-align:top}
 .tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
@@ -247,6 +249,11 @@ tr.grp td{background:var(--accent-soft);font-weight:800;color:var(--accent)}
 .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .thumb .ico{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center}
 .thumb .ico svg{width:26px;height:26px}
+.mod .thumb .src{left:auto;right:8px;bottom:auto;top:8px}.mod .thumb .done{right:auto;left:8px}
+.thumb .cover{position:absolute;inset:14px 22px 0;background:#fff;border-radius:8px 8px 0 0;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:12px 14px;display:flex;flex-direction:column;gap:6px;color:#163;overflow:hidden}
+.thumb .cover b{font-size:.92rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:#0f3d1a}
+.thumb .cbadge{align-self:flex-start;background:#b0281c;color:#fff;font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.04em}
+.thumb .chost{margin-top:auto;display:flex;align-items:center;gap:6px;font-size:.72rem;color:#5b6b5e;font-weight:700}.thumb .chost img{position:static;width:16px;height:16px;object-fit:contain}
 .thumb .src{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:5px;z-index:1}
 .thumb .done{position:absolute;right:8px;top:8px;z-index:1;background:#2b7a47;color:#fff;font-size:.7rem;font-weight:800;padding:3px 8px;border-radius:5px}
 .mod .bd{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
@@ -287,6 +294,23 @@ a.btn.pri{color:var(--accent-ink)}
 .lbtn{border:0;border-radius:16px;padding:16px;font-weight:800;font-size:1.15rem;color:#fff;background:linear-gradient(90deg,#1f8a35,#7cbf2e);box-shadow:0 10px 24px rgba(31,138,53,.35)}
 @media (max-width:560px){ .case{grid-template-columns:1fr} .case .tags{justify-content:flex-start} .bar{grid-template-columns:1fr 1.3fr 48px} }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- phone layout fixes ---- */
+@media(max-width:600px){
+ .top .in{flex-wrap:nowrap;gap:8px;padding:8px 12px}
+ .top .in>.hint{display:none}
+ .brand{gap:8px}.brand .lg-s{width:40px!important;height:40px!important}.brand h1{font-size:1.12rem!important}.brand small{font-size:.7rem!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .top .in>.btn{padding:6px 9px;font-size:.76rem;flex:none}
+ .top .in>.btn .rl{display:none}
+ .bnav button{font-size:.64rem;padding:8px 2px 9px;gap:2px;min-width:0}
+ .bnav button span:not(.badge){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+ .bnav button svg{width:20px;height:20px}
+ .prow2{flex-direction:column;gap:4px}.prow2 .btn{align-self:flex-end}
+ .chead{gap:8px}.chead h3{flex:1 1 100%}
+ .vseg button{padding:6px 8px!important;font-size:.74rem!important}
+ .kpi b{font-size:1.5rem}
+ .wrap{padding-left:12px;padding-right:12px}
+}
 </style>
 </head>
 <body>
@@ -466,19 +490,24 @@ function loginView(){
     <div class="seg"><button type="button" data-lrole="coord" class="${c?'on':''}">🛡️ ${L.rc}</button><button type="button" data-lrole="liaison" class="${c?'':'on'}">🏥 ${L.rl}</button></div>
     ${c?'':`<label class="lf"><span>${L.jab}</span><select id="ljab">${JAB.map(j=>`<option ${S.ljab===j?'selected':''}>${esc(j)}</option>`).join('')}</select></label>
 `}
-    <label class="lf"><span>${L.pw}</span><div class="pw"><input id="lpw" type="password" placeholder="${L.pwph}" autocomplete="current-password"><button type="button" class="eye" data-act="eye" aria-label="Show password">${EYE}</button></div></label>
-    <p class="lhint">${L.cs}</p>${S.lerr?`<p class="lerr">${S.lerr}</p>`:''}
+    <label class="lf"><span>${L.pw}</span><div class="pw"><input type="text" name="username" autocomplete="username" value="${esc(c?'UKI coordinator':'Liaison '+S.ljab)}" readonly tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none"><input id="lpw" name="password" type="password" placeholder="${L.pwph}" autocomplete="current-password" value="${esc((remGet()||{}).pw||'')}"><button type="button" class="eye" data-act="eye" aria-label="Show password">${EYE}</button></div></label>
+    <label class="row" style="gap:8px;align-items:center;margin:-2px 0 2px;font-size:.88rem"><input type="checkbox" id="lrem" style="width:auto" ${remGet()?'checked':''}><span>Remember password on this device</span></label>
+    <p class="lhint">${L.cs} Do not tick “Remember” on a shared computer.</p>${S.lerr?`<p class="lerr">${S.lerr}</p>`:''}
     <button class="lbtn" type="submit" ${S.lbusy?'disabled':''}>${S.lbusy?'Logging in…':'🔐 '+L.login}</button>
    </form></div>`;
 }
+// Remember password (per role / department, this device only)
+const remKey=()=>'ssiRemember_'+(S.lrole==='coord'?'coord':'liaison_'+S.ljab);
+function remGet(){try{const v=localStorage.getItem(remKey());return v?JSON.parse(decodeURIComponent(escape(atob(v)))):null}catch(e){return null}}
+function remSet(on,pw){try{if(on)localStorage.setItem(remKey(),btoa(unescape(encodeURIComponent(JSON.stringify({pw})))));else localStorage.removeItem(remKey())}catch(e){}}
 async function doLogin(){
   if(S.lbusy)return;
-  const pw=$('#lpw').value;S.lbusy=true;S.lerr='';render();
-  try{const r=await api('login',{role:S.lrole,jabatan:S.ljab,password:pw});S.token=r.token;store(r.token);applyData(r);S.lbusy=false;render();scrollTo(0,0)}
+  const pw=$('#lpw').value,rem=!!($('#lrem')&&$('#lrem').checked);S.lbusy=true;S.lerr='';render();
+  try{const r=await api('login',{role:S.lrole,jabatan:S.ljab,password:pw});remSet(rem,pw);S.token=r.token;store(r.token);applyData(r);S.lbusy=false;render();scrollTo(0,0)}
   catch(e){S.lbusy=false;S.lerr=e.message;render();const p=$('#lpw');p&&p.focus()}
 }
 function applyData(r){
-  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};
+  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};S.mdro=r.mdro||null;
   S.tab='dash';S.draft=null;S.cur=null;const ms=months().filter(m=>m<CURM);S.rmonths=[ms.length?ms[ms.length-1]:CURM];
   if(S.user&&S.user.role==='coord')setTimeout(autoPullLinks,1500);
 }
@@ -487,7 +516,7 @@ function applyData(r){
 let LAST_SYNC=Date.now();
 async function reloadData(quiet){
   if(!S.user||!S.token||typeof api!=='function')return;
-  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;
+  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;S.mdro=r.mdro||null;
     if(S.cur&&!S.cases.some(c=>c.id===S.cur))S.cur=null;LAST_SYNC=Date.now();if(!S.draft||!S.draft.nama)keepY();if(!quiet)toast('Data updated · '+S.cases.length+' patients')}
   catch(e){if(!quiet)toast('Could not refresh: '+e.message)}
 }
@@ -535,7 +564,7 @@ async function sendReport(m){
 // ================= SHELL =================
 function navTabs(){return S.user.role==='liaison'
   ?[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['pesakit','Patients',IC.list],['latihan','Training',IC.book]]
-  :[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['kes','All Cases',IC.list],['laporan','Reports',IC.doc],['latihan','Training',IC.book],['liaison','Liaison',IC.users]]}
+  :[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['kes','All Cases',IC.list],['laporan','Reports',IC.doc],['latihan','Training',IC.book],['liaison','Info',IC.users]]}
 function render(){
   const app=$('#app');
   if(!S.user){app.innerHTML=loginView();return}
@@ -549,10 +578,10 @@ function render(){
   else if(S.tab==='kes')body=allCasesView();
   else if(S.tab==='liaison')body=liaisonAdmin();
   app.innerHTML=`<header class="top"><div class="in"><div class="brand"><img class="lg-s" src="${ICON}" alt=""><div><h1>SSI Tracker</h1><small>${S.user.role==='liaison'?esc(S.user.jabatan)+' Liaison':'UKI Coordinator'} · HTPN</small></div></div>
-    <span class="hint">${esc(S.user.nama)}</span><button class="btn sm" data-act="reload" title="Get the latest data">↻ Refresh</button><button class="btn sm" data-act="logout">Log out</button></div></header>
+    <span class="hint">${esc(S.user.nama)}</span><button class="btn sm" data-act="reload" title="Get the latest data" aria-label="Refresh">↻<span class="rl"> Refresh</span></button><button class="btn sm" data-act="logout">Log out</button></div></header>
    <main class="wrap">${body}</main>
    <nav class="bnav">${navTabs().map(([k,l,i])=>{const b=k==='pesakit'&&S.user.role==='liaison'?myCases().filter(c=>status(c).key==='sah').length:0;
-     return `<button data-tab="${k}" class="${S.tab===k&&!S.cur?'on':''}">${i}<span>${l}</span>${b?`<span class="badge">${b}</span>`:''}</button>`}).join('')}</nav>`;
+     return `<button data-tab="${k}" class="${S.tab===k&&!S.cur?'on':''}">${i}<span>${innerWidth<600&&l==='New Entry'?'Entry':l}</span>${b?`<span class="badge">${b}</span>`:''}</button>`}).join('')}</nav>`;
 }
 
 // ================= FIELD RENDER =================
@@ -623,6 +652,7 @@ function liaisonDash(){
   const rows=PROC[S.user.jabatan].map(p=>{const l=list.filter(c=>c.kategori===p);return{p,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
+   ${mdroCard(mine)}
    ${pend.length?`<div class="panel remind ${S.remOpen?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${!!S.remOpen}">
      <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen?'hide':'confirm'}</span></span>${CHEV}</button>
     ${S.remOpen?`<div class="remlist">${pend.map(pendRow).join('')}</div>`:''}</div>`:''}
@@ -665,6 +695,7 @@ function entryView(){
    <div class="row between"><div><h2>${c.id?'Edit surgery data':'New entry'}</h2><p class="hint" style="margin:.2em 0 0">Department ${esc(c.jabatan)} · follows the SSI Data Collection Form</p></div>
     ${c.id?'<button class="btn sm" data-act="canceledit">Cancel</button>':''}</div>
    ${S.user.role==='coord'?`<div class="f"><span class="flabel">Department</span><div class="chips">${JAB.map(j=>`<button type="button" class="chip ${c.jabatan===j?'on':''}" data-s="draft" data-k="jabatan" data-v="${esc(j)}">${esc(j)}</button>`).join('')}</div></div>`:''}
+   ${mdroHitHTML()}
    <div class="accs">${accHTML(SECTIONS,c,'draft','open','sech')}</div>
    <p class="hint" style="margin:0">Tap each section to fill it in. <b style="color:var(--bad)">Red</b> = required fields missing, <b style="color:var(--good)">green</b> = complete. TYPE OF SSI is filled in later through the SSI form during the 30-day follow-up.</p>
   </div>
@@ -695,6 +726,7 @@ function caseView(){
     <div class="kv"><div><span>MRN</span><b class="mono">${esc(c.mrn)}</b></div><div><span>IC No.</span><b class="mono">${esc(c.ic||'—')}</b></div>
      <div><span>Surgery</span><b>${esc(c.kategori)}</b></div><div><span>Date of surgery</span><b>${fmtD(c.tarikhOp)}</b></div></div>
     ${c.ssi!=='Ya'&&!c.tutup?`<div class="row"><div class="meter"><i style="width:${Math.min(d/p,1)*100}%"></i></div><span class="hint">Day ${Math.max(d,0)} of ${p}${d<p?' · ends '+fmtD(new Date(new Date(c.tarikhOp).getTime()+p*864e5).toISOString().slice(0,10)):''}</span></div>`:''}
+    ${mdroInfo(c)}
     ${(c.drNama||c.drTel)?`<div class="row"><span class="hint">Doctor in-charge: <b>${esc(c.drNama||'-')}</b>${c.drTel?' · '+esc(c.drTel):''}</span>${missingSecs(c).length?waBtn(c,true):''}</div>`:`<p class="hint" style="margin:0">No doctor in-charge recorded. Add the name and phone in <b>Edit data → Patient detail</b> to send a WhatsApp reminder.</p>`}
     ${c.ssi==='Ya'?`<div class="row"><button class="btn pri" data-act="formv">📄 View SSI form</button>${miss?`<span class="pill w">${miss} fields missing</span>`:'<span class="pill g">Form complete</span>'}</div>`:''}
    </div>
@@ -776,6 +808,7 @@ function coordDash(){
   return `<div class="stack">
    <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button></div></div>
    ${rfFilterBar()}
+   ${mdroCard(S.cases.filter(inD))}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete · all required fields filled</span></div></div>
    ${(DASH={list,DL,ML,src:S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),ctx:{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length}},'')}${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
@@ -899,8 +932,68 @@ function allRes(){
 }
 
 // ================= LIAISON JABATAN (koordinator) =================
+
+// ================= INFO (about the app) – shown above liaison management =================
+
+// ================= MDRO SURVEILLANCE LINK (client) =================
+const mdroMap=()=>S.mdro&&!S.mdro.error?S.mdro:{};
+const mdroKeyOf=m=>m.o+'|'+m.d;
+function mdroPending(cases){
+  const M=mdroMap(),out=[];
+  cases.forEach(c=>{const l=M[c.id];if(!l||c.ssi==='Ya'||!c.tarikhOp)return;const no=String(c.mdroNo||'').split(';');
+    l.forEach((m,i)=>{const dd=dayDiff(c.tarikhOp,m.d);if(dd>=0&&dd<=survDays(c)&&!no.includes(mdroKeyOf(m)))out.push({c,m,i,dd})})});
+  return out.sort((a,b)=>b.m.d.localeCompare(a.m.d));
+}
+function mdroCard(cases){
+  const P=mdroPending(cases);if(!P.length)return '';
+  return `<div class="panel remind mdro ${S.mdOpen?'open':''}"><button type="button" class="remh" data-act="mdtog" aria-expanded="${!!S.mdOpen}">
+   <span class="remn" style="background:#7a2e9c">${P.length}</span><span><b>🦠 Organism found after surgery – is it SSI?</b><br><span class="hint">From the MDRO surveillance masterlist · tap to ${S.mdOpen?'hide':'review'}</span></span>${CHEV}</button>
+   ${S.mdOpen?`<div class="remlist">${P.map(x=>`<div class="pend"><button class="pinfo" data-open="${x.c.id}"><b>${esc(x.c.nama)}</b><span class="hint">${esc(x.c.jabatan)} · ${esc(x.c.kategori||'')} · op ${fmtD(x.c.tarikhOp)}</span>
+     <span class="hint" style="color:#7a2e9c;font-weight:800">${esc(x.m.o)}${x.m.s?' · '+esc(x.m.s):''} · sample ${fmtD(x.m.d)} (day ${x.dd} post-op)${x.m.w?' · '+esc(x.m.w):''}</span></button>
+     <div class="pbtn"><button class="btn sm danger" data-mdyes="${x.c.id}|${x.i}">Yes – SSI</button><button class="btn sm" data-mdno="${x.c.id}|${x.i}">Not related</button></div></div>`).join('')}</div>`:''}</div>`;
+}
+function mdroInfo(c){const l=mdroMap()[c.id];if(!l||!l.length)return '';
+  return `<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>MDRO surveillance:</b> ${l.map(m=>`${esc(m.o)}${m.s?' ('+esc(m.s)+')':''} · sample ${fmtD(m.d)} · day ${dayDiff(c.tarikhOp,m.d)}${m.w?' · '+esc(m.w):''}`).join('<br>')}</div>`}
+let _mdT=null;
+function mdroCheckDraft(){clearTimeout(_mdT);_mdT=setTimeout(async()=>{const d=S.draft;if(!d||typeof api!=='function'||(!d.ic&&!d.mrn&&!(d.nama&&d.nama.length>5)))return;
+  try{const r=await api('mdroLookup',{nama:d.nama||'',ic:d.ic||'',mrn:d.mrn||''});S.mdroHit=(r.hits||[]);const b=$('#mdhit');if(b)b.outerHTML=mdroHitHTML();}catch(e){}},700)}
+function mdroHitHTML(){const h=S.mdroHit||[];return `<div id="mdhit">${h.length?`<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>This patient is in the MDRO masterlist:</b><br>${h.map(m=>`${esc(m.o)}${m.s?' · '+esc(m.s):''} · sample ${fmtD(m.d)}${m.w?' · '+esc(m.w):''}${m.n?' · '+esc(m.n):''}`).join('<br>')}</div>`:''}</div>`}
+function mdroSetupPanel(){
+  const v=(S.set||{}).MDRO_SHEET||'',T=S.mdTest;
+  return `<div class="panel stack"><h3>🦠 Link to MDRO surveillance (LAB_SURVEILLANCE masterlist)</h3>
+   <p class="hint" style="margin:0">Paste the Google Sheet link of the MDRO masterlist (the sheet must be owned by or shared with the UKI Google account that runs this app). The SSI app only <b>reads</b> it. When a patient in the SSI list has an organism sampled after surgery, the liaison is asked if it is an SSI; "Yes" fills the lab-confirmed SSI section. New Entry also shows a warning when the patient is in the masterlist.</p>
+   <div class="row" style="gap:8px"><input id="mdsheet" type="url" value="${esc(v)}" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1 1 320px"><button class="btn pri" data-act="mdsave">Save &amp; test</button>${v?'<button class="btn" data-act="mdclear">Remove link</button>':''}</div>
+   ${S.mdro&&S.mdro.error?`<p class="flag b" style="margin:0">⚠ ${esc(S.mdro.error)}</p>`:''}
+   ${T?(T.err?`<p class="flag b" style="margin:0">⚠ ${esc(T.err)}</p>`:`<div class="flag g" style="margin:0;display:block">✅ Connected · sheet <b>${esc(T.sheet)}</b> · ${T.rows} organism records (${Object.keys(T.years).sort().map(y=>y+': '+T.years[y]).join(', ')})<br><span class="hint">Columns found: ${Object.entries(T.cols).map(([k,h])=>({n:'Name',ic:'IC',rn:'RN / MRN',o:'Organism',d:'Sample date',sp:'Specimen',w:'Ward'}[k]||k)+' = "'+esc(h)+'"').join(' · ')}</span></div>`):''}
+  </div>`;
+}
+
+function infoPanel(){
+  const sec=(t,b,open)=>`<details class="info" ${open?'open':''}><summary>${t}</summary><div class="infob">${b}</div></details>`;
+  return `<div class="stack"><div><h2>ℹ️ About SSI Tracker HTPN</h2>
+   <p class="hint" style="margin:.4em 0 0;font-size:.92rem">Surgical Site Infection (SSI) surveillance for Hospital Tengku Permaisuri Norashikin, managed by the Infection Control Unit (UKI). Liaisons enter and follow up patients; UKI reviews the data and sends the monthly report to JKNS.</p></div>
+  <div class="panel stack">
+   ${sec('👥 Who uses the app',`<ul><li><b>UKI Coordinator</b> – sees all departments, dashboards, data cleaning, imports Excel / linked sheets, generates and emails the JKNS report, manages training and liaisons.</li>
+     <li><b>Department Liaison</b> (O&amp;G, Surgery, Ortho, OMFS) – enters patients, follows them up, completes the SSI form, and ticks <i>SSI / No SSI</i> when surveillance ends. Sees own department only.</li></ul>`,true)}
+   ${sec('🩺 Monitored surgeries',`<table><tbody>${JAB.map(j=>`<tr><td><b>${esc(j)}</b></td><td>${PROC[j].map(esc).join(' · ')}</td></tr>`).join('')}</tbody></table>
+     <p class="hint">Only these surgeries are counted in the dashboard and JKNS report (denominator = monitored surgeries). Other surgeries (e.g. EM LSCS) are kept out.</p>`)}
+   ${sec('⏱ Surveillance period & patient status',`<ul><li>Follow-up <b>30 days</b> after surgery, or <b>1 year</b> if an implant was used.</li>
+     <li><span class="pill a">In surveillance</span> still within the period · <span class="pill w">Needs confirmation</span> period ended, liaison must tick SSI / No SSI · <span class="pill b">SSI</span> SSI confirmed – complete the TYPE OF SSI form · <span class="pill g">Completed</span> no SSI, closed.</li>
+     <li>Day of SSI = date SSI identified minus date of surgery.</li></ul>`)}
+   ${sec('📥 How data gets in',`<ul><li><b>New Entry</b> – manual form following the KKM SSI Data Collection Form.</li><li><b>From OT list</b> – take a photo, choose from gallery, or upload a PDF; only monitored surgeries are added and patients already in the app are flagged.</li>
+     <li><b>Import Excel</b> – SSI Data Collection form per department, or a patient list for all departments.</li><li><b>Linked Excel / Google Sheet</b> – pulled automatically when UKI opens the app; only new patients are added.</li></ul>`)}
+   ${sec('📊 Dashboard, reports & data quality',`<ul><li>Filters: year, month, department, risk factor. Every chart can be shown as table / horizontal / vertical and downloaded as image or Excel. <b>Report of this view</b> downloads the filtered dashboard.</li>
+     <li><b>JKNS report</b> (Reports tab): Excel with SUMMARY, ANALYSIS and one sheet per department per month listing SSI cases; can be downloaded or emailed.</li>
+     <li><b>Data complete</b> = % of monitored surgeries with every required form field filled.</li><li><b>Data cleaning</b> (All Cases) lists mistakes per month – future or wrong dates, double entries, unclassified SSI, wound class missing – with fixes and delete.</li></ul>`)}
+   ${sec('🔒 Data & privacy',`<ul><li>Patient data is stored only in the UKI Google Sheet (Google account of UKI). The web page holds no data.</li><li>Passwords are stored as hashes; sessions end after 6 hours.</li><li>Liaisons only see and edit their own department. Deleted records are kept in the <i>DeletedLog</i> sheet.</li><li>Smart analysis is calculated inside the app; no patient data is sent to outside AI.</li></ul>`)}
+   ${sec('📞 Contact',`<p style="margin:0">Unit Kawalan Infeksi (UKI), Hospital Tengku Permaisuri Norashikin<br>📱 013-738 6497 · ✉️ <a href="mailto:ukihtpn@moh.gov.my">ukihtpn@moh.gov.my</a></p><p class="hint" style="margin:.4em 0 0">SSI Tracker HTPN · updated November 2026</p>`)}
+  </div>
+  ${mdroSetupPanel()}
+  <h2 style="margin-top:8px">🏥 Department Liaisons</h2></div>`;
+}
+
 function liaisonAdmin(){
-  return `<div class="stack"><div><h2>🏥 Department Liaisons</h2>
+  return `<div class="stack">${infoPanel()}<div>
    <p class="hint" style="margin:.4em 0 0;font-size:.92rem">Assign a liaison (in-charge) for each department and set their password. Liaisons log in via <b>Log In → Department Liaison</b> and only see their own department's patients. Change the name to replace the liaison.</p></div>
    <div class="panel">${JAB.map(j=>{const l=S.liaisons[j],k=j.replace(/\W/g,'');return `<div class="lrow"><h3>${esc(j)}</h3>
     <label class="f"><span>Liaison name</span><input id="ln_${k}" value="${esc(l.nama)}" placeholder="Full name" style="text-transform:uppercase"></label>
@@ -919,8 +1012,10 @@ function liaisonAdmin(){
 function modCard(m,coord){
   const s=srcOf(m.url),th=thumbOf(m.url),done=m.selesai.includes(S.user.nama);
   const lab={youtube:'Video',drive:'Google Drive',link:'Link'}[s];
-  return `<article class="mod"><div class="thumb ${s==='drive'?'drive':s==='link'?'link':''}"><div class="ico">${s==='youtube'?IC.play:s==='drive'?IC.file:IC.link}</div>${th?`<img src="${th}" alt="" loading="lazy">`:''}
-   <span class="src">${lab}</span>${!coord&&done?'<span class="done">✓ Done</span>':''}</div>
+  const host=(String(m.url).match(/^https?:\/\/([^\/?#]+)/)||[])[1]||'',isPdf=/\.pdf($|[?#])/i.test(m.url),img=m.thumb||th;
+  const cover2=`<div class="cover"><span class="cbadge">${isPdf?'PDF':s==='drive'?'DRIVE':'WEB'}</span><b>${esc(m.tajuk)}</b><span class="chost"><img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64" alt="" loading="lazy" onerror="this.remove()">${esc(host.replace(/^www\./,''))}</span></div>`;
+  return `<article class="mod"><div class="thumb ${s==='drive'?'drive':s==='link'?'link':''}"><div class="ico">${s==='youtube'?IC.play:s==='drive'?IC.file:IC.link}</div>${cover2}${img?`<img src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}
+   <span class="src">${isPdf?'PDF':lab}</span>${!coord&&done?'<span class="done">✓ Done</span>':''}</div>
    <div class="bd"><span class="hint">${esc(m.kategori)}</span><b>${esc(m.tajuk)}</b><p>${esc(m.penerangan)}</p>
     ${coord&&m.jenis==='modul'?`<span class="hint">${m.selesai.length} liaison(s) completed</span>`:''}
     <div class="act"><a class="btn sm pri" href="${esc(m.url)}" target="_blank" rel="noopener">Open</a>
@@ -945,8 +1040,9 @@ function trainCoord(){
     <div class="f"><span class="flabel">Type</span><div class="chips">${[['modul','Training module'],['rujukan','Reference material']].map(([k,l])=>`<button type="button" class="chip ${a.jenis===k?'on':''}" data-mj="${k}">${l}</button>`).join('')}</div></div>
     <div class="grid"><label class="f fwide"><span class="req">Title</span><input id="ma_tajuk" value="${esc(a.tajuk)}"></label>
      <label class="f"><span class="req">Category / module</span><input id="ma_kat" list="katlist" value="${esc(a.kategori)}" placeholder="e.g. SSI prevention training"><datalist id="katlist">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>
-     <label class="f"><span class="req">YouTube / Google Drive link</span><input id="ma_url" type="url" value="${esc(a.url)}" placeholder="https://"></label>
-     <label class="f fwide"><span>Short description</span><input id="ma_desc" value="${esc(a.penerangan)}"></label></div>
+     <label class="f"><span class="req">Link (YouTube, Google Drive, PDF or website)</span><input id="ma_url" type="url" value="${esc(a.url)}" placeholder="https://"></label>
+     <label class="f fwide"><span>Short description</span><input id="ma_desc" value="${esc(a.penerangan)}"></label>
+     <label class="f fwide"><span>Thumbnail image link (optional)</span><input id="ma_thumb" type="url" value="${esc(a.thumb||'')}" placeholder="Leave blank for an automatic cover"></label></div>
     <p class="hint" style="margin:0">Thumbnails are generated automatically from YouTube or Drive links. Make sure Drive files are shared with "Anyone with the link".</p>
     <div class="row"><button class="btn pri" data-act="maddsave">${a.id?'Save changes':'Save'}</button><button class="btn" data-act="maddclose">Cancel</button></div></div>`:''}
    <span class="sectag" style="align-self:flex-start">TRAINING MODULES</span>${grouped(S.mods.filter(m=>m.jenis==='modul'),true)}
@@ -1332,6 +1428,18 @@ function dataIssues(){
 }
 
 // ================= DATA CLEANING (UKI): mistakes per month, review and fix =================
+const DCX={FUTURE:['The date of surgery is after today, so the operation has not happened yet. Usually the year was typed wrongly (e.g. 23/12/2026 instead of 23/12/2025) or day and month were swapped.','Use "Change year" to move it back one year, or open the record and correct the date from the OT list.'],
+ BADDATE:['The date of surgery cannot be read as a date, so the record is not counted anywhere.','Use "Fix dates automatically", or open the record and enter the date.'],
+ DEPT:['The department is not O&G, Surgery, Ortho or OMFS.','Open the record and choose the department.'],
+ DUP:['Two records look like the same patient, same department, same surgery within 3 days (same IC / MRN, or very similar name or IC).','Open both, keep the more complete one, and delete the other.'],
+ NOTMON:['The surgery name is written differently from the monitored list, so it is not counted.','Use "Change all" to rename to the monitored surgery shown.'],
+ OTHER:['This surgery is not in the monitored list, so it is never counted in the dashboard or JKNS report.','Delete it if it should not be in the data collection.'],
+ NOID:['There is no IC number and no MRN, so the patient cannot be matched or checked.','Open the record and add the IC or MRN.'],
+ SSIINC:['SSI = Yes, but the TYPE OF SSI section is not complete.','Open the record and complete the SSI form (date identified, site, diagnosis, readmission).'],
+ SSIDATE:['The date SSI identified is before the surgery or after the surveillance window (30 days, 1 year with implant).','Check the date of SSI, the date of surgery and "Implant used".'],
+ CONFIRM:['The surveillance period has ended but nobody ticked SSI / No SSI.','Ask the liaison to tick No SSI or SSI present on their dashboard.'],
+ WOUND:['Clean / Clean contaminated / Contaminated is not chosen.','Open the record and choose the type of surgery.'],
+ INC:['Some required fields in the data collection form are empty.','Open the record and fill in the fields shown in red.']};
 const DCI=[['FUTURE','Date of surgery in the future','b'],['BADDATE','Date of surgery unreadable','b'],['DEPT','Unknown department','b'],['DUP','Possible double entry','b'],
  ['NOTMON','Surgery name not in monitored list','w'],['NOID','No IC and no MRN','w'],['SSIINC','SSI form incomplete','b'],['SSIDATE','SSI date outside surveillance window','w'],
  ['OTHER','Surgery not monitored (not counted)','n'],['CONFIRM','Surveillance ended – SSI / no SSI not ticked','w'],['WOUND','Wound class not recorded','w'],['INC','Other required fields empty','n']];
@@ -1383,13 +1491,16 @@ function dataCheckPanel(){
       tools=`<div class="hint"><b>Most often empty:</b> ${Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,n])=>`${esc(fieldLabel(k))} (${n})`).join(' · ')}</div>`}
     rev=`<div class="stack" style="margin-top:6px">${tools}<div class="plist plong">${sel.slice(0,200).map(c=>{const xs=iss[c.id].filter(x=>F?x[0]===F:!SOFT(x));
       return `<div class="prow2"><button class="pitem" data-open="${c.id}"><span class="pd">${esc(/^\d{4}-\d{2}-\d{2}$/.test(c.tarikhOp||'')?fmtD(c.tarikhOp):(c.tarikhOp||'no date'))}</span><span class="pn"><b>${esc(c.nama||'(no name)')}</b><span class="hint">${esc(c.jabatan||'')} · ${esc(c.kategori||'')} · ${esc(c.mrn||c.ic||'')}</span>
-       <span class="hint" style="color:var(--bad);font-weight:700">${xs.map(([k,d])=>esc((DCI.find(z=>z[0]===k)||[0,k])[1])+(d?' ('+esc(d)+')':'')).join(' · ')}</span></span></button><button type="button" class="btn sm danger" data-dcdel="${c.id}" title="Delete this record">🗑 Delete</button></div>`}).join('')||'<div class="empty">Nothing to review.</div>'}</div>
+       <span class="hint" style="color:var(--bad);font-weight:700">${xs.map(([k,d])=>esc((DCI.find(z=>z[0]===k)||[0,k])[1])+(d?' ('+esc(d)+')':'')).join(' · ')}</span></span></button>${xs.some(x=>x[0]==='FUTURE')?`<button type="button" class="btn sm" data-dcyear="${c.id}" title="Move the date back one year">Change year → ${+c.tarikhOp.slice(0,4)-1}</button>`:''}<button type="button" class="btn sm danger" data-dcdel="${c.id}" title="Delete this record">🗑 Delete</button></div>`}).join('')||'<div class="empty">Nothing to review.</div>'}</div>
       ${sel.length>200?`<p class="hint" style="margin:0">Showing 200 of ${sel.length}. Choose a month to narrow down.</p>`:''}</div>`}
   return `<div class="panel stack" style="background:${pts?'#fff7ea':'var(--good-soft)'};border-color:${pts?'#f0c98a':'var(--good)'}">
    <div class="row between"><div style="flex:1 1 300px"><h3 style="margin:0">${pts?`🧹 Mistakes found · ${M==='all'?'all months':esc(monthLabel(M))} — ${pts} patient${pts>1?'s':''} · ${nIss} issue${nIss>1?'s':''}`:`✅ Data cleaning · ${M==='all'?'all months':esc(monthLabel(M))}: no mistakes found`}</h3>
      <div class="row" style="gap:8px;margin-top:6px"><span class="hint">Data cleaning focus · month:</span><select class="inline" id="dcmS"><option value="all" ${M==='all'?'selected':''}>All months · ${Object.values(months).reduce((a,b)=>a+b,0)} issues</option>${mlist.map(k=>`<option value="${k}" ${k===M?'selected':''}>${esc(k==='—'?'No valid date':monthLabel(k))} · ${months[k]} issues</option>`).join('')}</select></div></div>
     <button class="btn ${open?'':'pri'}" data-act="dctog">${open?'Hide':'Review'}</button></div>
+   ${(()=>{const fut=ids.filter(id=>iss[id].some(x=>x[0]==='FUTURE'||x[0]==='BADDATE')).map(id=>byId[id]);if(!fut.length||F==='FUTURE')return '';const ms=[...new Set(fut.map(c=>/^\d{4}-\d{2}/.test(c.tarikhOp||'')?monthLabel(c.tarikhOp.slice(0,7)):'no valid date'))];
+      return `<div class="flag b" style="margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">⚠ ${fut.length} record${fut.length>1?'s have':' has'} a date of surgery in the future or unreadable (${esc(ms.join(', '))}). These are wrong dates. <button class="btn sm" data-act="dcfut">Show them</button></div>`})()}
    ${chips?`<div class="chips">${chips}${F?`<button type="button" class="chip" data-dcf="${F}">✕ Show all issues</button>`:''}</div>`:''}
+   ${F&&DCX[F]?`<div class="panel" style="background:#fff;padding:10px 12px"><b>${esc((DCI.find(z=>z[0]===F)||[0,''])[1])}</b><div class="hint" style="margin-top:4px"><b>What it means:</b> ${esc(DCX[F][0])}</div><div class="hint"><b>How to fix:</b> ${esc(DCX[F][1])}</div></div>`:''}
    <p class="hint" style="margin:0">Tap an issue to list those patients, then tap a patient to open and correct the record. "Other required fields empty" lists records with blank form fields (shown separately because it is common for imported data).</p>
    ${rev}</div>`;
 }
@@ -1535,8 +1646,21 @@ function dayPanel0(ssiL,DL){
 
 
 // ================= TREND (monthly for one year; yearly when "All years") =================
+
+// Weekly trend when one month is chosen (follows the dashboard filter)
+function trendWeeks(src,DL){
+  const mk=S.dy+'-'+S.dm,last=new Date(+S.dy,+S.dm,0).getDate(),W=[[1,7],[8,14],[15,21],[22,28],[29,last]].filter(w=>w[0]<=last);
+  const data=W.map((w,i)=>{const l=src.filter(c=>(c.tarikhOp||'').startsWith(mk)&&+c.tarikhOp.slice(8,10)>=w[0]&&+c.tarikhOp.slice(8,10)<=w[1]);return{k:mk+'-W'+(i+1),lab:`${w[0]}–${w[1]}`,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
+  const max=Math.max(1,...data.map(d=>d.n)),ML=BULAN[+S.dm-1]+' '+S.dy;
+  CH.trend={title:'Weekly trend · '+DL+' · '+ML,series:['Surgeries','SSI cases'],def:'v',rows:data.map(d=>({l:d.lab+' '+BULAN[+S.dm-1].slice(0,3),v:[d.n,d.s],lab:[String(d.n),d.s?`${d.s} (${pct(d.s,d.n)}%)`:'0']}))};
+  return `<div class="panel">${dlHead('trend','Weekly trend · '+esc(DL)+' · '+esc(ML))}
+   <div class="trend" style="grid-template-columns:repeat(${data.length},minmax(0,110px));justify-content:center">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>${tpill(d.k,d.s)}<span class="tlab">${d.lab}</span></div>`).join('')}</div>
+   <p class="hint trhint" style="margin:6px 0 0">Surgeries per week of ${esc(ML)}. Number under each bar = SSI cases. Choose "All months" to see the whole year.</p>${data.map(d=>tselList(src,d.k)).join('')}</div>`;
+}
+
 function trendPanel(src,DL){
-  TRT=DL;if(S.dy!=='Semua')return `<div class="panel">${dlHead('trend','Monthly trend · '+esc(DL))}${trendYear(src)}</div>`;
+  TRT=DL;if(S.dy!=='Semua'&&S.dm!=='Semua')return trendWeeks(src,DL);
+  if(S.dy!=='Semua')return `<div class="panel">${dlHead('trend','Monthly trend · '+esc(DL))}${trendYear(src)}</div>`;
   const l0=src.filter(c=>S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm);
   const ys=[...new Set(l0.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean))].sort();
   if(!ys.length)return `<div class="panel"><h3>Yearly trend · ${esc(DL)}</h3><div class="empty">No surgeries recorded.</div></div>`;
@@ -1814,8 +1938,9 @@ function ssiListBox(title,l,closeAttr){
 // ================= TREND: tap "x SSI" to list the SSI patients =================
 function tselList(list,key){
   if(!S.tsel||S.tsel!==key)return '';
-  const l=list.filter(c=>c.ssi==='Ya'&&(c.tarikhOp||'').startsWith(key)).sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
-  const lab=key.length===4?key:shortMonth(key)+' '+key.slice(0,4);
+  const wk=key.match(/^(\d{4}-\d{2})-W(\d)$/),last=wk?new Date(+key.slice(0,4),+key.slice(5,7),0).getDate():0,ws=wk?[1,8,15,22,29][wk[2]-1]:0,we=wk?Math.min(ws+6,last):0;
+  const l=list.filter(c=>c.ssi==='Ya'&&(wk?(c.tarikhOp||'').startsWith(wk[1])&&+c.tarikhOp.slice(8,10)>=ws&&+c.tarikhOp.slice(8,10)<=(wk[2]==='5'?last:we):(c.tarikhOp||'').startsWith(key))).sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
+  const lab=wk?`${ws}–${wk[2]==='5'?last:we} ${BULAN[+key.slice(5,7)-1]} ${key.slice(0,4)}`:key.length===4?key:shortMonth(key)+' '+key.slice(0,4);
   return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(lab)} (${l.length})</span><button class="btn sm" data-tsel="${key}">✕ Close</button></div>
    <div class="plist">${l.map(ssiItem).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
 }
@@ -2190,6 +2315,8 @@ document.addEventListener('click',e=>{
   if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
+  if(D.dcyear){const c=S.cases.find(x=>x.id===D.dcyear);if(!c)return;const nd=(+c.tarikhOp.slice(0,4)-1)+c.tarikhOp.slice(4);if(!confirm(`Change date of surgery for ${c.nama}\nfrom ${fmtD(c.tarikhOp)} to ${fmtD(nd)}?`))return;
+    const u=JSON.parse(JSON.stringify(c));u.tarikhOp=nd;['tarikhMasuk','tarikhSSI','tarikhReadmit','tarikhLab'].forEach(k=>{if(u[k]&&u[k]>TODAYISO)u[k]=(+u[k].slice(0,4)-1)+u[k].slice(4)});dcSave([u],c.nama+': date changed to '+fmtD(nd));return}
   if(D.dcdel){const c=S.cases.find(x=>x.id===D.dcdel);if(c&&confirm(`Delete ${c.nama} (${fmtD(c.tarikhOp)}, ${c.kategori||'no surgery'})?\nA copy is kept in the DeletedLog sheet.`))bulkDelete([D.dcdel]);return}
   if(D.dcdelg){const l=D.dcdelg.split(',');if(confirm(`Delete ${l.length} record(s)? They will be removed from the app and data collection.\nA copy is kept in the DeletedLog sheet.`))bulkDelete(l);return}
   if(D.dcf){S.dcf=S.dcf===D.dcf?null:D.dcf;S.dcOpen=true;keepY();return}
@@ -2199,6 +2326,11 @@ document.addEventListener('click',e=>{
   if(D.lkpull){pullLinks([D.lkpull],false);toast('Pulling…');return}
   if(D.lkauto){const L=getLinks(),x=L.find(y=>y.id===D.lkauto);if(x){x.auto=!x.auto;setLinks(L).then(keepY).catch(e=>toast(e.message))}return}
   if(D.lkdel){if(!confirm('Remove this link? Patients already added stay in the app.'))return;setLinks(getLinks().filter(y=>y.id!==D.lkdel)).then(keepY).catch(e=>toast(e.message));return}
+  if(D.mdyes){const [id,i]=D.mdyes.split('|'),c=S.cases.find(x=>x.id===id),m=(mdroMap()[id]||[])[+i];if(!c||!m)return;
+    openCase(id);Object.assign(S.sd,{ssi:'Ya',diagJenis:'Lab confirmed',organisma:m.o+(m.s?' ('+m.s+')':''),tarikhLab:m.d});if(!S.sd.tarikhSSI)S.sd.tarikhSSI=m.d;S.copen=SECTIONS.length;render();
+    toast('Lab-confirmed SSI filled from the MDRO masterlist. Complete site of SSI and readmission, then Save SSI form.');return}
+  if(D.mdno){const [id,i]=D.mdno.split('|'),c=S.cases.find(x=>x.id===id),m=(mdroMap()[id]||[])[+i];if(!c||!m)return;
+    c.mdroNo=String(c.mdroNo||'').split(';').filter(Boolean).concat([mdroKeyOf(m)]).join(';');persist(c);keepY();toast(c.nama+': '+m.o+' marked not related to SSI');return}
   if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;S.wsub=null;keepY();return}
   if(D.wsub){S.wsub=S.wsub===D.wsub?null:D.wsub;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
@@ -2263,6 +2395,12 @@ document.addEventListener('click',e=>{
   if(a==='otclear'){S.ot=null;keepY()}
   if(a==='otgal'){const i=$('#otgal');i&&i.click()}
   if(a==='dashrep'){dashReport();return}
+  if(a==='dcfut'){S.dcm='all';S.dcf='FUTURE';S.dcOpen=true;keepY();return}
+  if(a==='mdtog'){S.mdOpen=!S.mdOpen;keepY();return}
+  if(a==='mdclear'){if(!confirm('Remove the MDRO masterlist link?'))return;S.set.MDRO_SHEET='';S.mdTest=null;S.mdro=null;api('saveSetting',{key:'MDRO_SHEET',value:''}).then(()=>{keepY();toast('MDRO link removed')}).catch(e=>toast(e.message));return}
+  if(a==='mdsave'){const v=$('#mdsheet').value.trim();if(!/docs\.google\.com\/spreadsheets\/d\//.test(v)){toast('Paste the Google Sheet link of the MDRO masterlist');return}
+    S.set.MDRO_SHEET=v;S.mdTest=null;keepY();toast('Testing the MDRO link…');
+    api('saveSetting',{key:'MDRO_SHEET',value:v}).then(()=>api('mdroTest')).then(r=>{S.mdTest=r;return reloadData(true)}).then(()=>{keepY();toast('MDRO masterlist linked')}).catch(e=>{S.mdTest={err:/Unknown action|not allowed/i.test(e.message)?'Server code is old: paste the latest Code.gs and Deploy → New version.':e.message};keepY()});return}
   if(a==='dctog'){S.dcOpen=!S.dcOpen;keepY()}
   if(a==='dcfixdate'){const l=dataIssues().badDate.filter(c=>toISO(c.tarikhOp)).map(c=>Object.assign(JSON.parse(JSON.stringify(c)),{tarikhOp:toISO(c.tarikhOp)}));dcSave(l,l.length+' dates fixed')}
   if(a==='lkadd'){S.ladd={type:'list',auto:true};keepY()}
@@ -2301,10 +2439,10 @@ document.addEventListener('click',e=>{
     else{const nm={...m,id:'m'+Date.now().toString(36),selesai:[]};S.mods.push(nm);api('saveModule',{m:nm}).catch(fail);S.madd=null;keepY();toast('Material added')}}
 });
 function readMail(){if(!S.mail)return;S.mail.to=$('#m_to').value;S.mail.cc=$('#m_cc').value;S.mail.subj=$('#m_subj').value;S.mail.msg=$('#m_msg').value}
-function readMadd(){if(!S.madd||!$('#ma_tajuk'))return;S.madd.tajuk=$('#ma_tajuk').value.trim();S.madd.kategori=$('#ma_kat').value.trim();S.madd.url=$('#ma_url').value.trim();S.madd.penerangan=$('#ma_desc').value.trim()}
+function readMadd(){if(!S.madd||!$('#ma_tajuk'))return;S.madd.tajuk=$('#ma_tajuk').value.trim();S.madd.kategori=$('#ma_kat').value.trim();S.madd.url=$('#ma_url').value.trim();S.madd.penerangan=$('#ma_desc').value.trim();if($('#ma_thumb'))S.madd.thumb=$('#ma_thumb').value.trim()}
 document.addEventListener('input',e=>{
   const T=e.target,k=T.dataset.in;
-  if(k){(T.dataset.s==='sd'?S.sd:S.draft)[k]=T.value;
+  if(k){(T.dataset.s==='sd'?S.sd:S.draft)[k]=T.value;if(T.dataset.s!=='sd'&&['nama','ic','mrn'].includes(k))mdroCheckDraft();
     T.classList.toggle('miss',(T.dataset.s==='sd'?reqAll(S.sd):reqFields(S.draft)).includes(k)&&T.value==='');
     liveCalc();return}
   if(T.id==='q'){S.q=T.value;$('#qres').innerHTML=searchRes(S.q,myCases());return}
