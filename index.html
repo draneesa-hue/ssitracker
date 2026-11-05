@@ -59,6 +59,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .prow2{display:flex;gap:6px;align-items:stretch}.prow2 .pitem{flex:1;min-width:0}.prow2 .btn{align-self:center;flex:none}
 details.info{border-bottom:1px solid var(--line);padding:4px 0}details.info:last-child{border-bottom:0}details.info summary{cursor:pointer;font-weight:800;padding:8px 2px;color:var(--deep)}
 .infob{padding:0 4px 10px;line-height:1.6}.infob ul{margin:.2em 0;padding-left:1.2em}.infob td{padding:6px 8px;vertical-align:top}
+.repwrap{position:relative;display:inline-block}.repmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(15,60,26,.18);display:flex;flex-direction:column;min-width:260px;overflow:hidden}
+.repmenu button{all:unset;cursor:pointer;padding:11px 14px;font-size:.88rem;font-weight:700;color:var(--deep)}.repmenu button:hover,.repmenu button:focus-visible{background:var(--accent-soft)}.repmenu button+button{border-top:1px solid var(--line)}
 .tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
@@ -311,6 +313,13 @@ a.btn.pri{color:var(--accent-ink)}
  .kpi b{font-size:1.5rem}
  .wrap{padding-left:12px;padding-right:12px}
 }
+.libseg{flex:0 1 460px;margin:0}.libseg button{padding:9px 10px;font-size:.9rem}.libq{flex:1 1 220px;max-width:360px}.libq input{padding-top:9px;padding-bottom:9px}
+.mods{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))!important}
+@media(max-width:600px){.libseg{flex:1 1 100%}.libq{max-width:none}.mods{grid-template-columns:1fr 1fr!important;gap:10px}.mod .bd{padding:9px}.mod .bd p{display:none}.mod .cover b{display:none}.mod .act .btn{padding:6px 9px}}
+.pmodal{padding:12px}.pbox{max-width:1000px;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:96vh}
+.pframe{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden}.pframe.vid{aspect-ratio:16/9;max-height:74vh}.pframe.doc{height:74vh;background:#f4f4f4}
+.pframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.mod .thumb[data-play]{cursor:pointer}.mod .thumb[data-play]:hover .ico{transform:scale(1.08)}
 </style>
 </head>
 <body>
@@ -563,7 +572,7 @@ async function sendReport(m){
 
 // ================= SHELL =================
 function navTabs(){return S.user.role==='liaison'
-  ?[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['pesakit','Patients',IC.list],['latihan','Training',IC.book]]
+  ?[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['pesakit','Patients',IC.list],['latihan','Training',IC.book],['info','Info',IC.users]]
   :[['dash','Dashboard',IC.dash],['entry','New Entry',IC.plus],['kes','All Cases',IC.list],['laporan','Reports',IC.doc],['latihan','Training',IC.book],['liaison','Info',IC.users]]}
 function render(){
   const app=$('#app');
@@ -577,10 +586,11 @@ function render(){
   else if(S.tab==='laporan')body=reportView();
   else if(S.tab==='kes')body=allCasesView();
   else if(S.tab==='liaison')body=liaisonAdmin();
+  else if(S.tab==='info')body=infoPanel(false);
   app.innerHTML=`<header class="top"><div class="in"><div class="brand"><img class="lg-s" src="${ICON}" alt=""><div><h1>SSI Tracker</h1><small>${S.user.role==='liaison'?esc(S.user.jabatan)+' Liaison':'UKI Coordinator'} · HTPN</small></div></div>
     <span class="hint">${esc(S.user.nama)}</span><button class="btn sm" data-act="reload" title="Get the latest data" aria-label="Refresh">↻<span class="rl"> Refresh</span></button><button class="btn sm" data-act="logout">Log out</button></div></header>
    <main class="wrap">${body}</main>
-   <nav class="bnav">${navTabs().map(([k,l,i])=>{const b=k==='pesakit'&&S.user.role==='liaison'?myCases().filter(c=>status(c).key==='sah').length:0;
+   <nav class="bnav">${navTabs().map(([k,l,i])=>{const b=k==='pesakit'&&S.user.role==='liaison'?myCases().filter(c=>status(c).key==='sah').length+mdroPending(myCases()).length:0;
      return `<button data-tab="${k}" class="${S.tab===k&&!S.cur?'on':''}">${i}<span>${innerWidth<600&&l==='New Entry'?'Entry':l}</span>${b?`<span class="badge">${b}</span>`:''}</button>`}).join('')}</nav>`;
 }
 
@@ -653,13 +663,13 @@ function liaisonDash(){
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
    ${mdroCard(mine)}
-   ${pend.length?`<div class="panel remind ${S.remOpen?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${!!S.remOpen}">
-     <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen?'hide':'confirm'}</span></span>${CHEV}</button>
-    ${S.remOpen?`<div class="remlist">${pend.map(pendRow).join('')}</div>`:''}</div>`:''}
+   ${pend.length?`<div class="panel remind ${S.remOpen!==false?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${S.remOpen!==false}">
+     <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen!==false?'hide':'confirm'}</span></span>${CHEV}</button>
+    ${S.remOpen!==false?`<div class="remlist">${pend.map(pendRow).join('')}</div>`:''}</div>`:''}
    <div class="panel stack"><h3>Find a patient for the SSI form</h3>
     <div class="search">${IC.search}<input id="q" placeholder="Name, IC No. or MRN" value="${esc(S.q)}" autocomplete="off"></div>
     <div id="qres">${searchRes(S.q,mine)}</div></div>
-   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${rfSelect()}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button></div></div>
+   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${rfSelect()}${repBtn()}</div></div>
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored (${MS})</span></div>
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
@@ -670,6 +680,7 @@ function liaisonDash(){
    ${dayPanel(ssiM,S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
    ${woundPanel(list,S.user.jabatan)}
+   ${orgPanel(ssiM,S.user.jabatan)}
    ${riskPanel(base,S.user.jabatan)}
    <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
@@ -702,12 +713,17 @@ function entryView(){
   <div class="formbar"><div class="meter"><i id="meter" class="${cp.pct===100?'done':''}" style="width:${cp.pct}%"></i></div><span class="hint" id="meterTxt">${cp.pct}% complete${cp.missing?' · '+cp.missing+' required left':''}</span>
    <button class="btn pri" data-act="save">Save</button></div></div></div>`;
 }
+function patAlerts(){if(S.user.role!=='liaison')return '';
+  const pend=myCases().filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
+  return `${mdroCard(myCases())}${pend.length?`<div class="panel remind open"><div class="remh" style="cursor:default"><span class="remn">${pend.length}</span><span><b>🔔 ${pend.length} patient${pend.length>1?'s':''} need${pend.length>1?'':'s'} your confirmation</b><br><span class="hint">Surveillance period ended (30 days, 1 year with implant) with no SSI recorded. Tick <b>No SSI</b> or <b>SSI present</b> so the monthly report is final.</span></span></div>
+   <div class="remlist">${pend.map(pendRow).join('')}</div></div>`:''}`}
 function patientsView(){
   const f=S.pf,mine=myCases().filter(c=>pMatch(c,S.py,S.pm)&&wOk(c,S.pw));
   const cnt=k=>k==='Semua'?mine.length:k==='kosong'?mine.filter(c=>complete(c).pct<100).length:mine.filter(c=>status(c).key===k).length;
   const opts=[['Semua','All'],['aktif','In surveillance'],['sah','Needs confirmation'],['ssi','SSI'],['selesai','Completed'],['kosong','Incomplete']];
   const l=mine.filter(c=>f==='Semua'||(f==='kosong'?complete(c).pct<100:status(c).key===f)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
   return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}<select class="inline" id="pwS" aria-label="Type of surgery"><option value="Semua">All types</option>${[['Clean','Clean'],['Clean contaminated','Clean contaminated'],['Contaminated','Contaminated'],['_none','Not recorded']].map(([v,l])=>`<option value="${v}" ${S.pw===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
+   ${patAlerts()}
    ${dataCheckPanel()}
    <div class="chips">${opts.map(([k,lb])=>`<button class="chip ${f===k?'on':''}" data-pf="${k}">${lb} (${cnt(k)})</button>`).join('')}</div>
    <div class="panel">${l.length?l.map(c=>status(c).key==='sah'?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
@@ -807,7 +823,7 @@ function coordDash(){
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">
-   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button></div></div>
+   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}${repBtn()}</div></div>
    ${rfFilterBar()}
    ${mdroCard(S.cases.filter(inD))}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
@@ -819,6 +835,7 @@ function coordDash(){
    ${dayPanel(ssiL,DL)}
    ${procTable(list,JAB.filter(j=>D==='Semua'||j===D),'Surgery types · '+esc(DL)+' · '+ML)}
    ${woundPanel(list,DL)}
+   ${orgPanel(ssiL,DL)}
    ${riskPanel(base,DL)}
    <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
    ${(CH.bundle={title:'SSI bundle compliance · '+DL+' · '+ML,series:['Compliance'],unit:'%',def:'h',rows:bundle.map(([l,v])=>({l,v:[v]}))},'')}<div class="panel stack">${dlHead('bundle','SSI bundle compliance · '+esc(DL))}${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
@@ -969,28 +986,39 @@ function mdroSetupPanel(){
   </div>`;
 }
 
-function infoPanel(){
+function infoPanel(coord=true){
   const sec=(t,b,open)=>`<details class="info" ${open?'open':''}><summary>${t}</summary><div class="infob">${b}</div></details>`;
   return `<div class="stack"><div><h2>ℹ️ About SSI Tracker HTPN</h2>
    <p class="hint" style="margin:.4em 0 0;font-size:.92rem">Surgical Site Infection (SSI) surveillance for Hospital Tengku Permaisuri Norashikin, managed by the Infection Control Unit (UKI). Liaisons enter and follow up patients; UKI reviews the data and sends the monthly report to JKNS.</p></div>
   <div class="panel stack">
    ${sec('👥 Who uses the app',`<ul><li><b>UKI Coordinator</b> – sees all departments, dashboards, data cleaning, imports Excel / linked sheets, generates and emails the JKNS report, manages training and liaisons.</li>
-     <li><b>Department Liaison</b> (O&amp;G, Surgery, Ortho, OMFS) – enters patients, follows them up, completes the SSI form, and ticks <i>SSI / No SSI</i> when surveillance ends. Sees own department only.</li></ul>`,true)}
+     <li><b>Department Liaison</b> (O&amp;G, Surgery, Ortho, OMFS) – enters patients, follows them up, completes the SSI form, and ticks <i>SSI / No SSI</i> when surveillance ends. Sees own department only.</li></ul>`)}
    ${sec('🩺 Monitored surgeries',`<table><tbody>${JAB.map(j=>`<tr><td><b>${esc(j)}</b></td><td>${PROC[j].map(esc).join(' · ')}</td></tr>`).join('')}</tbody></table>
      <p class="hint">Only these surgeries are counted in the dashboard and JKNS report (denominator = monitored surgeries). Other surgeries (e.g. EM LSCS) are kept out.</p>`)}
-   ${sec('⏱ Surveillance period & patient status',`<ul><li>Follow-up <b>30 days</b> after surgery, or <b>1 year</b> if an implant was used.</li>
-     <li><span class="pill a">In surveillance</span> still within the period · <span class="pill w">Needs confirmation</span> period ended, liaison must tick SSI / No SSI · <span class="pill b">SSI</span> SSI confirmed – complete the TYPE OF SSI form · <span class="pill g">Completed</span> no SSI, closed.</li>
-     <li>Day of SSI = date SSI identified minus date of surgery.</li></ul>`)}
+   ${sec('⏱ Patient status – what the numbers mean',`<p style="margin:0 0 6px">The app sets each patient's status by itself from the <b>date of surgery</b>, <b>implant</b> and the <b>SSI</b> field. Staff do not choose it.</p>
+     <table><tbody><tr><td><span class="pill a">In surveillance</span></td><td>Surgery was less than <b>30 days</b> ago (<b>1 year</b> if an implant was used) and no SSI is recorded. Shown as <i>Day 6/30</i>. Keep following up; nothing to tick yet.</td></tr>
+     <tr><td><span class="pill w">Needs confirmation</span></td><td>The surveillance period has <b>ended</b> and no SSI is recorded, but nobody has confirmed it. The liaison taps <b>✓ No SSI</b> or <b>SSI present</b>. Until then the case is not final for the JKNS report.</td></tr>
+     <tr><td><span class="pill b">SSI</span></td><td>SSI recorded. Complete the TYPE OF SSI section (date identified, site, clinical / lab confirmed, organism, readmission).</td></tr>
+     <tr><td><span class="pill g">Completed</span></td><td>Surveillance closed with no SSI.</td></tr></tbody></table>
+     <p style="margin:8px 0 0"><b>Flow:</b> In surveillance → Needs confirmation → Completed <i>or</i> SSI.</p>
+     <ul><li>Dashboard boxes <b>"In 30-day surveillance"</b> and <b>"Awaiting confirmation"</b> count <b>all</b> of the department's patients, not only the year/month filter. The 🔔 card and the red number on <b>Patients</b> show who must be confirmed.</li>
+     <li>Day of SSI = date SSI identified minus date of surgery. SSI date must be within 30 days (1 year with implant).</li></ul>`,true)}
+   ${sec('📝 Data collection step by step (for staff)',`<ol style="margin:0;padding-left:1.2em">
+     <li><b>Pre-op &amp; intra-op</b> – fill in at <b>New Entry</b> (or the patient comes from the OT list / Excel): patient details, risk factors (DM, BMI, smoking…), skin preparation, antibiotic prophylaxis and time, redosing, wound class, duration of surgery, implant. Same as the paper SSI Data Collection Form.</li>
+     <li><b>Post-op follow-up</b> – during the 30 days (1 year with implant) check the wound in the ward, clinic or by phone. Record each follow-up in the patient's page.</li>
+     <li><b>If SSI</b> – open the patient and fill in TYPE OF SSI. If the 🦠 card says an organism was found in the MDRO masterlist, tap <b>Yes – SSI</b> and the lab-confirmed details fill in by themselves.</li>
+     <li><b>When the period ends with no SSI</b> – tap <b>✓ No SSI</b>. This is the same as writing "SSI: NO" at the end of the paper form; the app asks for it so a patient who was not followed up is not counted as "no SSI" by mistake.</li>
+     <li><b>Red sections</b> in the form = required fields still empty. Data cleaning on the Patients tab lists mistakes to correct.</li></ol>
+     <p class="hint" style="margin:8px 0 0"><b>Old / imported data:</b> patients imported from a department's SSI Data Collection Excel (or a linked sheet) whose period has already ended with no SSI are closed as <b>Completed</b> automatically. Patients from New Entry, the OT list or the all-department patient list (name / IC / date only) are not closed automatically – they need the liaison's confirmation.</p>`)}
    ${sec('📥 How data gets in',`<ul><li><b>New Entry</b> – manual form following the KKM SSI Data Collection Form.</li><li><b>From OT list</b> – take a photo, choose from gallery, or upload a PDF; only monitored surgeries are added and patients already in the app are flagged.</li>
      <li><b>Import Excel</b> – SSI Data Collection form per department, or a patient list for all departments.</li><li><b>Linked Excel / Google Sheet</b> – pulled automatically when UKI opens the app; only new patients are added.</li></ul>`)}
-   ${sec('📊 Dashboard, reports & data quality',`<ul><li>Filters: year, month, department, risk factor. Every chart can be shown as table / horizontal / vertical and downloaded as image or Excel. <b>Report of this view</b> downloads the filtered dashboard.</li>
+   ${sec('📊 Dashboard, reports & data quality',`<ul><li>Filters: year, month, department, risk factor. Every chart can be shown as table / horizontal / vertical and downloaded as image or Excel. <b>⬇ Report</b> downloads the filtered dashboard as Excel, PDF or Word.</li>
      <li><b>JKNS report</b> (Reports tab): Excel with SUMMARY, ANALYSIS and one sheet per department per month listing SSI cases; can be downloaded or emailed.</li>
      <li><b>Data complete</b> = % of monitored surgeries with every required form field filled.</li><li><b>Data cleaning</b> (All Cases) lists mistakes per month – future or wrong dates, double entries, unclassified SSI, wound class missing – with fixes and delete.</li></ul>`)}
    ${sec('🔒 Data & privacy',`<ul><li>Patient data is stored only in the UKI Google Sheet (Google account of UKI). The web page holds no data.</li><li>Passwords are stored as hashes; sessions end after 6 hours.</li><li>Liaisons only see and edit their own department. Deleted records are kept in the <i>DeletedLog</i> sheet.</li><li>Smart analysis is calculated inside the app; no patient data is sent to outside AI.</li></ul>`)}
    ${sec('📞 Contact',`<p style="margin:0">Unit Kawalan Infeksi (UKI), Hospital Tengku Permaisuri Norashikin<br>📱 013-738 6497 · ✉️ <a href="mailto:ukihtpn@moh.gov.my">ukihtpn@moh.gov.my</a></p><p class="hint" style="margin:.4em 0 0">SSI Tracker HTPN · updated November 2026</p>`)}
   </div>
-  ${mdroSetupPanel()}
-  <h2 style="margin-top:8px">🏥 Department Liaisons</h2></div>`;
+  ${coord?mdroSetupPanel()+'\n  <h2 style="margin-top:8px">🏥 Department Liaisons</h2>':''}</div>`;
 }
 
 function liaisonAdmin(){
@@ -1015,11 +1043,11 @@ function modCard(m,coord){
   const lab={youtube:'Video',drive:'Google Drive',link:'Link'}[s];
   const host=(String(m.url).match(/^https?:\/\/([^\/?#]+)/)||[])[1]||'',isPdf=/\.pdf($|[?#])/i.test(m.url),img=m.thumb||th;
   const cover2=`<div class="cover"><span class="cbadge">${isPdf?'PDF':s==='drive'?'DRIVE':'WEB'}</span><b>${esc(m.tajuk)}</b><span class="chost"><img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64" alt="" loading="lazy" onerror="this.remove()">${esc(host.replace(/^www\./,''))}</span></div>`;
-  return `<article class="mod"><div class="thumb ${s==='drive'?'drive':s==='link'?'link':''}"><div class="ico">${s==='youtube'?IC.play:s==='drive'?IC.file:IC.link}</div>${cover2}${img?`<img src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}
+  return `<article class="mod"><div class="thumb ${s==='drive'?'drive':s==='link'?'link':''}" ${embedOf(m.url)?`data-play="${m.id}" role="button" tabindex="0" aria-label="Play ${esc(m.tajuk)}"`:''}><div class="ico">${s==='youtube'?IC.play:s==='drive'?IC.file:IC.link}</div>${cover2}${img?`<img src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}
    <span class="src">${isPdf?'PDF':lab}</span>${!coord&&done?'<span class="done">✓ Done</span>':''}</div>
    <div class="bd"><span class="hint">${esc(m.kategori)}</span><b>${esc(m.tajuk)}</b><p>${esc(m.penerangan)}</p>
     ${coord&&m.jenis==='modul'?`<span class="hint">${m.selesai.length} liaison(s) completed</span>`:''}
-    <div class="act"><a class="btn sm pri" href="${esc(m.url)}" target="_blank" rel="noopener">Open</a>
+    <div class="act">${playLabel(m)?`<button class="btn sm pri" data-play="${m.id}">${playLabel(m)}</button><a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener" title="Open in new tab" aria-label="Open in new tab">↗</a>`:`<a class="btn sm pri" href="${esc(m.url)}" target="_blank" rel="noopener">Open ↗</a>`}
      ${!coord&&m.jenis==='modul'?`<button class="btn sm" data-done="${m.id}">${done?'Undo done':'Mark as done'}</button>`:''}
      ${coord?(S.mdel===m.id?`<button class="btn sm danger" data-del2="${m.id}">Confirm delete</button><button class="btn sm" data-del0="1">Cancel</button>`:`<button class="btn sm" data-medit="${m.id}">Edit</button><button class="btn sm danger" data-del1="${m.id}">Delete</button>`):''}</div></div></article>`;
 }
@@ -1027,12 +1055,41 @@ function grouped(list,coord){
   const cats=[...new Set(list.map(m=>m.kategori))];
   return cats.map(k=>`<div class="stack" style="gap:10px"><h3>${esc(k)}</h3><div class="mods">${list.filter(m=>m.kategori===k).map(m=>modCard(m,coord)).join('')}</div></div>`).join('')||'<div class="empty">No materials yet.</div>';
 }
+// ================= In-app player / viewer for training materials =================
+function embedOf(u){u=String(u||'');let m;
+  if(m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/))return{url:`https://www.youtube-nocookie.com/embed/${m[1]}?autoplay=1&rel=0&modestbranding=1`,kind:'video'};
+  if(m=u.match(/docs\.google\.com\/(document|presentation|spreadsheets|forms)\/d\/([\w-]{10,})/))return{url:m[1]==='forms'?`https://docs.google.com/forms/d/${m[2]}/viewform?embedded=true`:`https://docs.google.com/${m[1]}/d/${m[2]}/preview`,kind:'doc'};
+  if(m=u.match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([\w-]{10,})/))return{url:`https://drive.google.com/embeddedfolderview?id=${m[1]}#grid`,kind:'folder'};
+  if(/drive\.google\.com/.test(u)&&(m=u.match(/\/d\/([\w-]{10,})/)||u.match(/[?&]id=([\w-]{10,})/)))return{url:`https://drive.google.com/file/d/${m[1]}/preview`,kind:'drive'};
+  if(/\.pdf($|[?#])/i.test(u))return{url:u,kind:'pdf'};
+  return null}
+function playLabel(m){const e=embedOf(m.url);if(!e)return '';return e.kind==='video'||(e.kind==='drive'&&/video|vid|mp4/i.test(m.tajuk+' '+m.kategori+' '+(m.penerangan||'')))?'▶ Play':'👁 View'}
+function playerDoneBtn(m){return S.user.role==='liaison'&&m.jenis==='modul'?`<button class="btn sm ${m.selesai.includes(S.user.nama)?'':'good'}" data-pdone="${m.id}">${m.selesai.includes(S.user.nama)?'Undo done':'✓ Mark as done'}</button>`:''}
+function openPlayer(id){const m=S.mods.find(x=>x.id===id),e=m&&embedOf(m.url);if(!e)return;closePlayer();
+  const d=document.createElement('div');d.id='player';d.className='modal pmodal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+  d.innerHTML=`<div class="modalc pbox"><div class="row between" style="gap:8px;flex-wrap:nowrap"><div style="min-width:0"><span class="hint">${esc(m.kategori)}</span><h3 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.tajuk)}</h3></div><button class="btn sm" data-pclose="1" aria-label="Close">✕</button></div>
+   <div class="pframe ${e.kind==='video'||e.kind==='drive'?'vid':'doc'}"><iframe src="${esc(e.url)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+   <div class="row between" style="gap:8px"><span class="hint">Not showing? The file must be shared "Anyone with the link", or open it in a new tab.</span><div class="row" style="gap:6px"><span id="pdoneW">${playerDoneBtn(m)}</span><a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">↗ Open in new tab</a></div></div></div>`;
+  document.body.appendChild(d);document.body.style.overflow='hidden'}
+function closePlayer(){const p=$('#player');if(p){p.remove();document.body.style.overflow=''}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#player'))closePlayer()});
+function libItems(){const k=S.tk||'modul';let l=S.mods.filter(m=>m.jenis===k);if(S.tcat&&S.tcat!=='Semua')l=l.filter(m=>m.kategori===S.tcat);
+  const q=(S.tq||'').trim().toLowerCase();if(q)l=l.filter(m=>(m.tajuk+' '+m.kategori+' '+(m.penerangan||'')).toLowerCase().includes(q));
+  return l.slice().sort((a,b)=>String(a.kategori).localeCompare(String(b.kategori)))}
+function libGrid(coord){const l=libItems();return l.length?`<div class="mods">${l.map(m=>modCard(m,coord)).join('')}</div>`:'<div class="empty">No materials match.</div>'}
+function libView(coord){
+  const k=S.tk||'modul',all=S.mods.filter(m=>m.jenis===k),cats=[...new Set(all.map(m=>m.kategori))];
+  if(S.tcat&&S.tcat!=='Semua'&&!cats.includes(S.tcat))S.tcat='Semua';const tc=S.tcat||'Semua';
+  const n=j=>S.mods.filter(m=>m.jenis===j).length;
+  return `<div class="panel stack libbar"><div class="row between" style="gap:10px"><div class="seg2 libseg">${[['modul','🎓 Training modules'],['rujukan','📚 Reference materials']].map(([j,l])=>`<button type="button" class="${k===j?'on':''}" data-tk="${j}">${l} (${n(j)})</button>`).join('')}</div>
+    <div class="search libq">${IC.search}<input id="tq" placeholder="Search title or category" value="${esc(S.tq||'')}" autocomplete="off"></div></div>
+   ${cats.length>1?`<div class="chips">${['Semua',...cats].map(c=>`<button type="button" class="chip ${tc===c?'on':''}" data-tcat="${esc(c)}">${c==='Semua'?'All categories':esc(c)} (${c==='Semua'?all.length:all.filter(m=>m.kategori===c).length})</button>`).join('')}</div>`:''}</div>
+  <div id="tgrid">${libGrid(coord)}</div>`}
 function trainLiaison(){
   const mods=S.mods.filter(m=>m.jenis==='modul'),done=mods.filter(m=>m.selesai.includes(S.user.nama)).length;
   return `<div class="stack"><h2>Training & references</h2>
    <div class="panel row"><div class="meter"><i class="${done===mods.length?'done':''}" style="width:${pct(done,mods.length)}%"></i></div><span><b>${done}/${mods.length}</b> modules completed</span></div>
-   <span class="sectag" style="align-self:flex-start">TRAINING MODULES</span>${grouped(mods,false)}
-   <span class="sectag" style="align-self:flex-start">REFERENCE MATERIALS</span>${grouped(S.mods.filter(m=>m.jenis==='rujukan'),false)}</div>`;
+   ${libView(false)}</div>`;
 }
 function trainCoord(){
   const a=S.madd;const cats=[...new Set(S.mods.map(m=>m.kategori))];
@@ -1046,8 +1103,7 @@ function trainCoord(){
      <label class="f fwide"><span>Thumbnail image link (optional)</span><input id="ma_thumb" type="url" value="${esc(a.thumb||'')}" placeholder="Leave blank for an automatic cover"></label></div>
     <p class="hint" style="margin:0">Thumbnails are generated automatically from YouTube or Drive links. Make sure Drive files are shared with "Anyone with the link".</p>
     <div class="row"><button class="btn pri" data-act="maddsave">${a.id?'Save changes':'Save'}</button><button class="btn" data-act="maddclose">Cancel</button></div></div>`:''}
-   <span class="sectag" style="align-self:flex-start">TRAINING MODULES</span>${grouped(S.mods.filter(m=>m.jenis==='modul'),true)}
-   <span class="sectag" style="align-self:flex-start">REFERENCE MATERIALS</span>${grouped(S.mods.filter(m=>m.jenis==='rujukan'),true)}
+   ${libView(true)}
 </div>`;
 }
 
@@ -1376,7 +1432,71 @@ function autoPullLinks(){if(S.user&&S.user.role==='coord'&&typeof api==='functio
 // ================= DOWNLOAD HEAD (chart + excel only) and FILTERED DASHBOARD REPORT =================
 let DASH=null,TRT='';
 function dlHead(id,title){return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button><button type="button" class="btn sm" data-xlsx="${id}" title="Download data and chart as Excel">⬇ Excel</button></div></div>`}
-const DASH_ORDER=[['trend','Trend'],['dept','SSI by department'],['ys','Year-by-year summary'],['day','Day SSI identified'],['proc','Surgery types'],['wound','Type of surgery (wound class)'],['risk','Risk factors'],['bundle','SSI bundle compliance']];
+const DASH_ORDER=[['trend','Trend'],['dept','SSI by department'],['ys','Year-by-year summary'],['day','Day SSI identified'],['proc','Surgery types'],['wound','Type of surgery (wound class)'],['org','SSI by organism'],['risk','Risk factors'],['bundle','SSI bundle compliance']];
+
+// ================= REPORT OF THIS VIEW as PDF or Word =================
+function loadLib(src,glob){return window[glob]?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=()=>window[glob]?res():rej(new Error('library not loaded'));s.onerror=()=>rej(new Error('Could not load the report library – check the internet connection'));document.head.appendChild(s)})}
+async function reportModel(){
+  const D=DASH,list=D.list,ssi=list.filter(c=>c.ssi==='Ya'),rf=S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'All';
+  const keep=S.ai;S.ai=true;const tmp=document.createElement('div');tmp.innerHTML=aiPanel(list,D.src,D.ctx);S.ai=keep;
+  const uls=tmp.querySelectorAll('#aiText ul'),li=u=>u?[...u.querySelectorAll('li')].map(x=>x.textContent.trim()):[];
+  const sections=[];
+  for(const [id,lab] of DASH_ORDER){const cfg=CH[id];if(!cfg||!cfg.rows||!cfg.rows.length)continue;const pc=cfg.unit==='%';
+    let img=null;try{const {cv,W,H}=await chartImg(cfg,CV(id,cfg.def)==='v'?'v':'h');img={url:cv.toDataURL('image/png'),W,H}}catch(e){}
+    sections.push({title:cfg.title||lab,head:['Item'].concat(cfg.series.map(s=>s+(pc?' (%)':''))),rows:cfg.rows.map(r=>[r.l].concat(r.v.map(v=>pc?v+'%':String(v)))),img})}
+  return {title:'SSI Dashboard Report – Hospital Tengku Permaisuri Norashikin',
+    sub:`Department: ${D.DL} · Period: ${D.ML} · Risk factor: ${rf}`,gen:`Generated ${fmtD(TODAYISO)} ${new Date().toTimeString().slice(0,5)} by ${S.user.nama} · monitored surgeries only`,
+    kpis:[['Surgeries monitored',String(list.length)],['SSI cases',String(ssi.length)],['SSI rate',pct(ssi.length,list.length)+'%'],['Data complete',pct(list.filter(c=>complete(c).pct===100).length,list.length)+'%']],
+    findings:li(uls[0]),actions:li(uls[1]),sections,
+    ssiHead:['Department','Name','MRN / IC','Date of surgery','Surgery','Wound class','Day','Site of SSI','Organism'],
+    ssi:ssi.slice().sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||'')).map(c=>[c.jabatan,c.nama,c.mrn||c.ic||'',fmtD(c.tarikhOp),c.kategori||'',c.jenisLuka||'',ssiDay(c)!=null?String(ssiDay(c)):'',ssiSite(c)||'',c.organisma||'']),
+    file:('SSI_Dashboard_'+D.DL+'_'+D.ML+(rf!=='All'?'_'+rf:'')).replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,90)};
+}
+const pdfTxt=s=>String(s==null?'':s).replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->').replace(/[✨🦠⚠✅🧹]/gu,'').replace(/[^\x00-\xFF–—‘’“”•…]/g,'');
+async function reportPDF(){
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','jspdf');
+  const M=await reportModel(),{jsPDF}=window.jspdf,doc=new jsPDF({unit:'mm',format:'a4'}),PW=210,PH=297,L=14,Wd=PW-2*L;let y=16;
+  const need=h=>{if(y+h>PH-14){doc.addPage();y=16}};
+  const text=(t,size,bold,color)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(...(color||[30,40,32]));const ls=doc.splitTextToSize(pdfTxt(t),Wd);need(ls.length*size*0.42+1);doc.text(ls,L,y);y+=ls.length*size*0.42+1.5};
+  const band=t=>{need(10);doc.setFillColor(147,196,125);doc.rect(L,y-4.5,Wd,7,'F');doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(15,60,26);doc.text(pdfTxt(t).toUpperCase(),L+2,y);y+=6};
+  const table=(head,rows,widths)=>{const fs=7.6,lh=3.3;const tot=widths.reduce((a,b)=>a+b,0),cw=widths.map(w=>w/tot*Wd);
+    const drawRow=(cells,hd)=>{doc.setFont('helvetica',hd?'bold':'normal');doc.setFontSize(fs);const parts=cells.map((c,i)=>doc.splitTextToSize(pdfTxt(c),cw[i]-2));const h=Math.max(...parts.map(p=>p.length))*lh+2;need(h);
+      if(hd){doc.setFillColor(217,234,211);doc.rect(L,y,Wd,h,'F')}let x=L;doc.setTextColor(30,40,32);parts.forEach((p,i)=>{doc.text(p,x+1,y+lh);x+=cw[i]});doc.setDrawColor(200,215,195);doc.line(L,y+h,L+Wd,y+h);y+=h};
+    drawRow(head,true);rows.forEach(r=>drawRow(r,false));y+=3};
+  text(M.title,14,true,[15,90,32]);text(M.sub,9.5,true);text(M.gen,8,false,[110,120,110]);y+=2;
+  table(M.kpis.map(k=>k[0]),[M.kpis.map(k=>k[1])],[1,1,1,1]);
+  if(M.findings.length){band('Key findings');M.findings.forEach(f=>text('• '+f,8.6));}
+  if(M.actions.length){band('Suggested actions');M.actions.forEach(f=>text('• '+f,8.6));}
+  for(const s of M.sections){const w=s.img?Math.min(Wd,s.img.W*0.24):0,h=s.img?s.img.H*w/s.img.W:20;need(Math.min(h,PH-40)+12);band(s.title);if(s.img){need(h+2);doc.addImage(s.img.url,'PNG',L,y,w,h);y+=h+3}
+    table(s.head,s.rows,[3].concat(s.head.slice(1).map(()=>1.2)))}
+  need(24);  band(`SSI patients in this view (${M.ssi.length})`);if(M.ssi.length)table(M.ssiHead,M.ssi,[1.3,2.6,1.8,1.4,2.2,1.6,.6,1.6,1.8]);else text('No SSI cases in this selection.',8.6);
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(140);doc.text(`SSI Tracker HTPN · page ${i} of ${n}`,PW-L,PH-7,{align:'right'})}
+  saveBlob(doc.output('blob'),M.file+'.pdf');toast('PDF report downloaded');
+}
+async function reportWord(){
+  await loadLib('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js','docx');
+  const M=await reportModel(),X=window.docx,{Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,ImageRun,ShadingType,AlignmentType}=X;
+  const P=(t,o={})=>new Paragraph({spacing:{after:80},...o.p,children:[new TextRun({text:String(t),size:o.size||19,bold:!!o.bold,color:o.color})]});
+  const H=t=>new Paragraph({heading:HeadingLevel.HEADING_2,spacing:{before:240,after:100},children:[new TextRun({text:t,bold:true,color:'0F5A20',size:24})]});
+  const tbl=(head,rows)=>new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[head].concat(rows).map((r,ri)=>new TableRow({tableHeader:ri===0,children:r.map(c=>new TableCell({shading:ri===0?{type:ShadingType.CLEAR,fill:'D9EAD3',color:'auto'}:undefined,margins:{top:40,bottom:40,left:60,right:60},children:[new Paragraph({children:[new TextRun({text:String(c==null?'':c),size:16,bold:ri===0})]})]}))}))});
+  const b64=u=>{const s=atob(u.split(',')[1]),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a};
+  const kids=[new Paragraph({spacing:{after:80},children:[new TextRun({text:M.title,bold:true,size:30,color:'0F5A20'})]}),P(M.sub,{bold:true}),P(M.gen,{size:16,color:'6E786E'}),
+    tbl(M.kpis.map(k=>k[0]),[M.kpis.map(k=>k[1])])];
+  if(M.findings.length){kids.push(H('Key findings'));M.findings.forEach(f=>kids.push(new Paragraph({bullet:{level:0},children:[new TextRun({text:f,size:19})]})))}
+  if(M.actions.length){kids.push(H('Suggested actions'));M.actions.forEach(f=>kids.push(new Paragraph({bullet:{level:0},children:[new TextRun({text:f,size:19})]})))}
+  for(const s of M.sections){kids.push(H(s.title));if(s.img){const w=Math.min(620,s.img.W*0.8),h=Math.round(s.img.H*w/s.img.W);kids.push(new Paragraph({children:[new ImageRun({data:b64(s.img.url),transformation:{width:Math.round(w),height:h}})]}))}
+    kids.push(tbl(s.head,s.rows))}
+  kids.push(H(`SSI patients in this view (${M.ssi.length})`));kids.push(M.ssi.length?tbl(M.ssiHead,M.ssi):P('No SSI cases in this selection.'));
+  const doc=new X.Document({creator:'SSI Tracker HTPN',title:M.title,sections:[{properties:{page:{margin:{top:900,bottom:900,left:900,right:900}}},children:kids}]});
+  saveBlob(await X.Packer.toBlob(doc),M.file+'.docx');toast('Word report downloaded');
+}
+async function dashReportAs(fmt){
+  if(!DASH){toast('Open the dashboard first');return}
+  S.repMenu=false;keepY();toast('Preparing the '+({xlsx:'Excel',pdf:'PDF',docx:'Word'}[fmt])+' report…');
+  try{if(fmt==='pdf')await reportPDF();else if(fmt==='docx')await reportWord();else await dashReport()}catch(e){toast('Report failed: '+(e.message||e))}
+}
+const repBtn=()=>`<span class="repwrap"><button class="btn sm pri" data-act="dashrepm" aria-expanded="${!!S.repMenu}">⬇ Report of this view ▾</button>${S.repMenu?`<span class="repmenu" role="menu"><button data-act="dashrepas" data-fmt="xlsx">📊 Excel (tables + charts + patient list)</button><button data-act="dashrepas" data-fmt="pdf">📄 PDF (full report)</button><button data-act="dashrepas" data-fmt="docx">📝 Word (full report, editable)</button></span>`:''}</span>`;
+
 async function dashReport(){
   if(!DASH){toast('Open the dashboard first');return}
   const btn=$('[data-act="dashrep"]');if(btn){btn.disabled=true;btn.textContent='Preparing…'}
@@ -1928,6 +2048,42 @@ function woundPanel(list,DL){
 
 
 
+
+// ================= SSI by organism =================
+const ORGMAP=[[/\bMRSA\b|methicillin[- ]?resist/i,'MRSA'],[/\bMSSA\b/i,'S. aureus (MSSA)'],[/\bVRE\b/i,'VRE'],[/\bCRAB\b/i,'CRAB'],[/\bCRE\b|carbapenem[- ]?resist/i,'CRE'],
+ [/staph\w*\.?\s*aureus|s\.?\s*aureus/i,'S. aureus (MSSA)'],[/coag\w*[- ]?neg|\bCONS\b|\bCoNS\b|epidermidis/i,'Coagulase-negative Staphylococcus'],
+ [/e\.?\s*coli|escherichia/i,'E. coli'],[/klebsiella|k\.?\s*pneumoniae/i,'Klebsiella spp.'],[/pseudomonas|p\.?\s*aeruginosa/i,'Pseudomonas aeruginosa'],
+ [/acinetobacter/i,'Acinetobacter spp.'],[/enterococc|e\.?\s*faecalis|e\.?\s*faecium/i,'Enterococcus spp.'],[/enterobacter/i,'Enterobacter spp.'],
+ [/proteus/i,'Proteus spp.'],[/serratia/i,'Serratia spp.'],[/citrobacter/i,'Citrobacter spp.'],[/morganella/i,'Morganella spp.'],
+ [/strep\w*/i,'Streptococcus spp.'],[/candida|fung|yeast/i,'Candida / fungi'],[/bacteroides|anaerob|clostrid/i,'Anaerobes'],
+ [/mixed|polymicrob|skin flora|contamin/i,'Mixed growth / skin flora'],[/no growth|\bNG\b|negative/i,'No growth']];
+const MDRO_RX=/\b(MRSA|VRE|CRE|CRAB|ESBL|MDR|XDR|carbapenem|CP-?CRE)\b/i;
+function orgNames(c){const raw=String(c.organisma||'').trim();if(!raw)return [];
+  const parts=raw.replace(/\([^)]*\)/g,' ').split(/\s*(?:,|;|\+|\/|&|\band\b|\bdan\b|\n)\s*/i).map(s=>s.trim()).filter(s=>s.length>1);
+  const out=[];(parts.length?parts:[raw]).forEach(p=>{let n=null;for(const [rx,l] of ORGMAP)if(rx.test(p)){n=l;break}
+    if(!n){n=p.replace(/\s+/g,' ');n=n.charAt(0).toUpperCase()+n.slice(1)}
+    if(/ESBL/i.test(p)&&!/ESBL/.test(n))n+=' (ESBL)';if(!out.includes(n))out.push(n)});return out}
+function orgGroups(ssi){const G={};const add=(k,c)=>{(G[k]=G[k]||[]).push(c)};
+  ssi.forEach(c=>{const n=orgNames(c);if(n.length)n.forEach(x=>add(x,c));else if(c.diagJenis==='Lab confirmed')add('Lab confirmed – organism not recorded',c);else if(c.diagJenis)add('Clinical diagnosis (no culture)',c);else add('Diagnosis type not recorded',c)});
+  const tail=k=>/not recorded|no culture/.test(k)?1:0;
+  return Object.entries(G).sort((a,b)=>tail(a[0])-tail(b[0])||b[1].length-a[1].length||a[0].localeCompare(b[0]))}
+function orgPanel(ssi,DL){
+  const grp=orgGroups(ssi),n=ssi.length,lab=ssi.filter(c=>orgNames(c).length).length,mdro=ssi.filter(c=>MDRO_RX.test(c.organisma||'')).length;
+  const rows=grp.map(([k,l])=>({l:k,v:[l.length],lab:[`${l.length} (${pct(l.length,n)}%)`]}));
+  const cfg={title:'SSI by organism · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI cases'],rows,def:'h',colors:['#7a2e9c']};CH.org=cfg;
+  const v=CV('org','h');
+  const body=!grp.length?'<div class="empty">No SSI cases in this selection.</div>':v==='table'?`<div class="scroll"><table><thead><tr><th>Organism</th><th class="num">SSI cases</th><th class="num">% of SSI</th><th>Departments</th></tr></thead><tbody>
+    ${grp.map(([k,l])=>{const dp={};l.forEach(c=>dp[c.jabatan]=(dp[c.jabatan]||0)+1);const ot=/not recorded|no culture/.test(k);
+      return `<tr class="prow ${S.osel===k?'open':''}" data-osel="${esc(k)}" tabindex="0" role="button"><td><span class="caret">${S.osel===k?'▾':'▸'}</span>${ot?`<span class="hint">${esc(k)}</span>`:`<b>${esc(k)}</b>`}${MDRO_RX.test(k)?' <span class="pill b" style="font-size:.66rem">MDRO</span>':''}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,n)}%</td><td class="hint">${Object.entries(dp).map(([j,x])=>esc(j)+' '+x).join(' · ')}</td></tr>`}).join('')}
+    </tbody></table></div>`:chartBody('org',cfg,v);
+  const g=grp.find(x=>x[0]===S.osel);
+  return `<div class="panel stack">${chartHead('org','SSI by organism · '+esc(DL))}
+   <div class="kpis" style="margin:0"><div class="kpi"><b>${n}</b><span>SSI cases</span></div><div class="kpi"><b>${lab}</b><span>With organism (${pct(lab,n)}%)</span></div><div class="kpi ${mdro?'alert':''}"><b>${mdro}</b><span>MDRO organism</span></div></div>
+   <p class="hint" style="margin:0">From "type of organism" in the SSI form. A patient with more than one organism is counted under each one. Tap an organism to see the patients.</p>${body}
+   ${v!=='table'&&grp.length?`<div class="chips">${grp.map(([k,l])=>`<button type="button" class="chip ${S.osel===k?'on':''}" data-osel="${esc(k)}">${esc(k)} (${l.length})</button>`).join('')}</div>`:''}
+   ${g?ssiListBox(g[0],g[1],`data-osel="${esc(g[0])}"`):''}</div>`;
+}
+
 // ================= SSI patient row with what is still missing =================
 function fieldLabel(k){for(const s of SECTIONS.concat([SSI_SEC])){const f=(s.f||[]).find(x=>x.k===k);if(f)return f.l.replace(/\s*\(.*\)$/,'')}return k}
 function ssiMissing(c){return reqAll(c).filter(k=>c[k]===undefined||c[k]==='')}
@@ -2295,7 +2451,10 @@ const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel]');if(!t)return;const D=t.dataset;
+  {const pc=e.target.closest('[data-pclose]');if(pc||e.target.id==='player'){closePlayer();return}
+   const pd=e.target.closest('[data-pdone]');if(pd){const m=S.mods.find(x=>x.id===pd.dataset.pdone),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);$('#pdoneW').innerHTML=playerDoneBtn(m);keepY();return}
+   const pl=e.target.closest('[data-play]');if(pl){openPlayer(pl.dataset.play);return}}
+  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel],[data-osel]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
   if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
@@ -2334,6 +2493,7 @@ document.addEventListener('click',e=>{
     toast('Lab-confirmed SSI filled from the MDRO masterlist. Complete site of SSI and readmission, then Save SSI form.');return}
   if(D.mdno){const [id,i]=D.mdno.split('|'),c=S.cases.find(x=>x.id===id),m=(mdroMap()[id]||[])[+i];if(!c||!m)return;
     c.mdroNo=String(c.mdroNo||'').split(';').filter(Boolean).concat([mdroKeyOf(m)]).join(';');persist(c);keepY();toast(c.nama+': '+m.o+' marked not related to SSI');return}
+  if(D.osel){S.osel=S.osel===D.osel?null:D.osel;keepY();return}
   if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;S.wsub=null;keepY();return}
   if(D.wsub){S.wsub=S.wsub===D.wsub?null:D.wsub;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
@@ -2346,6 +2506,8 @@ document.addEventListener('click',e=>{
   if(D.ijab){S.imp.jab=D.ijab;impReparse();keepY();return}
   if(D.sheet){S.rsheet=D.sheet;keepY();return}
   if(D.rm){const m=D.rm;S.rmonths=S.rmonths.includes(m)?S.rmonths.filter(x=>x!==m):[...S.rmonths,m].sort();S.mail=null;keepY();return}
+  if(D.tk){S.tk=D.tk;S.tcat='Semua';keepY();return}
+  if(D.tcat){S.tcat=D.tcat;keepY();return}
   if(D.done){const m=S.mods.find(x=>x.id===D.done),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);keepY();return}
   if(D.medit){const m=S.mods.find(x=>x.id===D.medit);S.madd={id:m.id,jenis:m.jenis,tajuk:m.tajuk,kategori:m.kategori,url:m.url,penerangan:m.penerangan};S.mdel=null;render();setTimeout(()=>{const e=$('#maddp');e&&e.scrollIntoView({behavior:'smooth',block:'start'})},30);return}
   if(D.del1){S.mdel=D.del1;keepY();return}
@@ -2397,6 +2559,8 @@ document.addEventListener('click',e=>{
   if(a==='otparse'){const t=$('#ottext').value;if(!t.trim()){toast('Paste the OT list text first');return}otApply(t)}
   if(a==='otclear'){S.ot=null;keepY()}
   if(a==='otgal'){const i=$('#otgal');i&&i.click()}
+  if(a==='dashrepm'){S.repMenu=!S.repMenu;keepY();return}
+  if(a==='dashrepas'){dashReportAs(D.fmt);return}
   if(a==='dashrep'){dashReport();return}
   if(a==='dcfut'){S.dcm='all';S.dcf='FUTURE';S.dcOpen=true;keepY();return}
   if(a==='mdtog'){S.mdOpen=!S.mdOpen;keepY();return}
@@ -2418,7 +2582,7 @@ document.addEventListener('click',e=>{
   if(a==='otcamgo'){const i=$('#otcam');S.ot.tips=false;i&&i.click();setTimeout(()=>{const m=$('.modal');m&&m.remove()},0)}
   if(a==='otupgo'||a==='otup'){const i=$('#otfile');if(S.ot)S.ot.tips=false;i&&i.click();setTimeout(()=>{const m=$('.modal');m&&m.remove()},0)}
   if(a==='otadd')otAdd();
-  if(a==='remtog'){S.remOpen=!S.remOpen;keepY()}
+  if(a==='remtog'){S.remOpen=S.remOpen===false;keepY()}
   if(a==='seepend'){S.tab='pesakit';S.pf='sah';S.py='Semua';S.pm='Semua';render();scrollTo(0,0)}
   if(a==='close1'){S.closeAsk=true;keepY()}
   if(a==='close0'){S.closeAsk=false;keepY()}
@@ -2439,7 +2603,7 @@ document.addEventListener('click',e=>{
   if(a==='maddclose'){S.madd=null;keepY()}
   if(a==='maddsave'){readMadd();const m=S.madd;if(!m.tajuk||!m.kategori||!/^https?:\/\//.test(m.url)){toast('Enter a title, category and a link starting with https://');return}
     if(m.id){Object.assign(S.mods.find(x=>x.id===m.id),m);api('saveModule',{m:S.mods.find(x=>x.id===m.id)}).catch(fail);S.madd=null;keepY();toast('Material updated')}
-    else{const nm={...m,id:'m'+Date.now().toString(36),selesai:[]};S.mods.push(nm);api('saveModule',{m:nm}).catch(fail);S.madd=null;keepY();toast('Material added')}}
+    else{const nm={...m,id:'m'+Date.now().toString(36),selesai:[]};S.mods.push(nm);S.tk=nm.jenis;S.tcat='Semua';api('saveModule',{m:nm}).catch(fail);S.madd=null;keepY();toast('Material added')}}
 });
 function readMail(){if(!S.mail)return;S.mail.to=$('#m_to').value;S.mail.cc=$('#m_cc').value;S.mail.subj=$('#m_subj').value;S.mail.msg=$('#m_msg').value}
 function readMadd(){if(!S.madd||!$('#ma_tajuk'))return;S.madd.tajuk=$('#ma_tajuk').value.trim();S.madd.kategori=$('#ma_kat').value.trim();S.madd.url=$('#ma_url').value.trim();S.madd.penerangan=$('#ma_desc').value.trim();if($('#ma_thumb'))S.madd.thumb=$('#ma_thumb').value.trim()}
@@ -2448,6 +2612,7 @@ document.addEventListener('input',e=>{
   if(k){(T.dataset.s==='sd'?S.sd:S.draft)[k]=T.value;if(T.dataset.s!=='sd'&&['nama','ic','mrn'].includes(k))mdroCheckDraft();
     T.classList.toggle('miss',(T.dataset.s==='sd'?reqAll(S.sd):reqFields(S.draft)).includes(k)&&T.value==='');
     liveCalc();return}
+  if(T.id==='tq'){S.tq=T.value;$('#tgrid').innerHTML=libGrid(S.user.role!=='liaison');return}
   if(T.id==='q'){S.q=T.value;$('#qres').innerHTML=searchRes(S.q,myCases());return}
   if(T.id==='cq'){S.cq=T.value;S.lim=50;$('#cqres').innerHTML=allRes();return}
 });
