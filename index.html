@@ -377,6 +377,7 @@ const SSI_SEC={t:'TYPE OF SSI',f:[
  {k:'tapak',l:'Site of SSI',t:'chip',o:['Superficial incisional','Deep incisional','Organ/space'],req:1},
  {k:'diagJenis',l:'Diagnosis',t:'chip',o:['Clinical','Lab confirmed'],req:1},
  {k:'organisma',l:'If lab confirmed – type of organism',t:'text',req:c=>c.diagJenis==='Lab confirmed',show:c=>c.diagJenis==='Lab confirmed'},
+ {k:'tarikhLab',l:'Date lab confirmed',t:'date',show:c=>c.diagJenis==='Lab confirmed'},
  {k:'diagKlinikal',l:'Clinical notes',t:'text',ph:'e.g. purulent discharge, erythema'},
  {k:'readmit',l:'Is patient readmitted?',t:'chip',o:YN,req:1},
  {k:'tarikhReadmit',l:'Date of readmission',t:'date',req:c=>c.readmit==='Ya',show:c=>c.readmit==='Ya'}
@@ -396,7 +397,7 @@ const dayDiff=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00')
 function durasi(c){const a=mins(c.masaMula),b=mins(c.masaTamat);if(a==null||b==null)return null;let d=b-a;if(d<0)d+=1440;return d}
 function abxGap(c){const a=mins(c.masaAbx),b=mins(c.masaMula);return a==null||b==null?null:b-a}
 const abxOK=c=>{const g=abxGap(c);return c.abx==='Ya'&&g!=null&&g>=0&&g<=60};
-const survDays=c=>c.implan==='Ya'?90:30;
+const survDays=c=>c.implan==='Ya'?365:30;
 const daysPost=c=>c.tarikhOp?dayDiff(c.tarikhOp,TODAYISO):0;
 function reqAll(c){return reqFields(c).concat(c.ssi==='Ya'?SSI_SEC.f.filter(f=>f.t!=='calc'&&val(f.req,c)&&(f.show?f.show(c):true)).map(f=>f.k):[])}
 function reqFields(c){const r=[];SECTIONS.forEach(s=>s.f.forEach(f=>{if(f.t!=='calc'&&val(f.req,c)&&(f.show?f.show(c):true))r.push(f.k)}));return r}
@@ -596,6 +597,7 @@ function trendYear(list){
 function trendHTML(list,keys){
   const data=keys.map(k=>{const l=list.filter(c=>monthKey(c)===k);return{k,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const max=Math.max(1,...data.map(d=>d.n));
+  CH.trend={title:'Monthly trend · '+TRT+' · '+(keys[0]||'').slice(0,4),series:['Surgeries','SSI cases'],def:'v',rows:data.map(d=>({l:shortMonth(d.k),v:[d.n,d.s],lab:[String(d.n),d.s?`${d.s} (${pct(d.s,d.n)}%)`:'0']}))};
   return `<div class="trend" style="grid-template-columns:repeat(${data.length},1fr)">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
    ${tpill(d.k,d.s)}<span class="tlab">${shortMonth(d.k)}</span></div>`).join('')}</div><p class="hint trhint" style="margin:6px 0 0">Number under each bar = SSI cases. Tap a red number to see the patients.</p>${keys.map(k=>tselList(list,k)).join('')}`;
 }
@@ -614,6 +616,7 @@ function monthSel(id,cur,all){return `<select class="inline" id="${id}">${all?`<
 
 // ================= LIAISON =================
 function liaisonDash(){
+  Object.keys(CH).forEach(k=>delete CH[k]);
   const mine=myCases(),base=mine.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),list=base.filter(rfOk),ML=pLabel(S.dy,S.dm),MS=pShort(S.dy,S.dm);
   const ssiM=list.filter(c=>c.ssi==='Ya'),aktif=mine.filter(c=>status(c).key==='aktif').length,sah=mine.filter(c=>status(c).key==='sah').length;
   const rows=PROC[S.user.jabatan].map(p=>{const l=list.filter(c=>c.kategori===p);return{p,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
@@ -625,13 +628,13 @@ function liaisonDash(){
    <div class="panel stack"><h3>Find a patient for the SSI form</h3>
     <div class="search">${IC.search}<input id="q" placeholder="Name, IC No. or MRN" value="${esc(S.q)}" autocomplete="off"></div>
     <div id="qres">${searchRes(S.q,mine)}</div></div>
-   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${rfSelect()}</div></div>
+   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${rfSelect()}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button></div></div>
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored (${MS})</span></div>
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
-   ${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah})}
+   ${(DASH={list,DL:S.user.jabatan,ML,src:mine.filter(c=>isMon(c)&&rfOk(c)),ctx:{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah}},'')}${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah})}
    ${trendPanel(mine.filter(c=>isMon(c)&&rfOk(c)),S.user.jabatan)}
    ${dayPanel(ssiM,S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
@@ -759,6 +762,7 @@ function formView(){
 
 // ================= KOORDINATOR =================
 function coordDash(){
+  Object.keys(CH).forEach(k=>delete CH[k]);
   const D=S.cjab,inD=c=>D==='Semua'||c.jabatan===D,DL=D==='Semua'?'All departments':D;
   const all=S.cases.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),ML=pLabel(S.dy,S.dm),SK=S.dy!=='Semua'&&S.dm!=='Semua'?S.dy+'-'+S.dm:'';
   const base=all.filter(inD),list=base.filter(rfOk);
@@ -769,11 +773,11 @@ function coordDash(){
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">
-   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}</div></div>
+   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button><select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}</div></div>
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
-   ${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
+   ${(DASH={list,DL,ML,src:S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),ctx:{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length}},'')}${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
    ${D==='Semua'?deptPanel(list,ML,SK):''}
    ${S.dy==='Semua'?yearSummary(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),JAB.filter(j=>D==='Semua'||j===D),DL):''}
@@ -782,8 +786,8 @@ function coordDash(){
    ${woundPanel(list,DL)}
    ${riskPanel(base,DL)}
    <div class="panel"><h3>SSI patients · ${esc(DL)} · ${ML} (${ssi})</h3>${ssiL.sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c,D==='Semua')).join('')||'<div class="empty">No SSI patients for this selection.</div>'}</div>
-   <div class="panel stack"><h3>SSI bundle compliance · ${esc(DL)}</h3>${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
-   ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (90 days with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
+   ${(CH.bundle={title:'SSI bundle compliance · '+DL+' · '+ML,series:['Compliance'],unit:'%',def:'h',rows:bundle.map(([l,v])=>({l,v:[v]}))},'')}<div class="panel stack">${dlHead('bundle','SSI bundle compliance · '+esc(DL))}${bundle.map(([l,v])=>`<div class="bar"><span>${l}</span><div class="trk"><i class="${v<80?'lo':''}" style="width:${v}%"></i></div><span class="v">${v}%</span></div>`).join('')}<p class="hint" style="margin:0">Amber: below the 80% target.</p></div>
+   ${pend.length?`<div class="panel"><h3>Awaiting liaison confirmation · ${esc(DL)} (${pend.length})</h3><p class="hint" style="margin:.3em 0 6px">These patients have passed the 30-day surveillance period (1 year with implant) with no SSI recorded. The liaison only needs to tick <b>No SSI</b> or <b>SSI present</b> on their dashboard so that month's report is final.</p>${pend.map(c=>caseRow(c,D==='Semua')).join('')}</div>`:''}
   </div>`;
 }
 // 26 lajur — sama seperti templat LAPORAN BULANAN SSI (APRIL 2025 PELAPORAN SSI HTPN.xlsx)
@@ -1267,6 +1271,53 @@ async function pullLinks(ids,quiet){
 }
 function autoPullLinks(){if(S.user&&S.user.role==='coord'&&typeof api==='function'){const l=getLinks().filter(x=>x.auto);if(l.length)pullLinks(null,true)}}
 
+
+// ================= DOWNLOAD HEAD (chart + excel only) and FILTERED DASHBOARD REPORT =================
+let DASH=null,TRT='';
+function dlHead(id,title){return `<div class="row between chead"><h3>${title}</h3><div class="row" style="gap:6px"><button type="button" class="btn sm" data-png="${id}" title="Download chart as image">⬇ Chart</button><button type="button" class="btn sm" data-xlsx="${id}" title="Download data and chart as Excel">⬇ Excel</button></div></div>`}
+const DASH_ORDER=[['trend','Trend'],['dept','SSI by department'],['ys','Year-by-year summary'],['day','Day SSI identified'],['proc','Surgery types'],['wound','Type of surgery (wound class)'],['risk','Risk factors'],['bundle','SSI bundle compliance']];
+async function dashReport(){
+  if(!DASH){toast('Open the dashboard first');return}
+  const btn=$('[data-act="dashrep"]');if(btn){btn.disabled=true;btn.textContent='Preparing…'}
+  try{
+    await loadExcelJS();
+    const D=DASH,list=D.list,ssi=list.filter(c=>c.ssi==='Ya');
+    const wb=new ExcelJS.Workbook();wb.creator='SSI Tracker HTPN';
+    const ws=wb.addWorksheet('Report',{views:[{showGridLines:false}]});ws.getColumn(1).width=44;for(let i=2;i<=8;i++)ws.getColumn(i).width=16;
+    const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c}});
+    let r=1;const line=(v,st)=>{const c=ws.getCell(r,1);c.value=v;if(st)Object.assign(c,st);r++};
+    line('SSI DASHBOARD REPORT – HOSPITAL TENGKU PERMAISURI NORASHIKIN',{font:{bold:true,size:14,color:{argb:'FF0F5A20'}}});
+    line(`Department: ${D.DL}   ·   Period: ${D.ML}   ·   Risk factor: ${S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'All'}`,{font:{bold:true}});
+    line(`Generated ${fmtD(TODAYISO)} ${new Date().toTimeString().slice(0,5)} by ${S.user.nama} · monitored surgeries only`,{font:{italic:true,size:9,color:{argb:'FF666666'}}});r++;
+    [['Surgeries monitored',list.length],['SSI cases',ssi.length],['SSI rate (%)',pct(ssi.length,list.length)],['Data complete (%)',pct(list.filter(c=>complete(c).pct===100).length,list.length)]]
+      .forEach(([k,v])=>{ws.getCell(r,1).value=k;ws.getCell(r,1).fill=fill('E1F3D8');ws.getCell(r,2).value=v;ws.getCell(r,2).font={bold:true};r++});r++;
+    // smart analysis text
+    const keep=S.ai;S.ai=true;const tmp=document.createElement('div');tmp.innerHTML=aiPanel(list,D.src,D.ctx);S.ai=keep;
+    const at=tmp.querySelector('#aiText');
+    if(at){line('KEY FINDINGS & SUGGESTED ACTIONS',{font:{bold:true,size:12},fill:fill('93C47D')});
+      at.querySelectorAll('.flabel,li').forEach(e=>{const c=ws.getCell(r,1);ws.mergeCells(r,1,r,8);c.value=(e.tagName==='LI'?'• ':'')+e.textContent.trim();c.alignment={wrapText:true,vertical:'top'};
+        if(e.tagName!=='LI')c.font={bold:true};else ws.getRow(r).height=Math.max(15,Math.ceil(e.textContent.length/120)*15);r++});r++}
+    // every chart on the dashboard: table + picture
+    for(const [id,lab] of DASH_ORDER){const cfg=CH[id];if(!cfg||!cfg.rows||!cfg.rows.length)continue;
+      ws.mergeCells(r,1,r,8);const h=ws.getCell(r,1);h.value=(cfg.title||lab).toUpperCase();h.font={bold:true,size:12};h.fill=fill('93C47D');r++;
+      const pc=cfg.unit==='%',hd=['Item'].concat(cfg.series.map(s=>s+(pc?' (%)':'')));
+      hd.forEach((x,i)=>{const c=ws.getCell(r,i+1);c.value=x;c.font={bold:true};c.fill=fill('D9EAD3')});r++;
+      cfg.rows.forEach(row=>{ws.getCell(r,1).value=row.l;row.v.forEach((v,i)=>{const c=ws.getCell(r,i+2);c.value=v;if(pc)c.numFmt='0.0"%"'});r++});
+      try{const {cv,W,H}=await chartImg(cfg,CV(id,cfg.def)==='v'?'v':'h');const im=wb.addImage({base64:cv.toDataURL('image/png'),extension:'png'});const w=Math.min(W,820),hh=H*w/W;
+        ws.addImage(im,{tl:{col:0,row:r},ext:{width:w,height:hh}});r+=Math.ceil(hh/20)+2}catch(e){r++}}
+    // patient list of this view
+    const ps=wb.addWorksheet('Patients',{views:[{state:'frozen',ySplit:1}]});
+    const PH=['Department','Name','MRN','IC','Date of surgery','Surgery','Procedure','Wound class','Implant','SSI','Day SSI identified','Site of SSI','Diagnosis','Organism','Date lab confirmed','Readmitted','Status'];
+    ps.addRow(PH).eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill=fill('1F8A35')});
+    list.slice().sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||'')).forEach(c=>{const x=ps.addRow([c.jabatan,c.nama,c.mrn||'',c.ic||'',fmtD(c.tarikhOp),c.kategori||'',c.prosedur||'',c.jenisLuka||'',c.implan==='Ya'?'Yes':c.implan==='Tidak'?'No':'',c.ssi==='Ya'?'YES':'No',
+      c.ssi==='Ya'&&ssiDay(c)!=null?'Day '+ssiDay(c):'',c.ssi==='Ya'?ssiSite(c):'',c.ssi==='Ya'?c.diagJenis||'':'',c.organisma||'',c.tarikhLab?fmtD(c.tarikhLab):'',c.ssi==='Ya'?yn(c.readmit):'',status(c).t]);if(c.ssi==='Ya')x.eachCell(k=>k.fill=fill('FBE4E1'))});
+    [16,34,14,16,14,30,30,18,9,7,14,20,14,18,14,11,22].forEach((w,i)=>ps.getColumn(i+1).width=w);
+    const nm=('SSI_Dashboard_'+D.DL+'_'+D.ML+(S.rf!=null&&S.rf!=='Semua'?'_'+RISK[+S.rf][0]:'')).replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,90)+'.xlsx';
+    saveBlob(new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),nm);toast('Report downloaded');
+  }catch(e){toast('Report failed: '+(e.message||'check your internet connection'))}
+  finally{const b=$('[data-act="dashrep"]');if(b){b.disabled=false;b.textContent='⬇ Report of this view'}}
+}
+
 // ================= DATA CHECK (coordinator): records the dashboard cannot count =================
 function dataIssues(){
   const badDate=S.cases.filter(c=>!/^\d{4}-\d{2}-\d{2}$/.test(c.tarikhOp||''));
@@ -1394,7 +1445,7 @@ const RISK=[
  ['Surgery longer than 2 hours',c=>durasi(c)!=null,c=>durasi(c)>120],
  ['Implant used',c=>!!c.implan,c=>c.implan==='Ya'],
  ['Drain',c=>!!c.drain,c=>c.drain==='Ya']];
-const DAYB=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90',31,90],['Not recorded',-1,-1]];
+const DAYB=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90',31,90],['Day 91–365',91,365],['Not recorded',-1,-1]];
 const ssiDay=c=>c.tarikhSSI&&c.tarikhOp?dayDiff(c.tarikhOp,c.tarikhSSI):null;
 const inDayB=(c,b)=>{const d=ssiDay(c);return b[1]<0?d==null:d!=null&&d>=b[1]&&d<=b[2]};
 const rfOk=c=>S.rf==null||S.rf==='Semua'||RISK[+S.rf][2](c)&&RISK[+S.rf][1](c);
@@ -1418,21 +1469,22 @@ function dayPanel0(ssiL,DL){
   return `<div class="panel stack"><h3>Day SSI identified · ${esc(DL)}</h3>
    ${ssiL.length?`<p class="hint" style="margin:-6px 0 0">${days.length?`Median day ${med} · earliest day ${days[0]} · latest day ${days[days.length-1]}. `:''}Tap a bar to see the patients.</p>
    <div class="dbars">${DAYB.map((b,i)=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return `<button class="dbar ${String(S.dayb)===String(i)?'on':''}" data-dayb="${String(S.dayb)===String(i)?'x':i}" ${n?'':'disabled'}><span class="dl">${b[0]}</span><span class="trk"><i style="width:${n/max*100}%"></i></span><span class="v">${n}</span></button>`}).join('')}</div>
-   ${sel?`<div class="plist">${pick.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">Day ${ssiDay(c)??'?'}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b></span></span><span class="pill b">SSI</span></button>`).join('')}</div>`:''}
-   <div><span class="flabel">Type of SSI</span><div class="chips" style="margin-top:6px">${ty.map(t=>`<span class="pill ${t[0]==='Not classified'?(t[1]?'w':'n'):'b'}">${esc(t[0])}: ${t[1]}</span>`).join('')}</div></div>`
+   ${sel?ssiListBox('SSI patients · '+sel[0],pick,'data-dayb="x"'):''}
+   <div><span class="flabel">Type of SSI</span><div class="chips" style="margin-top:6px">${ty.map(t=>t[1]?`<button type="button" class="pill tpill ${S.tysel===t[0]?'on':''} ${t[0]==='Not classified'?'w':'b'}" data-tysel="${esc(t[0])}">${esc(t[0])}: ${t[1]}</button>`:`<span class="pill ${t[0]==='Not classified'?(t[1]?'w':'n'):'b'}">${esc(t[0])}: ${t[1]}</span>`).join('')}</div></div>`
    :'<div class="empty">No SSI cases for this selection.</div>'}</div>`;
 }
 
 
 // ================= TREND (monthly for one year; yearly when "All years") =================
 function trendPanel(src,DL){
-  if(S.dy!=='Semua')return `<div class="panel"><h3>Monthly trend · ${esc(DL)}</h3>${trendYear(src)}</div>`;
+  TRT=DL;if(S.dy!=='Semua')return `<div class="panel">${dlHead('trend','Monthly trend · '+esc(DL))}${trendYear(src)}</div>`;
   const l0=src.filter(c=>S.dm==='Semua'||(c.tarikhOp||'').slice(5,7)===S.dm);
   const ys=[...new Set(l0.map(c=>(c.tarikhOp||'').slice(0,4)).filter(Boolean))].sort();
   if(!ys.length)return `<div class="panel"><h3>Yearly trend · ${esc(DL)}</h3><div class="empty">No surgeries recorded.</div></div>`;
   const data=ys.map(y=>{const l=l0.filter(c=>(c.tarikhOp||'').startsWith(y));const s=l.filter(c=>c.ssi==='Ya').length;return{y,n:l.length,s,r:pct(s,l.length)}});
   const max=Math.max(1,...data.map(d=>d.n)),rmax=Math.max(1,...data.map(d=>d.r));
-  return `<div class="panel stack"><h3>Yearly trend · ${esc(DL)}${S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''}</h3>
+  CH.trend={title:'Yearly trend · '+DL+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''),series:['Surgeries','SSI cases'],def:'v',rows:data.map(d=>({l:d.y,v:[d.n,d.s],lab:[String(d.n),`${d.s} (${d.r}%)`]}))};
+  return `<div class="panel stack">${dlHead('trend','Yearly trend · '+esc(DL)+(S.dm!=='Semua'?' · '+BULAN[+S.dm-1]+' only':''))}
    <p class="hint" style="margin:-6px 0 0">Surgeries monitored and SSI cases per year. Choose a year above to see its monthly trend.</p>
    <div class="trend" style="grid-template-columns:repeat(${data.length},minmax(0,90px));justify-content:center">${data.map(d=>`<div class="tcol"><div class="tbar" style="height:${d.n/max*100}%"><span>${d.n}</span></div>
     ${tpill(d.y,d.s)}<span class="tlab">${d.y}</span></div>`).join('')}</div>${data.map(d=>tselList(l0,d.y)).join('')}
@@ -1574,8 +1626,10 @@ function svgChart(cfg,o){
     if(cfg.title)g+=`<text x="12" y="20" font-size="14" font-weight="700" fill="#0f5a20" ${F}>${esc(cfg.title)}</text>`;
     g+=legend(LW,top-10);
     R.forEach((r,k)=>{const y0=top+k*rh+8,L=wrapTxt(r.l,34,2),cy=y0+(rh-16)/2;
+      if(r.act)g+=`<g ${r.act} style="cursor:pointer"><rect x="0" y="${y0-6}" width="${W}" height="${rh}" fill="#ffffff" fill-opacity="0"/>`;
       g+=L.map((t,j)=>`<text x="${LW-10}" y="${cy+4+(j-(L.length-1)/2)*13}" text-anchor="end" font-size="11.5" fill="#222" ${F}>${esc(t)}</text>`).join('');
       r.v.forEach((v,i)=>{const y=y0+i*(bh+gap),w=Math.max(v>0?2:0,v/mx*PW);g+=`<rect x="${LW}" y="${y}" width="${w}" height="${bh}" rx="3" fill="${col[i]}"/><text x="${LW+w+6}" y="${y+bh-3}" font-size="11" font-weight="700" fill="#222" ${F}>${fmt(r,i)}</text>`});
+      if(r.act)g+='</g>';
       if(k<R.length-1)g+=`<line x1="12" x2="${W-12}" y1="${y0+rh-8}" y2="${y0+rh-8}" stroke="#eef1ec"/>`});
     g+=`<line x1="${LW}" x2="${LW}" y1="${top}" y2="${H-8}" stroke="#bbb"/>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
@@ -1586,8 +1640,9 @@ function svgChart(cfg,o){
   g+=legend(60,top-10);const base=top+PH+10;
   [0,.5,1].forEach(f=>{const y=base-f*PH;g+=`<line x1="50" x2="${W-10}" y1="${y}" y2="${y}" stroke="${f?'#eef1ec':'#bbb'}"/><text x="44" y="${y+4}" text-anchor="end" font-size="10" fill="#777" ${F}>${Math.round(mx*f*10)/10}${pct_?'%':''}</text>`});
   R.forEach((r,k)=>{const cx=60+k*slot+slot/2,x0=cx-nS*bw/2;
+    if(r.act)g+=`<g ${r.act} style="cursor:pointer"><rect x="${cx-slot/2}" y="${top}" width="${slot}" height="${PH+LH+10}" fill="#ffffff" fill-opacity="0"/>`;
     r.v.forEach((v,i)=>{const h=Math.max(v>0?2:0,v/mx*PH),x=x0+i*bw;g+=`<rect x="${x+1}" y="${base-h}" width="${bw-2}" height="${h}" rx="3" fill="${col[i]}"/><text x="${x+bw/2}" y="${base-h-4}" text-anchor="middle" font-size="10" font-weight="700" fill="#222" ${F}>${nS>1?esc(v+(pct_?'%':'')):fmt(r,i)}</text>`});
-    wrapTxt(r.l,lc,3).forEach((t,j)=>{g+=`<text x="${cx}" y="${base+16+j*14}" text-anchor="middle" font-size="11" fill="#222" ${F}>${esc(t)}</text>`})});
+    wrapTxt(r.l,lc,3).forEach((t,j)=>{g+=`<text x="${cx}" y="${base+16+j*14}" text-anchor="middle" font-size="11" fill="#222" ${F}>${esc(t)}</text>`});if(r.act)g+='</g>'});
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
 }
 function chartBody(id,cfg,o){CH[id]=cfg;return `<div class="chartwrap">${svgChart(Object.assign({},cfg,{title:''}),o)}</div>`}
@@ -1650,13 +1705,16 @@ function riskPanel(base,DL){
 // Day SSI identified
 function dayPanel(ssiL,DL){
   if(isSplit('day')&&ssiL.length)return splitDay(ssiL,DL);
-  const rows=DAYB.map(b=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return{l:b[0],v:[n],lab:[`${n}${ssiL.length?' ('+pct(n,ssiL.length)+'%)':''}`]}});
+  const rows=DAYB.map((b,i)=>{const n=ssiL.filter(c=>inDayB(c,b)).length;return{l:b[0],v:[n],lab:[`${n}${ssiL.length?' ('+pct(n,ssiL.length)+'%)':''}`],act:n?`data-dayb="${String(S.dayb)===String(i)?'x':i}"`:''}});
+  const TYL=['Superficial incisional','Deep incisional','Organ/space'],tyList=S.tysel?ssiL.filter(c=>S.tysel==='Not classified'?!TYL.includes(c.tapak):c.tapak===S.tysel):[];
+  const tyBox=S.tysel&&ssiL.length?ssiListBox('SSI patients · '+S.tysel,tyList,`data-tysel="${esc(S.tysel)}"`):'';
+  const dbBox=S.dayb!=null&&DAYB[+S.dayb]?ssiListBox('SSI patients · '+DAYB[+S.dayb][0],ssiL.filter(c=>inDayB(c,DAYB[+S.dayb])),'data-dayb="x"'):'';
   const cfg={title:'Day SSI identified · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI cases'],colors:['#b0281c'],rows:ssiL.length?rows:[],def:'h'};CH.day=cfg;
   const v=CV('day','h'),orig=dayPanel0(ssiL,DL);
-  if(v==='h'||!ssiL.length)return injHead(orig,'day','h');
+  if(v==='h'||!ssiL.length)return injHead(orig,'day','h').replace(/<\/div>$/,tyBox+'</div>');
   const ty=(orig.match(/<div><span class="flabel">Type of SSI[\s\S]*<\/div><\/div>/)||[''])[0];
   const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Day identified</th><th class="num">SSI cases</th><th class="num">% of SSI</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.l)}</td><td class="num">${r.v[0]}</td><td class="num">${pct(r.v[0],ssiL.length)}%</td></tr>`).join('')}<tr class="grp"><td>Total</td><td class="num">${ssiL.length}</td><td class="num">100%</td></tr></tbody></table></div>`:chartBody('day',cfg,'v');
-  return `<div class="panel stack">${chartHead('day','Day SSI identified · '+esc(DL),'h')}${body}${ty}</div>`;
+  return `<div class="panel stack">${chartHead('day','Day SSI identified · '+esc(DL),'h')}<p class="hint" style="margin:-6px 0 0">Tap a bar or a type of SSI to see the patients and what is still missing.</p>${body}${dbBox}${ty}${tyBox}</div>`;
 }
 // Type of surgery (wound class)
 const WCL=['Clean','Clean contaminated','Contaminated'];
@@ -1683,13 +1741,24 @@ function woundPanel(list,DL){
 }
 
 
+
+// ================= SSI patient row with what is still missing =================
+function fieldLabel(k){for(const s of SECTIONS.concat([SSI_SEC])){const f=(s.f||[]).find(x=>x.k===k);if(f)return f.l.replace(/\s*\(.*\)$/,'')}return k}
+function ssiMissing(c){return reqAll(c).filter(k=>c[k]===undefined||c[k]==='')}
+function ssiItem(c){const m=ssiMissing(c);
+  return `<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b></span>
+   ${m.length?`<span class="hint" style="color:var(--bad);font-weight:700">Missing: ${esc(m.slice(0,6).map(fieldLabel).join(', '))}${m.length>6?' …':''}</span>`:''}</span>${m.length?'<span class="pill w">Incomplete</span>':'<span class="pill g">Complete</span>'}</button>`}
+function ssiListBox(title,l,closeAttr){
+  return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">${esc(title)} (${l.length})${l.filter(c=>ssiMissing(c).length).length?` · <span style="color:var(--bad)">${l.filter(c=>ssiMissing(c).length).length} incomplete</span>`:''}</span><button class="btn sm" ${closeAttr}>✕ Close</button></div>
+   <p class="hint" style="margin:4px 0">Tap a patient to open the SSI form and complete it.</p><div class="plist plong">${l.map(ssiItem).join('')||'<div class="empty">No patients.</div>'}</div></div>`}
+
 // ================= TREND: tap "x SSI" to list the SSI patients =================
 function tselList(list,key){
   if(!S.tsel||S.tsel!==key)return '';
   const l=list.filter(c=>c.ssi==='Ya'&&(c.tarikhOp||'').startsWith(key)).sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||''));
   const lab=key.length===4?key:shortMonth(key)+' '+key.slice(0,4);
   return `<div class="tsel"><div class="row between"><span class="flabel" style="margin:0">SSI patients · ${esc(lab)} (${l.length})</span><button class="btn sm" data-tsel="${key}">✕ Close</button></div>
-   <div class="plist">${l.map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${ssiDay(c)!=null?'Day '+ssiDay(c):fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · ${esc(ssiSite(c)||'site not recorded')} · <b class="wcl">${esc(c.jenisLuka||'wound class not recorded')}</b>${c.tapak&&c.tapak!==ssiSite(c)?' · '+esc(c.tapak):''}</span></span><span class="pill b">SSI</span></button>`).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
+   <div class="plist">${l.map(ssiItem).join('')||'<div class="empty">No SSI patients.</div>'}</div></div>`;
 }
 const tpill=(k,s)=>s?`<button type="button" class="pill b tpill ${S.tsel===k?'on':''}" data-tsel="${k}" title="Show SSI patients">${s}<span class="ssiw"> SSI</span></button>`:`<span class="pill n">0<span class="ssiw"> SSI</span></span>`;
 
@@ -1792,7 +1861,7 @@ async function buildReportXLSX(months){
    rows(r,RR,1);boxR(ws,r1,1,r+RR.length-1,JAB.length+3);r+=RR.length;
    ws.getCell(r,1).value='Surgeries monitored: '+JAB.map(d=>SHEETNM[d]+' '+by(d).length).join(' · ')+'  ·  SSI cases: '+ssiAll.length;ws.getCell(r,1).font={name:'Arial',italic:true};r+=2;
    r+=await pic({title:'Risk factors by department (% of surgeries)',series:NAMES,colors:YCOL2,unit:'%',rows:RR.map(x=>({l:x[0],v:x.slice(1,1+JAB.length)}))},'h',r);
-   const BK=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90 (implant)',31,90],['Day not recorded',-1,-1]];
+   const BK=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90 (implant)',31,90],['Day 91–365 (implant)',91,365],['Day not recorded',-1,-1]];
    head(r,'2. HARI SSI DIKESAN SELEPAS OPERASI (bilangan kes SSI)');r++;hdr(r,['Day identified',...NAMES,'Total']);const r2=r;r++;
    const DR=BK.map(b=>{const row=[b[0]];let t=0;JAB.forEach(d=>{const n=ssiAll.filter(c=>c.jabatan===d&&inDayB(c,b)).length;row.push(n);t+=n});row.push(t);return row});
    rows(r,DR);boxR(ws,r2,1,r+DR.length-1,JAB.length+2);r+=DR.length;
@@ -1859,17 +1928,27 @@ function waBtn(c,sm){const l=waLink(c);return l?`<a class="btn ${sm?'sm':''} wa"
 // ================= ENTRY FROM OT LIST (photo / PDF / pasted text) =================
 const NAME_STOP=/^(NAME|NAMA|PATIENT|DIAGNOSIS|OPERATION|PROCEDURE|WARD|WAD|SURGEON|ANAES|ANAESTHESIA|GA|SA|LA|OT|DR|HOSPITAL|KAJANG|LIST|SENARAI|DATE|TARIKH|AGE|UMUR|SEX|RN|MRN|IC|NO|REMARKS|CATATAN|ELECTIVE|EMERGENCY|THEATRE|DEWAN|BEDAH|TIME|MASA)$/;
 // HTPN OT list style: each patient cell starts with "NAME :", then MRN and IC NO lines
+// Words that belong to other columns (ward, diagnosis, operation, surgeon) – a name stops here
+const CLIN=/^(WARD|WAD|KATIL|BED|HERNIA|HERNIAS|REPAIR|HERNIOPLASTY|HERNIORRHAPHY|EXCISION|BIOPSY|LIPOMA|BREAST|LESION|BIRADS|LEFT|RIGHT|BILATERAL|OPEN|LAP|LAPAROSCOPIC|CHOLECYSTECTOMY|CHOLECYSTITIS|GALLSTONE|GALLSTONES|THYROID|THYROIDECTOMY|HEMITHYROIDECTOMY|GOITRE|NODULE|MASTECTOMY|AXILLARY|CLEARANCE|LSCS|TAH|BSO|CA|CARCINOMA|MASS|CYST|WOUND|DEBRIDEMENT|FRACTURE|ORIF|KNEE|HIP|TKR|THR|OA|APPENDICITIS|APPENDICECTOMY|ABSCESS|INCISION|DRAINAGE|REDUCIBLE|IRREDUCIBLE|INGUINAL|PARAUMBILICAL|UMBILICAL|INCISIONAL|EPIGASTRIC|IPOM|TEP|TAPP|MESH|KIV|WIDE|LOCAL|LOWER|UPPER|BACK|AVF|ESRF|FISTULA|CREATION|ANTERIOR|RESECTION|COLECTOMY|HEMICOLECTOMY|SIGMOID|RECTAL|RECTUM|COLON|MULTINODULAR|PREVIOUS|SCAR|BREECH|ELECTIVE|EMERGENCY|EL|EM|ARTHROPLASTY|TOTAL|PRIMARY|IMPACTED|SURGICAL|REMOVAL|ODONTECTOMY|EXTRACTION|MANDIBLE|ZYGOMA|DOSA|HOURS|HOUR|MIN|MINS|NIL|NA|CASE|NOTE|NOTES)$/;
 function nameAfterLabel(seg){
-  const out=[];const lines=seg.split('\n');
-  for(let i=0;i<lines.length&&i<6;i++){
+  const out=[];const lines=seg.split('\n');const CON=/^(BIN|BINTI|BT|BTE|B|A\/L|A\/P|AL|AP|@)$/;
+  for(let i=0;i<lines.length&&i<4;i++){
     const ln=lines[i].replace(/^[\s\d.,|:;\-–_"“”']+/,'');
-    if(/^(M+RN|RN\b|HTPN|I\s*C\s*N|I\s*C\b|IC\s*NO|1CNO|YENO|AGE\b)/i.test(ln))break;
-    const toks=ln.split(/\s+/),w=[];
-    for(const t of toks){const m=t.match(/^([A-Z][A-Z@'’\/.\-]*)([,:;]?)$/);if(!m)break;const x=m[1].replace(/[.\-]+$/,'');if(x.length>1&&!NAME_STOP.test(x)&&!/^(DSA|DR|MR|MRS|MS|NKDA|NKMI|IV|GA|LA)$/.test(x))w.push(x);if(m[2])break}
+    if(/^(M+RN|RN\b|HTPN|I\s*C\s*N|I\s*C\b|IC\s*NO|1CNO|YENO|AGE\b|PHONE|TEL)/i.test(ln))break;
+    const toks=ln.split(/\s+/).filter(Boolean),w=[];
+    for(const t of toks){const m=t.match(/^([A-Z][A-Z@'’\/.\-]*)([,:;|]?)$/);if(!m)break;const x=m[1].replace(/[.\-|]+$/,'');
+      if(CLIN.test(x)||/^(DSA|DR|MR|MRS|MS|NKDA|NKMI|IV|GA|LA)$/.test(x))break;
+      if(i>0&&w.length>=2&&!CON.test(w[w.length-1])&&!CON.test(x))break; // continuation lines hold only the rest of the name
+      if(x.length>1||CON.test(x))if(!NAME_STOP.test(x))w.push(x);if(m[2])break}
     if(w.length)out.push(w.join(' '));
+    if(i===0&&!w.length)continue;
   }
   return out.join(' ').replace(/\s+/g,' ').trim();
 }
+function cleanOp(line,name){let s=' '+String(line||'').toUpperCase()+' ';
+  String(name||'').split(/\s+/).filter(x=>x.length>1).forEach(t=>{s=s.replace(new RegExp('\\s'+t.replace(/[.*+?^${}()|[\]\\\/]/g,'\\$&')+'(?=\\s)'),' ')});
+  s=s.replace(/NAME\s*:?/,' ').replace(/\b(WARD|WAD)\s*\d+\w*/g,' ').replace(/\b(MR|DR|DSA)\b.*$/,' ').replace(/\b(MR|DR)(?!SA\b)[A-Z]{4,}\b.*$/,' ').replace(/[\[\]{}()]/g,' ').replace(/\b\d+(\.\d+)?\s*(HOURS?|HRS?|MINS?)\b.*$/,' ').replace(/[|_]/g,' ').replace(/^\s*\d+[.)]?\s/,' ').replace(/\s+/g,' ').trim();
+  return s}
 function parseOTLabels(T,jab){
   const up=T.toUpperCase(),labs=[...up.matchAll(/\bNAME(?!\s*\/)\s*[:\-]?/g)];
   if(!labs.length)return null;
@@ -1883,8 +1962,8 @@ function parseOTLabels(T,jab){
     const mm=su.match(mrnRe);if(mm)c.mrn='HTPNK'+mm[1];
     const im=su.match(icRe);if(im&&+im[2]>=1&&+im[2]<=12&&+im[3]>=1&&+im[3]<=31){c.ic=im[1]+im[2]+im[3]+'-'+im[4]+'-'+im[5];c._y=+im[1];c._m=+im[2];c._d=+im[3];c._l=+im[5]}
     let kat=normProc(jab,'',su);if(!(PROC[jab]||[]).includes(kat)){kat='';for(const ln of su.split('\n')){const k2=normProc(jab,'',ln);if((PROC[jab]||[]).includes(k2)){kat=k2;break}}}
-    const op=(seg.match(/(open reduction[^\n]*|[^\n]*(LSCS|hysterect|TAH|arthroplasty|hernio|cholecyst|thyroid|mastect|colect|AVF|fistula|extraction|removal)[^\n]*)/i)||[])[0]||'';
-    c.kategori=kat;c.prosedur=(op.trim()||kat).slice(0,120);c.tarikhOp=gDate||TODAYISO;
+    const op=(seg.match(/(open reduction[^\n]*|[^\n]*(LSCS|hysterect|TAH|arthroplasty|hernio|hernia repair|IPOM|mesh|cholecyst|thyroid|mastect|colect|resection|AVF|fistula|extraction|removal|odontect|ORIF)[^\n]*)/i)||[])[0]||'';
+    c.kategori=kat;c.prosedur=(cleanOp(op,c.nama)||kat).slice(0,120);c.tarikhOp=gDate||TODAYISO;
     if(!c.nama&&!c.mrn&&!c.ic)return;
     if(kat)rows.push(c);else skipped.push(c.nama||c.mrn||c.ic);
   });
@@ -1941,7 +2020,7 @@ function otPanel(){
    <details ${O.showPaste?'open':''}><summary class="hint" style="cursor:pointer">Or paste text instead</summary>
     <textarea id="ottext" placeholder="Paste the OT list text here" style="margin-top:8px">${esc(O.text||'')}</textarea>
     <div class="row" style="margin-top:8px"><button class="btn sm" data-act="otparse">Read text</button></div></details>
-   ${O.busy?'<p class="hint">Reading the OT list… (may take up to 30 seconds)</p>':''}${O.err?`<p class="flag b" style="margin:0">${esc(O.err)}</p>`:''}
+   ${O.busy?`<p class="hint">${O.prog||'Reading the OT list…'} (may take up to 30 seconds)</p>`:''}${O.note?`<p class="flag a" style="margin:0">${esc(O.note)}</p>`:''}${O.err?`<p class="flag b" style="margin:0">${esc(O.err)}</p>`:''}
    ${O.rows?`${(()=>{const miss=O.rows.filter(r=>!r.nama||!r.ic||!r.mrn).length;
      return !O.rows.length?`<div class="flag b" style="margin:0">The app could not find any monitored surgery in this ${O.src==='pdf'?'file':'photo'}. ${O.src!=='pdf'?'Retake the photo following the tips, or <b>upload the PDF of the OT list</b> for a more accurate result.':'Check the department is correct, or paste the text.'}${O.text?`<br><span style="font-weight:600">The text the app read is shown in the box above${O.skipped&&O.skipped.length?` (${O.skipped.length} surgeries found but not monitored by ${esc((S.draft&&S.draft.jabatan)||S.user.jabatan)})`:''}. You can correct it and tap <b>Read text</b>.</span>`:''}</div>`
      :miss?`<div class="flag w" style="margin:0">⚠ ${miss} patient${miss>1?'s have':' has'} details the app could not read (<b style="color:var(--bad)">red boxes</b>). Please fill them in before adding${O.src!=='pdf'?', or <b>upload the PDF of the OT list</b> for a more accurate result':''}.</div>`
@@ -1959,7 +2038,10 @@ function otPanel(){
   </div>`;
 }
 function otApply(text){
-  const jab=(S.draft&&S.draft.jabatan)||S.user.jabatan,R=parseOT(text,jab);
+  let jab=(S.draft&&S.draft.jabatan)||S.user.jabatan,note='';const det=otDept(text);
+  if(det&&det!==jab){if(S.user.role==='coord'){if(!S.draft)S.draft={tarikhOp:TODAYISO,ssi:'Tiada',susulan:[]};S.draft.jabatan=det;note=`Department detected from the OT list: ${det} (changed from ${jab}).`;jab=det}
+    else note=`⚠ This OT list looks like ${det}, but you are logged in as ${jab}. Only ${jab} monitored surgeries are shown.`}
+  const R=parseOT(text,jab);if(S.ot)S.ot.note=note;
   R.rows.forEach(r=>{r.jabatan=jab;r.dup=!!findExisting(r);r.on=!r.dup});
   S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:'',showPaste:!R.rows.length});keepY();
 }
@@ -1970,13 +2052,34 @@ function ocrErr(m,isPdf){
   if(/No connection/.test(m))return m;
   return 'Could not read the file: '+m+'. '+(isPdf?'Try again, or paste the text.':'Retake the photo following the tips, or upload the PDF of the OT list for a more accurate result.');
 }
+
+// Scanned PDFs (CamScanner etc.) have no real text: draw each page as a picture first, then read it
+let _pj=null;
+function loadPdfJs(){if(window.pdfjsLib)return Promise.resolve();if(_pj)return _pj;
+  _pj=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';res()}catch(e){rej(e)}};s.onerror=()=>{_pj=null;rej(new Error('load'))};document.head.appendChild(s)});return _pj}
+async function pdfToImages(file){
+  try{await loadPdfJs();const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;const out=[];
+    for(let p=1;p<=Math.min(pdf.numPages,10);p++){const pg=await pdf.getPage(p),v1=pg.getViewport({scale:1}),sc=Math.min(3,2400/Math.max(v1.width,v1.height)),vp=pg.getViewport({scale:sc});
+      const cv=document.createElement('canvas');cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);
+      await pg.render({canvasContext:x,viewport:vp}).promise;out.push(cv.toDataURL('image/jpeg',.9).split(',')[1])}
+    return out}catch(e){return null}}
+function otDept(text){const m=String(text||'').toUpperCase().match(/(?:DEPARTMENT|JABATAN|DISCIPLINE|DISIPLIN)\s*[:\-]?\s*([A-Z&\/ ]{2,40})/);return m?alDept(m[1]):''}
+
 function otRead(file){
   if(!file)return;
   const isPdf=/pdf/i.test(file.type)||/\.pdf$/i.test(file.name);
   S.ot=Object.assign(S.ot||{},{busy:true,err:'',rows:null,tips:false,src:isPdf?'pdf':'photo'});keepY();
   const send=(b64,mime)=>{if(typeof api!=='function'){S.ot.busy=false;S.ot.err='Photo/PDF reading works on the live app. In this preview, paste the text instead.';S.ot.showPaste=true;keepY();return}
     api('ocrFile',{data:b64,mime,name:file.name}).then(r=>{const t=String(r.text||'').trim();if(!t){S.ot.busy=false;S.ot.err=isPdf?'No text was found in this PDF. If it is a scanned PDF, try a clearer copy or paste the text.':'No text could be read from this photo. Retake it closer, straight and in bright light, or upload the PDF of the OT list.';S.ot.showPaste=true;keepY();return}otApply(t)}).catch(e=>{S.ot.busy=false;S.ot.err=ocrErr(e.message,isPdf);S.ot.showPaste=true;keepY()})};
-  if(isPdf){if(file.size>10e6){S.ot.busy=false;S.ot.err='PDF is larger than 10 MB.';keepY();return}const fr=new FileReader();fr.onload=()=>send(String(fr.result).split(',')[1],'application/pdf');fr.readAsDataURL(file);return}
+  if(isPdf){if(file.size>10e6){S.ot.busy=false;S.ot.err='PDF is larger than 10 MB.';keepY();return}
+    pdfToImages(file).then(async imgs=>{
+      if(!imgs||!imgs.length){const fr=new FileReader();fr.onload=()=>send(String(fr.result).split(',')[1],'application/pdf');fr.readAsDataURL(file);return}
+      if(typeof api!=='function'){S.ot.busy=false;S.ot.err='Photo/PDF reading works on the live app. In this preview, paste the text instead.';S.ot.showPaste=true;keepY();return}
+      let all='';for(let i=0;i<imgs.length;i++){S.ot.prog=imgs.length>1?`Reading page ${i+1} of ${imgs.length}…`:'';keepY();
+        try{const r=await api('ocrFile',{data:imgs[i],mime:'image/jpeg',name:'page'+(i+1)+'.jpg'});all+='\n'+String(r.text||'')}catch(e){S.ot.busy=false;S.ot.prog='';S.ot.err=ocrErr(e.message,true);S.ot.showPaste=true;keepY();return}}
+      S.ot.prog='';const t=all.trim();if(!t||t.replace(/CamScanner/ig,'').trim().length<20){S.ot.busy=false;S.ot.err='No text could be read from this PDF. Try a clearer scan, or paste the text.';S.ot.text=t;S.ot.showPaste=true;keepY();return}
+      otApply(t)});return}
   const img=new Image(),u=URL.createObjectURL(file);
   img.onload=()=>{const k=Math.min(1,2200/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
     cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(u);send(cv.toDataURL('image/jpeg',.88).split(',')[1],'image/jpeg')};
@@ -2005,7 +2108,7 @@ const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub]');if(!t)return;const D=t.dataset;
+  const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
   if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
@@ -2037,6 +2140,7 @@ document.addEventListener('click',e=>{
   if(D.wsel){S.wsel=S.wsel===D.wsel?null:D.wsel;S.wsub=null;keepY();return}
   if(D.wsub){S.wsub=S.wsub===D.wsub?null:D.wsub;keepY();return}
   if(D.tsel){S.tsel=S.tsel===D.tsel?null:D.tsel;keepY();return}
+  if(D.tysel){S.tysel=S.tysel===D.tysel?null:D.tysel;keepY();return}
   if(D.dayb!==undefined){S.dayb=D.dayb==='x'?null:D.dayb;keepY();return}
   if(D.opx){S.opx=S.opx===D.opx?null:D.opx;keepY();return}
   if(D.mode){S.mode=D.mode;render();return}
@@ -2096,6 +2200,7 @@ document.addEventListener('click',e=>{
   if(a==='otparse'){const t=$('#ottext').value;if(!t.trim()){toast('Paste the OT list text first');return}otApply(t)}
   if(a==='otclear'){S.ot=null;keepY()}
   if(a==='otgal'){const i=$('#otgal');i&&i.click()}
+  if(a==='dashrep'){dashReport();return}
   if(a==='dctog'){S.dcOpen=!S.dcOpen;keepY()}
   if(a==='dcfixdate'){const l=dataIssues().badDate.filter(c=>toISO(c.tarikhOp)).map(c=>Object.assign(JSON.parse(JSON.stringify(c)),{tarikhOp:toISO(c.tarikhOp)}));dcSave(l,l.length+' dates fixed')}
   if(a==='lkadd'){S.ladd={type:'list',auto:true};keepY()}
@@ -2188,7 +2293,9 @@ function saveEntry(){
 function saveSSI(){
   const c=S.cases.find(x=>x.id===S.cur),d=S.sd;
   if(d.ssi==='Ya'){
-    if(d.tarikhSSI){const day=dayDiff(d.tarikhOp,d.tarikhSSI);if(day<0||day>survDays(d)){toast(`SSI date must be within ${survDays(d)} days after surgery`);return}}
+    if(d.tarikhSSI){const day=dayDiff(d.tarikhOp,d.tarikhSSI),w=survDays(d);if(day<0){toast(`Date SSI identified (${fmtD(d.tarikhSSI)}) is before the date of surgery (${fmtD(d.tarikhOp)}). Check both dates.`);return}
+      if(day>w&&!confirm(`SSI identified on day ${day} after surgery. The surveillance window is ${w===365?'1 year (implant)':w+' days'}${d.implan!=='Ya'?' — if an implant was used, set Implant used = Yes':''}.\n\nSave anyway?`))return}
+    if(d.tarikhLab&&d.tarikhOp&&dayDiff(d.tarikhOp,d.tarikhLab)<0){toast('Date lab confirmed is before the date of surgery. Check the date.');return}
     const keep=c.susulan;Object.assign(c,JSON.parse(JSON.stringify(d)),{susulan:keep,tutup:false});
     const miss=reqAll(c).filter(k=>c[k]===undefined||c[k]==='').length;
     persist(c);keepY();toast(miss?`SSI form saved · ${miss} fields missing`:'SSI form complete & saved');
