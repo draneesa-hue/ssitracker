@@ -320,6 +320,8 @@ a.btn.pri{color:var(--accent-ink)}
 .pframe{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden}.pframe.vid{aspect-ratio:16/9;max-height:74vh}.pframe.doc{height:74vh;background:#f4f4f4}
 .pframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .mod .thumb[data-play]{cursor:pointer}.mod .thumb[data-play]:hover .ico{transform:scale(1.08)}
+.pitem.lkitem{grid-template-columns:86px minmax(0,1fr);align-items:start}.lkitem .pn{overflow-wrap:anywhere}.lkitem .lkbtn{grid-column:1/-1;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:600px){.pitem.lkitem{grid-template-columns:minmax(0,1fr)}.lkitem .lkbtn{justify-content:stretch}.lkitem .lkbtn .btn{flex:1 1 auto}}
 </style>
 </head>
 <body>
@@ -1659,12 +1661,12 @@ function linkPanel(){
      <label class="row" style="gap:8px"><input type="checkbox" id="lk_a" ${A.auto!==false?'checked':''} style="width:auto"><span>Pull automatically when I open the app</span></label>
      <p class="hint" style="margin:0">Google Sheets / Google Drive: share the file (Viewer) with the UKI Google account that runs the app. OneDrive / SharePoint Excel: share as <b>Anyone with the link</b>.</p>
      <div class="row"><button class="btn pri" data-act="lksave">Save &amp; pull now</button><button class="btn" data-act="lkcancel">Cancel</button></div></div>`:''}
-   ${L.length?`<div class="plist">${L.map(x=>`<div class="pitem" style="cursor:default"><span class="pd">${x.auto?'🔄 Auto':'Manual'}</span><span class="pn"><b>${esc(x.name)}</b><span class="hint">${esc((LTYPES.find(t=>t[0]===x.type)||[0,''])[1])} · ${x.last?'last pulled '+esc(x.last)+' · '+(x.lastAdded||0)+' new, '+(x.lastSkip||0)+' already in app':'not pulled yet'}</span>${x.err?`<span class="hint" style="color:var(--bad)">⚠ ${esc(x.err)}</span>`:''}${x.rep?`<details style="margin-top:4px"><summary class="hint" style="cursor:pointer">Details of last pull${x.file?' · '+esc(x.file):''}</summary><div class="hint" style="margin-top:4px;line-height:1.6">
+   ${L.length?`<div class="plist">${L.map(x=>`<div class="pitem lkitem" style="cursor:default"><span class="pd">${x.auto?'🔄 Auto':'Manual'}</span><span class="pn"><b>${esc(x.name)}</b><span class="hint">${esc((LTYPES.find(t=>t[0]===x.type)||[0,''])[1])} · ${x.last?'last pulled '+esc(x.last)+' · '+(x.lastAdded||0)+' new, '+(x.lastSkip||0)+' already in app':'not pulled yet'}</span>${x.err?`<span class="hint" style="color:var(--bad)">⚠ ${esc(x.err)}</span>`:''}${x.rep?`<details style="margin-top:4px"><summary class="hint" style="cursor:pointer">Details of last pull${x.file?' · '+esc(x.file):''}</summary><div class="hint" style="margin-top:4px;line-height:1.6">
        ${(x.rep.sheets||[]).filter(t=>t.h!==undefined).map(t=>t.h?`<div>✔ <b>${esc(t.sn)}</b>: ${t.n} surgeries read${t.o?` · ${t.o} not monitored`:''}${t.d?` · <span style="color:var(--bad)">${t.d} without valid date</span>`:''}</div>`:`<div style="color:var(--bad)">✖ <b>${esc(t.sn)}</b>: header row not found (needs NAME and RACE / MRN / GENDER) – sheet skipped</div>`).join('')}
        ${x.rep.st?`<div>${x.rep.st.rows} rows read · ${x.rep.st.notMon} not monitored · ${x.rep.st.noDate} without date · ${x.rep.st.noDept} department not recognised</div>`:''}
        <div>New patients by month: ${Object.keys(x.rep.newByMonth||{}).sort().map(k=>esc(monthLabel(k))+' '+x.rep.newByMonth[k]).join(' · ')||'none'}</div>
        ${(x.rep.warn||[]).length?`<div style="margin-top:4px">${x.rep.warn.map(w=>`<div>⚠ ${esc(w)}</div>`).join('')}</div>`:''}</div></details>`:''}</span>
-     <span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-lkpull="${x.id}">Pull now</button><button class="btn sm" data-lkauto="${x.id}">${x.auto?'Turn off auto':'Turn on auto'}</button><button class="btn sm danger" data-lkdel="${x.id}">Remove</button></span></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No linked file yet.</p>'}
+     <span class="row lkbtn" style="gap:6px"><button class="btn sm" data-lkpull="${x.id}">Pull now</button><button class="btn sm" data-lkauto="${x.id}">${x.auto?'Turn off auto':'Turn on auto'}</button><button class="btn sm danger" data-lkdel="${x.id}">Remove</button></span></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No linked file yet.</p>'}
   </div>`;
 }
 
