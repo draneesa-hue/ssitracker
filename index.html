@@ -1335,6 +1335,8 @@ function dataIssues(){
 const DCI=[['FUTURE','Date of surgery in the future','b'],['BADDATE','Date of surgery unreadable','b'],['DEPT','Unknown department','b'],['DUP','Possible double entry','b'],
  ['NOTMON','Surgery name not in monitored list','w'],['NOID','No IC and no MRN','w'],['SSIINC','SSI form incomplete','b'],['SSIDATE','SSI date outside surveillance window','w'],
  ['OTHER','Surgery not monitored (not counted)','n'],['CONFIRM','Surveillance ended – SSI / no SSI not ticked','w'],['WOUND','Wound class not recorded','w'],['INC','Other required fields empty','n']];
+// two IC numbers that differ by 1–2 digits are probably the same IC read wrongly
+function icNear(x,y){x=String(x).replace(/\D/g,'');y=String(y).replace(/\D/g,'');if(x.length!==y.length||x.length<10)return false;let d=0;for(let i=0;i<x.length;i++)if(x[i]!==y[i])d++;return d<=2}
 function cleanScan(){
   const iss={},add=(c,k,d)=>{(iss[c.id]=iss[c.id]||[]).push([k,d||''])},ok=/^\d{4}-\d{2}-\d{2}$/;
   const keyMap={};
@@ -1349,11 +1351,11 @@ function cleanScan(){
     if(isMon(c)&&status(c).key==='sah')add(c,'CONFIRM');
     if(isMon(c)&&!c.jenisLuka)add(c,'WOUND');
     if(isMon(c)){const m=reqFields(c).filter(k=>(c[k]===undefined||c[k]==='')&&k!=='jenisLuka');if(m.length)add(c,'INC',m.length+' fields')}
-    const ks=[c.ic&&'i'+nKey(c.ic),c.mrn&&'m'+nKey(c.mrn).replace(/^HTPNK/,''),c.nama&&'n'+nKey(c.nama)].filter(Boolean);
+    const ks=[c.ic&&'i'+nKey(c.ic),c.mrn&&'m'+nKey(c.mrn).replace(/^HTPNK/,''),c.nama&&'n'+nKey(c.nama),name2(c.nama)&&'k'+name2(c.nama)].filter(Boolean);
     ks.forEach(k=>{const kk=c.jabatan+'|'+k;(keyMap[kk]=keyMap[kk]||[]).push(c)});
   });
   const dupSeen=new Set();
-  Object.values(keyMap).forEach(l=>{if(l.length<2)return;for(let i=0;i<l.length;i++)for(let j=i+1;j<l.length;j++){const a=l[i],b=l[j];if(a.id===b.id)continue;if(a.ic&&b.ic&&nKey(a.ic)!==nKey(b.ic))continue;if(a.mrn&&b.mrn&&nKey(a.mrn).replace(/^HTPNK/,'')!==nKey(b.mrn).replace(/^HTPNK/,''))continue;
+  Object.values(keyMap).forEach(l=>{if(l.length<2)return;for(let i=0;i<l.length;i++)for(let j=i+1;j<l.length;j++){const a=l[i],b=l[j];if(a.id===b.id)continue;if(a.ic&&b.ic&&nKey(a.ic)!==nKey(b.ic)&&!icNear(a.ic,b.ic))continue;if(a.mrn&&b.mrn&&nKey(a.mrn).replace(/^HTPNK/,'')!==nKey(b.mrn).replace(/^HTPNK/,''))continue;
     if(ok.test(a.tarikhOp||'')&&ok.test(b.tarikhOp||'')&&Math.abs(dayDiff(a.tarikhOp,b.tarikhOp))<=3&&(a.kategori===b.kategori)){const pk=[a.id,b.id].sort().join();if(dupSeen.has(pk))continue;dupSeen.add(pk);
       add(a,'DUP','with '+b.nama+' '+fmtD(b.tarikhOp));add(b,'DUP','with '+a.nama+' '+fmtD(a.tarikhOp))}}});
   return iss;
