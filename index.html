@@ -389,7 +389,7 @@ const SECTIONS=[
   {k:'drain',l:'Drain',t:'chip',o:YN,req:1}
  ]},
  {t:'POST-OPERATIVE',f:[
-  {k:'gula',l:'Uncontrolled sugar (>11.1 mmol/L)',t:'chip',o:YN,req:1},
+  {k:'gula',l:'Uncontrolled sugar (>11.1 mmol/L)',t:'chip',o:YN,req:1,show:c=>c.dm==='Ya'},
   {k:'abxPost',l:'Duration of antibiotic',t:'chip',o:['NIL','Within 24 hours','≥ 24 hours'],req:1},
   {k:'_surv',l:'Duration of surveillance',t:'calc'}
  ]}
@@ -401,9 +401,9 @@ const SSI_SEC={t:'TYPE OF SSI',f:[
  {k:'_hariSSI',l:'Day of SSI identified – post-op',t:'calc'},
  {k:'tapak',l:'Site of SSI',t:'chip',o:['Superficial incisional','Deep incisional','Organ/space'],req:1},
  {k:'diagJenis',l:'Diagnosis',t:'chip',o:['Clinical','Lab confirmed'],req:1},
- {k:'organisma',l:'If lab confirmed – type of organism',t:'text',req:c=>c.diagJenis==='Lab confirmed',show:c=>c.diagJenis==='Lab confirmed'},
+ {k:'organisma',l:'If lab confirmed – type of organism',t:'text',wide:1,req:c=>c.diagJenis==='Lab confirmed',show:c=>c.diagJenis==='Lab confirmed'},
  {k:'tarikhLab',l:'Date lab confirmed',t:'date',show:c=>c.diagJenis==='Lab confirmed'},
- {k:'diagKlinikal',l:'Clinical notes',t:'text',ph:'e.g. purulent discharge, erythema'},
+ {k:'diagKlinikal',l:'Clinical notes',t:'text',wide:1,ph:'e.g. purulent discharge, erythema'},
  {k:'readmit',l:'Is patient readmitted?',t:'chip',o:YN,req:1},
  {k:'tarikhReadmit',l:'Date of readmission',t:'date',req:c=>c.readmit==='Ya',show:c=>c.readmit==='Ya'}
 ]};
@@ -606,7 +606,7 @@ function fieldHTML(f,c,scope){
     return `<div class="f fwide"><span class="flabel ${rq} ${miss?'miss-l':''}">${f.l}</span><div class="chips">${o.length?o.map(x=>`<button type="button" class="chip ${c[f.k]===x?'on':''}" data-s="${scope}" data-k="${f.k}" data-v="${esc(x)}">${esc(L_(x))}</button>`).join(''):'<span class="hint">No options</span>'}</div></div>`;
   }
   const type={text:'text',num:'number',date:'date',time:'time'}[f.t];
-  return `<label class="f"><span class="${rq}">${f.l}</span><input type="${type}" class="${miss?'miss':''}" id="${scope}_${f.k}" data-s="${scope}" data-in="${f.k}" value="${esc(c[f.k])}" ${f.ph?`placeholder="${f.ph}"`:''} ${f.step?`step="${f.step}"`:''} ${f.t==='num'?'inputmode="decimal"':''}></label>`;
+  return `<label class="f ${f.wide?'fwide':''}"><span class="${rq}">${f.l}</span><input type="${type}" class="${miss?'miss':''}" id="${scope}_${f.k}" data-s="${scope}" data-in="${f.k}" value="${esc(c[f.k])}" ${f.ph?`placeholder="${f.ph}"`:''} ${f.step?`step="${f.step}"`:''} ${f.t==='num'?'inputmode="decimal"':''}></label>`;
 }
 function caseRow(c,showJab){
   const cp=complete(c),st=status(c);
@@ -708,6 +708,7 @@ function patientsView(){
   const opts=[['Semua','All'],['aktif','In surveillance'],['sah','Needs confirmation'],['ssi','SSI'],['selesai','Completed'],['kosong','Incomplete']];
   const l=mine.filter(c=>f==='Semua'||(f==='kosong'?complete(c).pct<100:status(c).key===f)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
   return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}<select class="inline" id="pwS" aria-label="Type of surgery"><option value="Semua">All types</option>${[['Clean','Clean'],['Clean contaminated','Clean contaminated'],['Contaminated','Contaminated'],['_none','Not recorded']].map(([v,l])=>`<option value="${v}" ${S.pw===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
+   ${dataCheckPanel()}
    <div class="chips">${opts.map(([k,lb])=>`<button class="chip ${f===k?'on':''}" data-pf="${k}">${lb} (${cnt(k)})</button>`).join('')}</div>
    <div class="panel">${l.length?l.map(c=>status(c).key==='sah'?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
 }
@@ -829,7 +830,7 @@ const JKN_COLS=['NUM','NAME OF PATIENT','IDENTIFICATION NUMBER /PASSPORT NUMBER'
 const JKN_HEAD=`<tr><th class="blank" colspan="12"></th><th class="grp" colspan="7">PREOPERATIVE DETAILS</th><th class="grp" colspan="7">POSTOPERATIVE</th></tr>
 <tr><th class="blank" colspan="13"></th><th class="grp2" colspan="3">SKIN PREPARATION</th><th class="grp2" colspan="3">ANTIBIOTIC PROPHYLAXIS</th><th class="blank"></th><th class="grp2">CARDIAC &amp; VASCULAR</th><th class="grp2">NON CARDIAC &amp; VASCULAR</th><th class="grp2" colspan="4">TYPE OF SSI</th></tr>`;
 const yn=v=>v==='Ya'?'YES':v==='Tidak'?'NO':(v||'');
-function jknCells(c,i){return[i+1,c.nama,c.ic||c.mrn,c.umur,(c.jantina==='Perempuan'?'F':c.jantina==='Lelaki'?'M':'')+'/'+(c.bangsa||''),c.diagnosis,c.jabatan,fmtD(c.tarikhOp),hhmm(durasi(c)),c.jenisLuka,c.pakar,c.ssi==='Ya'?yn(c.readmit):'',c.bmi,c.kulit1,c.kulit2,yn(c.jahitan),yn(c.abx),c.masaAbx,(c.redose&&c.redose!=='None'?c.redose:(c.abx?'NO':'')),yn(c.gula),'',c.abxPost,c.ssi==='Ya'?'YES':'NO',c.ssi==='Ya'&&c.tarikhSSI?'Day '+dayDiff(c.tarikhOp,c.tarikhSSI):'',ssiSite(c),ssiDiag(c)].map(v=>v??'')}
+function jknCells(c,i){return[i+1,c.nama,c.ic||c.mrn,c.umur,(c.jantina==='Perempuan'?'F':c.jantina==='Lelaki'?'M':'')+'/'+(c.bangsa||''),c.diagnosis,c.jabatan,fmtD(c.tarikhOp),hhmm(durasi(c)),c.jenisLuka,c.pakar,c.ssi==='Ya'?yn(c.readmit):'',c.bmi,c.kulit1,c.kulit2,yn(c.jahitan),yn(c.abx),c.masaAbx,(c.redose&&c.redose!=='None'?c.redose:(c.abx?'NO':'')),(c.gula?yn(c.gula):c.dm==='Tidak'?'NO':''),'',c.abxPost,c.ssi==='Ya'?'YES':'NO',c.ssi==='Ya'&&c.tarikhSSI?'Day '+dayDiff(c.tarikhOp,c.tarikhSSI):'',ssiSite(c),ssiDiag(c)].map(v=>v??'')}
 function ssiSite(c){return c.tapak||((String(c.diagKlinikal||'').match(/^Site:\s*([^·]+)/)||[])[1]||'').trim()}
 function ssiDiag(c){return [c.diagJenis,c.organisma,String(c.diagKlinikal||'').replace(/^Site:\s*[^·]+(·\s*)?/,'').trim()].filter(Boolean).join(' – ')}
 const jknRows=(j,m)=>S.cases.filter(c=>c.jabatan===j&&monthKey(c)===m).sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
@@ -1437,12 +1438,13 @@ const DCX={FUTURE:['The date of surgery is after today, so the operation has not
  NOID:['There is no IC number and no MRN, so the patient cannot be matched or checked.','Open the record and add the IC or MRN.'],
  SSIINC:['SSI = Yes, but the TYPE OF SSI section is not complete.','Open the record and complete the SSI form (date identified, site, diagnosis, readmission).'],
  SSIDATE:['The date SSI identified is before the surgery or after the surveillance window (30 days, 1 year with implant).','Check the date of SSI, the date of surgery and "Implant used".'],
+ RDATE:['The date of readmission or the date lab confirmed is before the date of surgery.','Open the SSI form and correct the date (it should be on or after the SSI date).'],
  CONFIRM:['The surveillance period has ended but nobody ticked SSI / No SSI.','Ask the liaison to tick No SSI or SSI present on their dashboard.'],
  WOUND:['Clean / Clean contaminated / Contaminated is not chosen.','Open the record and choose the type of surgery.'],
  INC:['Some required fields in the data collection form are empty.','Open the record and fill in the fields shown in red.']};
 const DCI=[['FUTURE','Date of surgery in the future','b'],['BADDATE','Date of surgery unreadable','b'],['DEPT','Unknown department','b'],['DUP','Possible double entry','b'],
  ['NOTMON','Surgery name not in monitored list','w'],['NOID','No IC and no MRN','w'],['SSIINC','SSI form incomplete','b'],['SSIDATE','SSI date outside surveillance window','w'],
- ['OTHER','Surgery not monitored (not counted)','n'],['CONFIRM','Surveillance ended – SSI / no SSI not ticked','w'],['WOUND','Wound class not recorded','w'],['INC','Other required fields empty','n']];
+ ['OTHER','Surgery not monitored (not counted)','n'],['RDATE','Readmission / lab date before surgery','b'],['CONFIRM','Surveillance ended – SSI / no SSI not ticked','w'],['WOUND','Wound class not recorded','w'],['INC','Other required fields empty','n']];
 // two IC numbers that differ by 1–2 digits are probably the same IC read wrongly
 function icNear(x,y){x=String(x).replace(/\D/g,'');y=String(y).replace(/\D/g,'');if(x.length!==y.length||x.length<10)return false;let d=0;for(let i=0;i<x.length;i++)if(x[i]!==y[i])d++;return d<=2}
 function cleanScan(){
@@ -1455,7 +1457,8 @@ function cleanScan(){
     if(JAB.includes(c.jabatan)&&!isMon(c)){const sug=normProc(c.jabatan,c.kategori||'',c.prosedur||'');if((PROC[c.jabatan]||[]).includes(sug))add(c,'NOTMON',(c.kategori||'blank')+' → '+sug);else add(c,'OTHER',c.kategori||'blank')}
     if(!c.ic&&!c.mrn)add(c,'NOID');
     if(c.ssi==='Ya'){const m=ssiMissing(c).filter(k=>SSI_SEC.f.some(f=>f.k===k));if(m.length)add(c,'SSIINC',m.map(fieldLabel).join(', '));
-      if(c.tarikhSSI&&ok.test(d)){const dd=dayDiff(d,c.tarikhSSI);if(dd<0||dd>survDays(c))add(c,'SSIDATE','day '+dd)}}
+      if(c.tarikhSSI&&ok.test(d)){const dd=dayDiff(d,c.tarikhSSI);if(dd<0||dd>survDays(c))add(c,'SSIDATE','day '+dd)}
+      if(ok.test(d)){const bad=[['tarikhReadmit','readmission'],['tarikhLab','lab confirmed']].filter(([k])=>ok.test(c[k]||'')&&c[k]<d);if(bad.length)add(c,'RDATE',bad.map(([k,l])=>l+' '+fmtD(c[k])).join(', '))}}
     if(isMon(c)&&status(c).key==='sah')add(c,'CONFIRM');
     if(isMon(c)&&!c.jenisLuka)add(c,'WOUND');
     if(isMon(c)){const m=reqFields(c).filter(k=>(c[k]===undefined||c[k]==='')&&k!=='jenisLuka');if(m.length)add(c,'INC',m.length+' fields')}
@@ -2497,6 +2500,7 @@ function saveSSI(){
     if(d.tarikhSSI){const day=dayDiff(d.tarikhOp,d.tarikhSSI),w=survDays(d);if(day<0){toast(`Date SSI identified (${fmtD(d.tarikhSSI)}) is before the date of surgery (${fmtD(d.tarikhOp)}). Check both dates.`);return}
       if(day>w&&!confirm(`SSI identified on day ${day} after surgery. The surveillance window is ${w===365?'1 year (implant)':w+' days'}${d.implan!=='Ya'?' — if an implant was used, set Implant used = Yes':''}.\n\nSave anyway?`))return}
     if(d.tarikhLab&&d.tarikhOp&&dayDiff(d.tarikhOp,d.tarikhLab)<0){toast('Date lab confirmed is before the date of surgery. Check the date.');return}
+    if(d.readmit==='Ya'&&d.tarikhReadmit&&d.tarikhOp&&dayDiff(d.tarikhOp,d.tarikhReadmit)<0){toast(`Date of readmission (${fmtD(d.tarikhReadmit)}) is before the date of surgery (${fmtD(d.tarikhOp)}). Check the date.`);return}
     const keep=c.susulan;Object.assign(c,JSON.parse(JSON.stringify(d)),{susulan:keep,tutup:false});
     const miss=reqAll(c).filter(k=>c[k]===undefined||c[k]==='').length;
     persist(c);keepY();toast(miss?`SSI form saved · ${miss} fields missing`:'SSI form complete & saved');
