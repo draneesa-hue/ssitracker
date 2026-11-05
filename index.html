@@ -56,6 +56,7 @@ button{font:inherit;cursor:pointer;color:inherit}
 .plong{max-height:460px;overflow-y:auto}
 @media(max-width:640px){.trend .ssiw{display:none}.trend .pill{padding:2px 6px;font-size:.7rem}.trend{gap:3px}}
 .wcl{font-weight:700;color:var(--deep)}
+.prow2{display:flex;gap:6px;align-items:stretch}.prow2 .pitem{flex:1;min-width:0}.prow2 .btn{align-self:center;flex:none}
 .tsel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.byy{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);white-space:nowrap}.byy.on{background:var(--deep);color:#fff;border-color:var(--deep)}
 .ysum td,.ysum th{white-space:nowrap;vertical-align:top}.ysum .ylab{position:sticky;left:0;background:var(--surface);z-index:1;white-space:normal;min-width:190px}
 .ysum .ysub{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.ysum .ytot{background:#f1f8ec}.ysum tr.grp td{position:sticky;left:0}
@@ -773,10 +774,10 @@ function coordDash(){
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">
-   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button><select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}</div></div>
+   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}<button class="btn sm pri" data-act="dashrep">⬇ Report of this view</button></div></div>
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
-    <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete</span></div></div>
+    <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete · all required fields filled</span></div></div>
    ${(DASH={list,DL,ML,src:S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),ctx:{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length}},'')}${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
    ${D==='Semua'?deptPanel(list,ML,SK):''}
@@ -1116,8 +1117,11 @@ function parseWorkbook(wb,jab,o){
 const nKey=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 function findExisting(c){
   return S.cases.find(x=>x.id===c.id)||S.cases.find(x=>x.jabatan===c.jabatan&&x.tarikhOp===c.tarikhOp&&(
-    (c.mrn&&x.mrn&&nKey(x.mrn).replace(/^HTPNK/,'')===nKey(c.mrn).replace(/^HTPNK/,''))||nKey(x.nama)===nKey(c.nama)));
+    (c.mrn&&x.mrn&&nKey(x.mrn).replace(/^HTPNK/,'')===nKey(c.mrn).replace(/^HTPNK/,''))||(c.ic&&x.ic&&nKey(x.ic)===nKey(c.ic))||nKey(x.nama)===nKey(c.nama)));
 }
+// same department + date + surgery and the first two words of the name match (OCR may read MOHD / MUHAMAD differently)
+const name2=n=>String(n||'').toUpperCase().replace(/[^A-Z ]/g,' ').split(/\s+/).filter(w=>w&&!/^(BIN|BINTI|BT|BTE|AL|AP|A|L|P)$/.test(w)).slice(0,2).join(' ');
+function possibleDup(c){return findExisting(c)||S.cases.find(x=>x.jabatan===c.jabatan&&x.tarikhOp===c.tarikhOp&&x.kategori===c.kategori&&name2(x.nama)&&name2(x.nama)===name2(c.nama))}
 // Keep everything already entered in the app; only fill empty fields from Excel.
 function mergeImport(list){
   let matched=0;
@@ -1326,19 +1330,72 @@ function dataIssues(){
   const notMon=Object.entries(grp).map(([k,l])=>{const [j,kat]=k.split('|');const sug=normProc(j,kat,l[0].prosedur||'');return{j,kat,l,sug:(PROC[j]||[]).includes(sug)?sug:''}}).sort((a,b)=>b.l.length-a.l.length);
   return {badDate,badDept,notMon};
 }
+
+// ================= DATA CLEANING (UKI): mistakes per month, review and fix =================
+const DCI=[['FUTURE','Date of surgery in the future','b'],['BADDATE','Date of surgery unreadable','b'],['DEPT','Unknown department','b'],['DUP','Possible double entry','b'],
+ ['NOTMON','Surgery name not in monitored list','w'],['NOID','No IC and no MRN','w'],['SSIINC','SSI form incomplete','b'],['SSIDATE','SSI date outside surveillance window','w'],
+ ['OTHER','Surgery not monitored (not counted)','n'],['CONFIRM','Surveillance ended – SSI / no SSI not ticked','w'],['WOUND','Wound class not recorded','w'],['INC','Other required fields empty','n']];
+function cleanScan(){
+  const iss={},add=(c,k,d)=>{(iss[c.id]=iss[c.id]||[]).push([k,d||''])},ok=/^\d{4}-\d{2}-\d{2}$/;
+  const keyMap={};
+  S.cases.forEach(c=>{
+    const d=c.tarikhOp||'';
+    if(!ok.test(d))add(c,'BADDATE',d||'blank');else if(d>TODAYISO)add(c,'FUTURE',fmtD(d));
+    if(!JAB.includes(c.jabatan))add(c,'DEPT',c.jabatan||'blank');
+    if(JAB.includes(c.jabatan)&&!isMon(c)){const sug=normProc(c.jabatan,c.kategori||'',c.prosedur||'');if((PROC[c.jabatan]||[]).includes(sug))add(c,'NOTMON',(c.kategori||'blank')+' → '+sug);else add(c,'OTHER',c.kategori||'blank')}
+    if(!c.ic&&!c.mrn)add(c,'NOID');
+    if(c.ssi==='Ya'){const m=ssiMissing(c).filter(k=>SSI_SEC.f.some(f=>f.k===k));if(m.length)add(c,'SSIINC',m.map(fieldLabel).join(', '));
+      if(c.tarikhSSI&&ok.test(d)){const dd=dayDiff(d,c.tarikhSSI);if(dd<0||dd>survDays(c))add(c,'SSIDATE','day '+dd)}}
+    if(isMon(c)&&status(c).key==='sah')add(c,'CONFIRM');
+    if(isMon(c)&&!c.jenisLuka)add(c,'WOUND');
+    if(isMon(c)){const m=reqFields(c).filter(k=>(c[k]===undefined||c[k]==='')&&k!=='jenisLuka');if(m.length)add(c,'INC',m.length+' fields')}
+    const ks=[c.ic&&'i'+nKey(c.ic),c.mrn&&'m'+nKey(c.mrn).replace(/^HTPNK/,''),c.nama&&'n'+nKey(c.nama)].filter(Boolean);
+    ks.forEach(k=>{const kk=c.jabatan+'|'+k;(keyMap[kk]=keyMap[kk]||[]).push(c)});
+  });
+  const dupSeen=new Set();
+  Object.values(keyMap).forEach(l=>{if(l.length<2)return;for(let i=0;i<l.length;i++)for(let j=i+1;j<l.length;j++){const a=l[i],b=l[j];if(a.id===b.id)continue;if(a.ic&&b.ic&&nKey(a.ic)!==nKey(b.ic))continue;if(a.mrn&&b.mrn&&nKey(a.mrn).replace(/^HTPNK/,'')!==nKey(b.mrn).replace(/^HTPNK/,''))continue;
+    if(ok.test(a.tarikhOp||'')&&ok.test(b.tarikhOp||'')&&Math.abs(dayDiff(a.tarikhOp,b.tarikhOp))<=3&&(a.kategori===b.kategori)){const pk=[a.id,b.id].sort().join();if(dupSeen.has(pk))continue;dupSeen.add(pk);
+      add(a,'DUP','with '+b.nama+' '+fmtD(b.tarikhOp));add(b,'DUP','with '+a.nama+' '+fmtD(a.tarikhOp))}}});
+  return iss;
+}
 function dataCheckPanel(){
-  const I=dataIssues(),fixD=I.badDate.filter(c=>toISO(c.tarikhOp)).length,n=I.badDate.length+I.badDept.length+I.notMon.reduce((a,g)=>a+g.l.length,0);
-  if(!n)return `<div class="panel row between"><span>✅ <b>Data check:</b> every record has a valid date and department.</span></div>`;
-  const open=S.dcOpen;
-  return `<div class="panel stack" style="border-color:var(--warn)"><div class="row between"><div style="flex:1 1 260px"><h3>⚠ Data check · ${n} record${n>1?'s':''} not counted in the dashboard</h3>
-    <p class="hint" style="margin:.2em 0 0">The dashboard and JKNS report only count monitored surgeries with a valid date. Fix these so they are counted.</p></div><button class="btn sm" data-act="dctog">${open?'Hide':'Show details'}</button></div>
-   ${open?`${I.badDate.length?`<div class="stack"><b>${I.badDate.length} with an unreadable date of surgery</b>${fixD?`<div><button class="btn sm pri" data-act="dcfixdate">Fix ${fixD} date${fixD>1?'s':''} automatically</button></div>`:''}<div class="plist plong">${I.badDate.slice(0,50).map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${esc(c.tarikhOp||'no date')}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.jabatan)} · ${esc(c.kategori||'')}</span></span></button>`).join('')}</div></div>`:''}
-    ${I.badDept.length?`<div class="stack"><b>${I.badDept.length} with an unknown department</b><div class="plist plong">${I.badDept.slice(0,50).map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${esc(c.jabatan||'—')}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${fmtD(c.tarikhOp)} · ${esc(c.kategori||'')}</span></span></button>`).join('')}</div></div>`:''}
-    ${I.notMon.length?`<div class="stack"><b>Surgery name not in the monitored list</b><p class="hint" style="margin:0">If the surgery is really monitored, tap <b>Change</b> to rename it. Leave it if it is truly not monitored (e.g. EM LSCS).</p>
-     <div class="scroll"><table><thead><tr><th>Department</th><th>Surgery as recorded</th><th class="num">Records</th><th>Months</th><th></th></tr></thead><tbody>
-     ${I.notMon.map((g,i)=>{const ms=[...new Set(g.l.map(monthKey))].sort();return `<tr><td>${esc(g.j)}</td><td>${esc(g.kat||'(blank)')}</td><td class="num">${g.l.length}</td><td class="hint">${esc(ms.slice(0,4).map(monthLabel).join(', '))}${ms.length>4?' …':''}</td>
-      <td><select class="inline" id="dcs_${i}">${['',...PROC[g.j]].map(p=>`<option value="${esc(p)}" ${p===g.sug?'selected':''}>${p?esc(p):'— choose —'}</option>`).join('')}</select> <button class="btn sm" data-dcfix="${i}">Change</button></td></tr>`}).join('')}</tbody></table></div></div>`:''}`:''}
-  </div>`;
+  const iss=cleanScan(),byId={};S.cases.forEach(c=>byId[c.id]=c);
+  const ids=Object.keys(iss),mk=c=>/^\d{4}-\d{2}/.test(c.tarikhOp||'')?c.tarikhOp.slice(0,7):'—';
+  const SOFT=x=>x[0]==='INC'||x[0]==='OTHER';const months={};ids.forEach(id=>{const k=mk(byId[id]);months[k]=(months[k]||0)+iss[id].filter(x=>!SOFT(x)).length});
+  const mlist=Object.keys(months).filter(k=>months[k]).sort().reverse();
+  const M=S.dcm&&(S.dcm==='all'||mlist.includes(S.dcm))?S.dcm:(mlist.find(k=>k<=TODAYISO.slice(0,7))||mlist[0]||'all');
+  const inM=id=>M==='all'||mk(byId[id])===M;
+  const cnt={};ids.filter(inM).forEach(id=>iss[id].forEach(([k])=>cnt[k]=(cnt[k]||0)+1));
+  const pts=ids.filter(id=>inM(id)&&iss[id].some(x=>!SOFT(x))).length,nIss=Object.entries(cnt).filter(([k])=>k!=='INC'&&k!=='OTHER').reduce((a,[,v])=>a+v,0);
+  const chips=DCI.filter(([k])=>cnt[k]).map(([k,l,cl])=>`<button type="button" class="pill ${cl} tpill ${S.dcf===k?'on':''}" data-dcf="${k}">${l} · ${cnt[k]}</button>`).join('');
+  const open=S.dcOpen,F=S.dcf;
+  let rev='';
+  if(open){
+    const sel=ids.filter(id=>inM(id)&&(F?iss[id].some(x=>x[0]===F):iss[id].some(x=>!SOFT(x)))).map(id=>byId[id]).sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||''));
+    let tools='';
+    if(F==='BADDATE'){const n=sel.filter(c=>toISO(c.tarikhOp)).length;if(n)tools=`<button class="btn sm pri" data-act="dcfixdate">Fix ${n} date${n>1?'s':''} automatically</button>`}
+    if(F==='NOTMON'){const I=dataIssues();tools=I.notMon.filter(g=>g.sug).length?`<div class="scroll"><table><thead><tr><th>Department</th><th>Surgery as recorded</th><th class="num">Records</th><th></th></tr></thead><tbody>${I.notMon.map((g,i)=>g.sug?`<tr><td>${esc(g.j)}</td><td>${esc(g.kat||'(blank)')}</td><td class="num">${g.l.length}</td><td><select class="inline" id="dcs_${i}">${['',...PROC[g.j]].map(p=>`<option value="${esc(p)}" ${p===g.sug?'selected':''}>${p?esc(p):'— choose —'}</option>`).join('')}</select> <button class="btn sm" data-dcfix="${i}">Change all</button></td></tr>`:'').join('')}</tbody></table></div>`:''}
+    if(F==='OTHER'){const g={};sel.forEach(c=>{const k=c.jabatan+'|'+(c.kategori||'');(g[k]=g[k]||[]).push(c.id)});
+      tools=`<p class="hint" style="margin:0">These surgeries are not in the monitored list, so they are not counted in the dashboard or JKNS report. If they should not be in the data collection at all, delete them (a copy is kept in the DeletedLog sheet).</p><div class="scroll"><table><thead><tr><th>Department</th><th>Surgery as recorded</th><th class="num">Records</th><th></th></tr></thead><tbody>${Object.entries(g).sort((a,b)=>b[1].length-a[1].length).map(([k,l])=>{const [j,kat]=k.split('|');return `<tr><td>${esc(j)}</td><td>${esc(kat||'(blank)')}</td><td class="num">${l.length}</td><td><button class="btn sm danger" data-dcdelg="${esc(l.join(','))}">🗑 Delete ${l.length}</button></td></tr>`}).join('')}</tbody></table></div>`}
+    if(F==='INC'){const fc={};sel.forEach(c=>reqFields(c).forEach(k=>{if(c[k]===undefined||c[k]==='')fc[k]=(fc[k]||0)+1}));
+      tools=`<div class="hint"><b>Most often empty:</b> ${Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,n])=>`${esc(fieldLabel(k))} (${n})`).join(' · ')}</div>`}
+    rev=`<div class="stack" style="margin-top:6px">${tools}<div class="plist plong">${sel.slice(0,200).map(c=>{const xs=iss[c.id].filter(x=>F?x[0]===F:!SOFT(x));
+      return `<div class="prow2"><button class="pitem" data-open="${c.id}"><span class="pd">${esc(/^\d{4}-\d{2}-\d{2}$/.test(c.tarikhOp||'')?fmtD(c.tarikhOp):(c.tarikhOp||'no date'))}</span><span class="pn"><b>${esc(c.nama||'(no name)')}</b><span class="hint">${esc(c.jabatan||'')} · ${esc(c.kategori||'')} · ${esc(c.mrn||c.ic||'')}</span>
+       <span class="hint" style="color:var(--bad);font-weight:700">${xs.map(([k,d])=>esc((DCI.find(z=>z[0]===k)||[0,k])[1])+(d?' ('+esc(d)+')':'')).join(' · ')}</span></span></button><button type="button" class="btn sm danger" data-dcdel="${c.id}" title="Delete this record">🗑 Delete</button></div>`}).join('')||'<div class="empty">Nothing to review.</div>'}</div>
+      ${sel.length>200?`<p class="hint" style="margin:0">Showing 200 of ${sel.length}. Choose a month to narrow down.</p>`:''}</div>`}
+  return `<div class="panel stack" style="background:${pts?'#fff7ea':'var(--good-soft)'};border-color:${pts?'#f0c98a':'var(--good)'}">
+   <div class="row between"><div style="flex:1 1 300px"><h3 style="margin:0">${pts?`🧹 Mistakes found · ${M==='all'?'all months':esc(monthLabel(M))} — ${pts} patient${pts>1?'s':''} · ${nIss} issue${nIss>1?'s':''}`:`✅ Data cleaning · ${M==='all'?'all months':esc(monthLabel(M))}: no mistakes found`}</h3>
+     <div class="row" style="gap:8px;margin-top:6px"><span class="hint">Data cleaning focus · month:</span><select class="inline" id="dcmS"><option value="all" ${M==='all'?'selected':''}>All months · ${Object.values(months).reduce((a,b)=>a+b,0)} issues</option>${mlist.map(k=>`<option value="${k}" ${k===M?'selected':''}>${esc(k==='—'?'No valid date':monthLabel(k))} · ${months[k]} issues</option>`).join('')}</select></div></div>
+    <button class="btn ${open?'':'pri'}" data-act="dctog">${open?'Hide':'Review'}</button></div>
+   ${chips?`<div class="chips">${chips}${F?`<button type="button" class="chip" data-dcf="${F}">✕ Show all issues</button>`:''}</div>`:''}
+   <p class="hint" style="margin:0">Tap an issue to list those patients, then tap a patient to open and correct the record. "Other required fields empty" lists records with blank form fields (shown separately because it is common for imported data).</p>
+   ${rev}</div>`;
+}
+
+async function bulkDelete(ids){
+  try{if(typeof api==='function'){try{await api('deleteCases',{ids})}catch(e){if(!/Unknown action/.test(e.message))throw e;for(const id of ids)await api('deleteCase',{id})}}
+    S.cases=S.cases.filter(c=>!ids.includes(c.id));keepY();toast(ids.length+' record'+(ids.length>1?'s':'')+' deleted')}
+  catch(e){toast('Not deleted: '+e.message)}
 }
 async function dcSave(list,msg){
   if(!list.length)return;
@@ -2028,7 +2085,7 @@ function otPanel(){
     <div class="calcbox"><div><b>${O.rows.length}</b><span>Monitored surgeries found</span></div><div><b>${O.skipped.length}</b><span>Not monitored (left out)</span></div><div><b>${O.rows.filter(r=>r.dup).length}</b><span>Already in app</span></div></div>
     ${O.rows.length?`<p class="hint" style="margin:0">Check every row before adding. Untick rows you do not want, correct any wrong text.</p>
     <div class="scroll"><table class="ot"><thead><tr><th>Add</th><th>Name</th><th>IC No.</th><th>MRN</th><th>Date of surgery</th><th>Surgery performed</th></tr></thead><tbody>
-    ${O.rows.map((r,i)=>`<tr class="${r.dup?'dupr':''}"><td><input type="checkbox" data-otc="${i}" ${r.on?'checked':''}>${r.dup?'<br><span class="hint">in app</span>':''}</td>
+    ${O.rows.map((r,i)=>`<tr class="${r.dup?'dupr':''}"><td><input type="checkbox" data-otc="${i}" ${r.on?'checked':''}>${r.dup?`<br><span class="hint" style="color:var(--bad)">already in app${r.dupOf?': '+esc(r.dupOf):''}</span>`:''}</td>
      <td><input data-otf="${i}:nama" class="${r.nama?'':'miss'}" placeholder="${r.nama?'':'Not read – fill in'}" value="${esc(r.nama)}"></td><td><input data-otf="${i}:ic" class="${r.ic?'':'miss'}" placeholder="${r.ic?'':'Not read – fill in'}" value="${esc(r.ic)}"></td><td><input data-otf="${i}:mrn" class="${r.mrn?'':'miss'}" placeholder="${r.mrn?'':'Not read – fill in'}" value="${esc(r.mrn)}"></td>
      <td><input type="date" data-otf="${i}:tarikhOp" value="${esc(r.tarikhOp)}"></td>
      <td><select data-otf="${i}:kategori">${(PROC[jab]||[]).map(p=>`<option ${p===r.kategori?'selected':''}>${esc(p)}</option>`).join('')}</select><div class="hint">${esc(r.prosedur||'')}</div></td></tr>`).join('')}</tbody></table></div>
@@ -2042,7 +2099,7 @@ function otApply(text){
   if(det&&det!==jab){if(S.user.role==='coord'){if(!S.draft)S.draft={tarikhOp:TODAYISO,ssi:'Tiada',susulan:[]};S.draft.jabatan=det;note=`Department detected from the OT list: ${det} (changed from ${jab}).`;jab=det}
     else note=`⚠ This OT list looks like ${det}, but you are logged in as ${jab}. Only ${jab} monitored surgeries are shown.`}
   const R=parseOT(text,jab);if(S.ot)S.ot.note=note;
-  R.rows.forEach(r=>{r.jabatan=jab;r.dup=!!findExisting(r);r.on=!r.dup});
+  R.rows.forEach((r,i)=>{r.jabatan=jab;const ex=possibleDup(r)||R.rows.slice(0,i).find(y=>y.tarikhOp===r.tarikhOp&&((r.ic&&y.ic&&nKey(r.ic)===nKey(y.ic))||name2(y.nama)===name2(r.nama)));r.dup=!!ex;r.dupOf=ex?ex.nama:'';r.on=!r.dup});
   S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:'',showPaste:!R.rows.length});keepY();
 }
 function ocrErr(m,isPdf){
@@ -2131,6 +2188,9 @@ document.addEventListener('click',e=>{
   if(D.xlsx){chartXLSX(D.xlsx);return}
   if(D.byy){S.byy=Object.assign({},S.byy,{[D.byy]:!(S.byy||{})[D.byy]});keepY();return}
   if(D.dsel){S.dsel=S.dsel===D.dsel?null:D.dsel;keepY();return}
+  if(D.dcdel){const c=S.cases.find(x=>x.id===D.dcdel);if(c&&confirm(`Delete ${c.nama} (${fmtD(c.tarikhOp)}, ${c.kategori||'no surgery'})?\nA copy is kept in the DeletedLog sheet.`))bulkDelete([D.dcdel]);return}
+  if(D.dcdelg){const l=D.dcdelg.split(',');if(confirm(`Delete ${l.length} record(s)? They will be removed from the app and data collection.\nA copy is kept in the DeletedLog sheet.`))bulkDelete(l);return}
+  if(D.dcf){S.dcf=S.dcf===D.dcf?null:D.dcf;S.dcOpen=true;keepY();return}
   if(D.dcfix!==undefined){const g=dataIssues().notMon[+D.dcfix],v=$('#dcs_'+D.dcfix).value;if(!g||!v){toast('Choose the monitored surgery first');return}
     if(!confirm(`Change ${g.l.length} record(s) from "${g.kat||'(blank)'}" to "${v}"?`))return;
     dcSave(g.l.map(c=>Object.assign(JSON.parse(JSON.stringify(c)),{kategori:v,prosedur:c.prosedur||g.kat||v})),g.l.length+' records changed to '+v);return}
@@ -2262,6 +2322,7 @@ document.addEventListener('change',e=>{
   if(T.dataset.rmy){const ym=months().filter(m=>m.startsWith(T.dataset.rmy));S.rmonths=T.checked?[...new Set([...S.rmonths,...ym])].sort():S.rmonths.filter(x=>!ym.includes(x));S.mail=null;keepY();return}
   if(id==='rfSel'){S.rf=T.value;keepY();return}
   if(id==='tySel'){S.ty=T.value;if(S.dy!=='Semua')S.dy=T.value;keepY();return}
+  if(id==='dcmS'){S.dcm=T.value;keepY();return}
   if(id==='ysMetric'){S.ysm=T.value;keepY();return}
   if(id==='dY'){S.dy=T.value;keepY()}
   if(id==='dM'){S.dm=T.value;keepY()}
