@@ -1010,6 +1010,14 @@ function infoPanel(coord=true){
      <li><b>When the period ends with no SSI</b> – tap <b>✓ No SSI</b>. This is the same as writing "SSI: NO" at the end of the paper form; the app asks for it so a patient who was not followed up is not counted as "no SSI" by mistake.</li>
      <li><b>Red sections</b> in the form = required fields still empty. Data cleaning on the Patients tab lists mistakes to correct.</li></ol>
      <p class="hint" style="margin:8px 0 0"><b>Old / imported data:</b> patients imported from a department's SSI Data Collection Excel (or a linked sheet) whose period has already ended with no SSI are closed as <b>Completed</b> automatically. Patients from New Entry, the OT list or the all-department patient list (name / IC / date only) are not closed automatically – they need the liaison's confirmation.</p>`)}
+   ${sec('📚 Expected SSI rate by wound class (benchmark)',`<table><thead><tr><th>Type of surgery</th><th class="num">SSI rate with prophylaxis</th><th class="num">SSI rate without prophylaxis</th></tr></thead><tbody>
+     <tr><td><b>Clean</b> – no viscus opened</td><td class="num">1–2%</td><td class="num">1–2%</td></tr>
+     <tr><td><b>Clean contaminated</b> – viscus opened, minimal spillage</td><td class="num">3%</td><td class="num">6–9%</td></tr>
+     <tr><td><b>Contaminated</b> – open viscus with spillage or inflammatory disease</td><td class="num">6%</td><td class="num">13–20%</td></tr>
+     <tr><td><b>Dirty</b> – pus / perforation (not used in this app)</td><td class="num">7%</td><td class="num">~40%</td></tr></tbody></table>
+     <ul><li>Used in the <b>wound class panel</b> (column "Expected") and in <b>Smart analysis</b>: <b style="color:var(--good)">✓</b> within expected · <b style="color:#b26a00">▲</b> above the rate expected with prophylaxis · <b style="color:var(--bad)">▲▲</b> above the rate expected even without prophylaxis. Only wound classes with ≥10 surgeries are compared in Smart analysis.</li>
+     <li>Why it matters: antibiotic prophylaxis brings the SSI rate of clean contaminated and contaminated surgery down to about half. A rate above the "with prophylaxis" column suggests checking prophylaxis timing (≤60 min before incision), redosing and other bundle items.</li>
+     <li>Source: ${WBM_SRC}. Rates without prophylaxis: Cruse PJ, Foord R. <i>Surg Clin North Am</i> 1980;60:27–40 (62,939 wounds). Rates with prophylaxis: Culver DH et al. NNIS. <i>Am J Med</i> 1991;91(3B):152S–157S (rounded). These are older, international figures – use as a guide; local or national (KKM / NNIS / NHSN) rates by procedure are a better comparison where available.</li></ul>`)}
    ${sec('📥 How data gets in',`<ul><li><b>New Entry</b> – manual form following the KKM SSI Data Collection Form.</li><li><b>From OT list</b> – take a photo, choose from gallery, or upload a PDF; only monitored surgeries are added and patients already in the app are flagged.</li>
      <li><b>Import Excel</b> – SSI Data Collection form per department, or a patient list for all departments.</li><li><b>Linked Excel / Google Sheet</b> – pulled automatically when UKI opens the app; only new patients are added.</li></ul>`)}
    ${sec('📊 Dashboard, reports & data quality',`<ul><li>Filters: year, month, department, risk factor. Every chart can be shown as table / horizontal / vertical and downloaded as image or Excel. <b>⬇ Report</b> downloads the filtered dashboard as Excel, PDF or Word.</li>
@@ -1891,6 +1899,10 @@ function aiPanel(list,src,ctx){
     if(ty.length)F.push(`Type of SSI: ${ty.map(t=>`${t[0]} ${t[1]}`).join(', ')}${unc?`, not classified ${unc}`:''}.`);
     if(unc)A.push(`${unc} SSI case${unc>1?'s are':' is'} not classified (superficial / deep / organ-space). Complete the Type of SSI section.`)}
   else F.push('No SSI cases in this selection.');
+  // Wound class vs expected rate (with prophylaxis)
+  {const wb=Object.keys(WBM).map(w=>{const l=list.filter(c=>c.jenisLuka===w),sw=l.filter(c=>c.ssi==='Ya').length;return{w,n:l.length,s:sw,r:pct(sw,l.length),b:WBM[w],abx:pct(l.filter(abxOK).length,l.filter(c=>c.abx).length)}}).filter(x=>x.n>=10);
+   if(wb.length){F.push(`By wound class vs the expected SSI rate with antibiotic prophylaxis: ${wb.map(x=>`${esc(x.w)} <b>${x.r}%</b> (${x.s}/${x.n}; expected ${x.b.w}%)${wAbove(x.r,x.b,1)?' <b class="up">▲▲ above even the no-prophylaxis rate</b>':wAbove(x.r,x.b)?' <b class="up">▲ above expected</b>':' ✓'}`).join('; ')}.`);
+    wb.filter(x=>wAbove(x.r,x.b)).forEach(x=>A.push(`<b>${esc(x.w)}</b> SSI rate ${x.r}% is above the expected ${x.b.w}% with prophylaxis${wAbove(x.r,x.b,1)?` and even above the ${x.b.wo}% expected <i>without</i> prophylaxis`:''}. Check antibiotic prophylaxis for these surgeries (given ≤60 min before incision in ${x.abx}% of them), redosing in long operations, skin preparation and hair removal.`))}}
   // Data quality
   const full=pct(list.filter(c=>complete(c).pct===100).length,n);if(full<80)A.push(`Only ${full}% of records are complete. Incomplete risk-factor fields make the analysis less reliable.`);
   if(ctx.pend)A.push(`${ctx.pend} patient${ctx.pend>1?'s have':' has'} finished surveillance and still need SSI / no SSI confirmation.`);
@@ -2024,15 +2036,23 @@ function dayPanel(ssiL,DL){
 }
 // Type of surgery (wound class)
 const WCL=['Clean','Clean contaminated','Contaminated'];
+// Expected SSI rate by wound class (Cruse & Foord 1980; NNIS / Culver 1991)
+const WBM={'Clean':{w:'1–2',hi:2,wo:'1–2',hiWo:2},'Clean contaminated':{w:'3',hi:3,wo:'6–9',hiWo:9},'Contaminated':{w:'6',hi:6,wo:'13–20',hiWo:20},'Dirty':{w:'7',hi:7,wo:'~40',hiWo:40}};
+const WBM_SRC='Cruse &amp; Foord 1980 (without prophylaxis) and NNIS / Culver 1991 (with prophylaxis), as summarised in surgical textbook tables';
+// benchmarks are whole numbers, so compare the rate rounded to a whole number; ▲▲ only where prophylaxis lowers the expected rate
+const wAbove=(r,b,wo)=>wo?b.hiWo>b.hi&&Math.round(r)>b.hiWo:Math.round(r)>b.hi;
+function wbmCell(w,l){const b=WBM[w];if(!b)return '<td class="num hint">—</td>';const s=l.filter(c=>c.ssi==='Ya').length,r=pct(s,l.length);
+  const st=!l.length?'':wAbove(r,b,1)?'<b style="color:var(--bad)" title="Above the rate expected even WITHOUT prophylaxis">▲▲</b> ':wAbove(r,b)?'<b style="color:#b26a00" title="Above the rate expected with prophylaxis">▲</b> ':'<b style="color:var(--good)" title="Within expected">✓</b> ';
+  return `<td class="num">${st}${b.w}%</td>`}
 function woundPanel(list,DL){
   if(isSplit('wound'))return splitWound(list,DL);
   const grp=WCL.map(w=>[w,list.filter(c=>c.jenisLuka===w)]).concat([['Not recorded',list.filter(c=>!WCL.includes(c.jenisLuka))]]);
   const rows=grp.filter(g=>g[1].length).map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return{l:w,v:[l.length,s],lab:[String(l.length),s?`${s} (${pct(s,l.length)}%)`:'0'],r:pct(s,l.length),s}});
   const cfg={title:'Type of surgery (wound class) · '+DL+' · '+pLabel(S.dy,S.dm),series:['Surgeries','SSI cases'],rows,def:'table'};CH.wound=cfg;
   const v=CV('wound');
-  const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Type of surgery</th><th class="num">Surgeries</th><th class="num">% of surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th></tr></thead><tbody>
-    ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'prow':'zero'} ${S.wsel===w?'open':''}" ${l.length?`data-wsel="${esc(w)}" tabindex="0" role="button"`:''}><td>${l.length?`<span class="caret">${S.wsel===w?'▾':'▸'}</span>`:'<span class="caret"></span>'}${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td></tr>`}).join('')}
-    <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td></tr></tbody></table></div>`:chartBody('wound',cfg,v);
+  const body=v==='table'?`<div class="scroll"><table><thead><tr><th>Type of surgery</th><th class="num">Surgeries</th><th class="num">% of surgeries</th><th class="num">SSI</th><th class="num">SSI rate</th><th class="num" title="Expected SSI rate with antibiotic prophylaxis">Expected*</th></tr></thead><tbody>
+    ${grp.map(([w,l])=>{const s=l.filter(c=>c.ssi==='Ya').length;return `<tr class="${l.length?'prow':'zero'} ${S.wsel===w?'open':''}" ${l.length?`data-wsel="${esc(w)}" tabindex="0" role="button"`:''}><td>${l.length?`<span class="caret">${S.wsel===w?'▾':'▸'}</span>`:'<span class="caret"></span>'}${w==='Not recorded'?`<span class="hint">${w}</span>`:esc(w)}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,list.length)}%</td><td class="num">${s?`<b style="color:var(--bad)">${s}</b>`:0}</td><td class="num">${l.length?pct(s,l.length)+'%':'—'}</td>${wbmCell(w,l)}</tr>`}).join('')}
+    <tr class="grp"><td>Total</td><td class="num">${list.length}</td><td class="num">100%</td><td class="num">${list.filter(c=>c.ssi==='Ya').length}</td><td class="num">${pct(list.filter(c=>c.ssi==='Ya').length,list.length)}%</td><td></td></tr></tbody></table></div><p class="hint" style="margin:4px 0 0">*Expected SSI rate with antibiotic prophylaxis: Clean 1–2%, Clean contaminated 3%, Contaminated 6% (without prophylaxis 1–2%, 6–9%, 13–20%). ✓ within · ▲ above · ▲▲ above even the no-prophylaxis rate. Source: ${WBM_SRC}. See Info tab.</p>`:chartBody('wound',cfg,v);
   return `<div class="panel stack">${chartHead('wound','Type of surgery (wound class) · '+esc(DL))}<p class="hint" style="margin:-6px 0 0">Clean, clean contaminated and contaminated surgeries with their SSI rate. Tap a type to see the patients.</p>${body}
    ${v!=='table'?`<div class="chips">${grp.filter(g=>g[1].length).map(([w,l])=>`<button type="button" class="chip ${S.wsel===w?'on':''}" data-wsel="${esc(w)}">${esc(w)} (${l.length})</button>`).join('')}</div>`:''}
    ${(()=>{const g=grp.find(x=>x[0]===S.wsel);if(!g||!g[1].length)return '';const all=g[1];
@@ -2068,19 +2088,20 @@ function orgGroups(ssi){const G={};const add=(k,c)=>{(G[k]=G[k]||[]).push(c)};
   const tail=k=>/not recorded|no culture/.test(k)?1:0;
   return Object.entries(G).sort((a,b)=>tail(a[0])-tail(b[0])||b[1].length-a[1].length||a[0].localeCompare(b[0]))}
 function orgPanel(ssi,DL){
-  const grp=orgGroups(ssi),n=ssi.length,lab=ssi.filter(c=>orgNames(c).length).length,mdro=ssi.filter(c=>MDRO_RX.test(c.organisma||'')).length;
-  const rows=grp.map(([k,l])=>({l:k,v:[l.length],lab:[`${l.length} (${pct(l.length,n)}%)`]}));
+  const all_=orgGroups(ssi),isGap=k=>/not recorded|no culture/.test(k),grp=all_.filter(g=>!isGap(g[0])),gap=all_.filter(g=>isGap(g[0])),n=ssi.length,lab=ssi.filter(c=>orgNames(c).length).length,mdro=ssi.filter(c=>MDRO_RX.test(c.organisma||'')).length;
+  const rows=grp.map(([k,l])=>({l:k,v:[l.length],lab:[`${l.length} (${pct(l.length,lab)}%)`]}));
   const cfg={title:'SSI by organism · '+DL+' · '+pLabel(S.dy,S.dm),series:['SSI cases'],rows,def:'h',colors:['#7a2e9c']};CH.org=cfg;
   const v=CV('org','h');
-  const body=!grp.length?'<div class="empty">No SSI cases in this selection.</div>':v==='table'?`<div class="scroll"><table><thead><tr><th>Organism</th><th class="num">SSI cases</th><th class="num">% of SSI</th><th>Departments</th></tr></thead><tbody>
+  const body=!grp.length?`<div class="empty">${n?'No organism recorded for the SSI cases in this selection.':'No SSI cases in this selection.'}</div>`:v==='table'?`<div class="scroll"><table><thead><tr><th>Organism</th><th class="num">SSI cases</th><th class="num">% of SSI with organism</th><th>Departments</th></tr></thead><tbody>
     ${grp.map(([k,l])=>{const dp={};l.forEach(c=>dp[c.jabatan]=(dp[c.jabatan]||0)+1);const ot=/not recorded|no culture/.test(k);
-      return `<tr class="prow ${S.osel===k?'open':''}" data-osel="${esc(k)}" tabindex="0" role="button"><td><span class="caret">${S.osel===k?'▾':'▸'}</span>${ot?`<span class="hint">${esc(k)}</span>`:`<b>${esc(k)}</b>`}${MDRO_RX.test(k)?' <span class="pill b" style="font-size:.66rem">MDRO</span>':''}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,n)}%</td><td class="hint">${Object.entries(dp).map(([j,x])=>esc(j)+' '+x).join(' · ')}</td></tr>`}).join('')}
+      return `<tr class="prow ${S.osel===k?'open':''}" data-osel="${esc(k)}" tabindex="0" role="button"><td><span class="caret">${S.osel===k?'▾':'▸'}</span>${ot?`<span class="hint">${esc(k)}</span>`:`<b>${esc(k)}</b>`}${MDRO_RX.test(k)?' <span class="pill b" style="font-size:.66rem">MDRO</span>':''}</td><td class="num">${l.length}</td><td class="num">${pct(l.length,lab)}%</td><td class="hint">${Object.entries(dp).map(([j,x])=>esc(j)+' '+x).join(' · ')}</td></tr>`}).join('')}
     </tbody></table></div>`:chartBody('org',cfg,v);
-  const g=grp.find(x=>x[0]===S.osel);
+  const g=all_.find(x=>x[0]===S.osel);
   return `<div class="panel stack">${chartHead('org','SSI by organism · '+esc(DL))}
    <div class="kpis" style="margin:0"><div class="kpi"><b>${n}</b><span>SSI cases</span></div><div class="kpi"><b>${lab}</b><span>With organism (${pct(lab,n)}%)</span></div><div class="kpi ${mdro?'alert':''}"><b>${mdro}</b><span>MDRO organism</span></div></div>
-   <p class="hint" style="margin:0">From "type of organism" in the SSI form. A patient with more than one organism is counted under each one. Tap an organism to see the patients.</p>${body}
+   <p class="hint" style="margin:0">From "type of organism" in the SSI form. Only SSI with an organism are in the chart (% = of SSI with organism). A patient with more than one organism is counted under each one. Tap an organism to see the patients.</p>${body}
    ${v!=='table'&&grp.length?`<div class="chips">${grp.map(([k,l])=>`<button type="button" class="chip ${S.osel===k?'on':''}" data-osel="${esc(k)}">${esc(k)} (${l.length})</button>`).join('')}</div>`:''}
+   ${gap.length?`<div class="row" style="gap:6px;align-items:center"><span class="hint"><b>No organism (not in chart):</b></span>${gap.map(([k,l])=>`<button type="button" class="chip ${S.osel===k?'on':''}" data-osel="${esc(k)}" style="border-color:#e3b55a">${esc(k)} (${l.length})</button>`).join('')}<span class="hint">– tap to check / complete the SSI form</span></div>`:''}
    ${g?ssiListBox(g[0],g[1],`data-osel="${esc(g[0])}"`):''}</div>`;
 }
 
