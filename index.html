@@ -969,15 +969,16 @@ function mdroCard(cases){
   return `<div class="panel remind mdro ${S.mdOpen?'open':''}"><button type="button" class="remh" data-act="mdtog" aria-expanded="${!!S.mdOpen}">
    <span class="remn" style="background:#7a2e9c">${P.length}</span><span><b>🦠 Organism found after surgery – is it SSI?</b><br><span class="hint">From the MDRO surveillance masterlist · tap to ${S.mdOpen?'hide':'review'}</span></span>${CHEV}</button>
    ${S.mdOpen?`<div class="remlist">${P.map(x=>`<div class="pend"><button class="pinfo" data-open="${x.c.id}"><b>${esc(x.c.nama)}</b><span class="hint">${esc(x.c.jabatan)} · ${esc(x.c.kategori||'')} · op ${fmtD(x.c.tarikhOp)}</span>
-     <span class="hint" style="color:#7a2e9c;font-weight:800">${esc(x.m.o)}${x.m.s?' · '+esc(x.m.s):''} · sample ${fmtD(x.m.d)} (day ${x.dd} post-op)${x.m.w?' · '+esc(x.m.w):''}</span></button>
+     <span class="hint" style="color:#7a2e9c;font-weight:800">${esc(x.m.o)}${x.m.s?' · '+esc(x.m.s):''} · sample ${fmtD(x.m.d)} (day ${x.dd} post-op)${mdroRes(x.m)}${x.m.w?' · '+esc(x.m.w):''}</span></button>
      <div class="pbtn"><button class="btn sm danger" data-mdyes="${x.c.id}|${x.i}">Yes – SSI</button><button class="btn sm" data-mdno="${x.c.id}|${x.i}">Not related</button></div></div>`).join('')}</div>`:''}</div>`;
 }
+function mdroRes(m){return m&&m.ld&&m.ld!==m.d?' · result '+fmtD(m.ld):''}
 function mdroInfo(c){const l=mdroMap()[c.id];if(!l||!l.length)return '';
-  return `<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>MDRO surveillance:</b> ${l.map(m=>`${esc(m.o)}${m.s?' ('+esc(m.s)+')':''} · sample ${fmtD(m.d)} · day ${dayDiff(c.tarikhOp,m.d)}${m.w?' · '+esc(m.w):''}`).join('<br>')}</div>`}
+  return `<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>MDRO surveillance:</b> ${l.map(m=>`${esc(m.o)}${m.s?' ('+esc(m.s)+')':''} · sample ${fmtD(m.d)} · day ${dayDiff(c.tarikhOp,m.d)}${mdroRes(m)}${m.w?' · '+esc(m.w):''}`).join('<br>')}</div>`}
 let _mdT=null;
 function mdroCheckDraft(){clearTimeout(_mdT);_mdT=setTimeout(async()=>{const d=S.draft;if(!d||typeof api!=='function'||(!d.ic&&!d.mrn&&!(d.nama&&d.nama.length>5)))return;
   try{const r=await api('mdroLookup',{nama:d.nama||'',ic:d.ic||'',mrn:d.mrn||''});S.mdroHit=(r.hits||[]);const b=$('#mdhit');if(b)b.outerHTML=mdroHitHTML();}catch(e){}},700)}
-function mdroHitHTML(){const h=S.mdroHit||[];return `<div id="mdhit">${h.length?`<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>This patient is in the MDRO masterlist:</b><br>${h.map(m=>`${esc(m.o)}${m.s?' · '+esc(m.s):''} · sample ${fmtD(m.d)}${m.w?' · '+esc(m.w):''}${m.n?' · '+esc(m.n):''}`).join('<br>')}</div>`:''}</div>`}
+function mdroHitHTML(){const h=S.mdroHit||[];return `<div id="mdhit">${h.length?`<div class="flag" style="background:#f4e8fb;color:#5b1f78;margin:0;display:block">🦠 <b>This patient is in the MDRO masterlist:</b><br>${h.map(m=>`${esc(m.o)}${m.s?' · '+esc(m.s):''} · sample ${fmtD(m.d)}${mdroRes(m)}${m.w?' · '+esc(m.w):''}${m.n?' · '+esc(m.n):''}`).join('<br>')}</div>`:''}</div>`}
 function mdroSetupPanel(){
   const v=(S.set||{}).MDRO_SHEET||'',T=S.mdTest;
   return `<div class="panel stack"><h3>🦠 Link to MDRO surveillance (LAB_SURVEILLANCE masterlist)</h3>
