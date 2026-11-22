@@ -292,6 +292,15 @@ a.btn.pri{color:var(--accent-ink)}
 .pw input{padding-right:52px;font-size:1.1rem;letter-spacing:.04em}
 .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:#1f7a30;padding:6px;display:flex}
 .lhint{margin:-6px 0 0;color:#5f7563;font-size:.9rem}
+.liacard{display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-left:6px solid var(--good)}.liacard.warn{border-left-color:var(--warn);background:#fff8e6}
+.liav{width:46px;height:46px;border-radius:50%;background:#e6f4e8;display:grid;place-items:center;font-size:1.4rem;flex:none}
+.lianm{display:block;font-size:1.12rem;margin:2px 0}.liabtn{gap:6px;flex-wrap:wrap}
+.regf{max-width:620px}.regf .f small{display:block;margin-top:4px}
+.lok{margin:0;background:#e6f4e8;color:#1b5e2c;border-radius:10px;padding:9px 12px;font-size:.92rem;line-height:1.5}
+.lnk{border:0;background:none;color:#1f8a35;font-weight:700;text-decoration:underline;padding:2px;align-self:center;cursor:pointer}
+.pwreq{border-left:6px solid var(--warn)}.pwrow{gap:8px;border-top:1px solid var(--line);padding-top:8px;flex-wrap:wrap}
+.lhist{flex-basis:100%;order:9;font-size:.9rem}.lhist summary{cursor:pointer;color:var(--good);font-weight:700}.lhist div{padding:3px 0}
+tr.past td{color:var(--muted,#6b7c70);font-size:.92em}
 .lerr{margin:0;background:#fde8e6;color:#b0281c;border-radius:10px;padding:9px 12px;font-weight:700;font-size:.9rem}
 .lbtn{border:0;border-radius:16px;padding:16px;font-weight:800;font-size:1.15rem;color:#fff;background:linear-gradient(90deg,#1f8a35,#7cbf2e);box-shadow:0 10px 24px rgba(31,138,53,.35)}
 @media (max-width:560px){ .case{grid-template-columns:1fr} .case .tags{justify-content:flex-start} .bar{grid-template-columns:1fr 1.3fr 48px} }
@@ -504,7 +513,7 @@ const PW={coord:'ssi123'};
 const EYE=`<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const STARS=[[10,9],[57,9],[80,14],[33,16],[22,30],[70,34],[90,45],[8,58],[56,90],[12,82]].map(([x,y],i)=>`<i class="star" style="left:${x}%;top:${y}%;animation-delay:${i*.4}s"></i>`).join('');
 function loginView(){
-  const L=TL,c=S.lrole==='coord';
+  const L=TL,c=S.lrole==='coord';if(S.fp&&!c)return fpView();
   return `<div class="lg">${STARS}
    <form class="lcard" id="lform" novalidate>
     ${IPC_HUB_URL?`<a class="back" href="${esc(IPC_HUB_URL)}">← ${L.back}</a>`:''}
@@ -517,6 +526,7 @@ function loginView(){
     <label class="row" style="gap:8px;align-items:center;margin:-2px 0 2px;font-size:.88rem"><input type="checkbox" id="lrem" style="width:auto" ${remGet()?'checked':''}><span>Remember password on this device</span></label>
     <p class="lhint">${L.cs} Do not tick “Remember” on a shared computer.</p>${S.lerr?`<p class="lerr">${S.lerr}</p>`:''}
     <button class="lbtn" type="submit" ${S.lbusy?'disabled':''}>${S.lbusy?'Logging in…':'🔐 '+L.login}</button>
+    ${c?'':'<button type="button" class="lnk" data-act="fpopen">Lupa kata laluan?</button>'}
    </form></div>`;
 }
 // Remember password (per role / department, this device only)
@@ -530,7 +540,7 @@ async function doLogin(){
   catch(e){S.lbusy=false;S.lerr=e.message;render();const p=$('#lpw');p&&p.focus()}
 }
 function applyData(r){
-  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};S.mdro=r.mdro||null;S.train=r.train||S.train||{};
+  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};S.mdro=r.mdro||null;S.train=r.train||S.train||{};S.pwreq=r.pwreq||S.pwreq||[];S.liaLog=r.liaLog||S.liaLog||[];
   S.tab='dash';S.draft=null;S.cur=null;const ms=months().filter(m=>m<CURM);S.rmonths=[ms.length?ms[ms.length-1]:CURM];
   if(S.user&&S.user.role==='coord')setTimeout(autoPullLinks,1500);
 }
@@ -539,7 +549,7 @@ function applyData(r){
 let LAST_SYNC=Date.now();
 async function reloadData(quiet){
   if(!S.user||!S.token||typeof api!=='function')return;
-  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;S.mdro=r.mdro||null;S.train=r.train||S.train||{};
+  try{const r=await api('bootstrap');if(r.user)S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;S.mdro=r.mdro||null;S.train=r.train||S.train||{};S.pwreq=r.pwreq||S.pwreq||[];S.liaLog=r.liaLog||S.liaLog||[];
     if(S.cur&&!S.cases.some(c=>c.id===S.cur))S.cur=null;LAST_SYNC=Date.now();if(!S.draft||!S.draft.nama)keepY();if(!quiet)toast('Data updated · '+S.cases.length+' patients')}
   catch(e){if(!quiet)toast('Could not refresh: '+e.message)}
 }
@@ -593,6 +603,7 @@ function render(){
   if(!S.user){app.innerHTML=loginView();return}
   let body='';
   if(S.cur)body=caseView();
+  else if(S.reg&&S.user.role==='liaison')body=regView();
   else if(S.tab==='dash')body=S.user.role==='liaison'?liaisonDash():coordDash();
   else if(S.tab==='entry')body=entryView();
   else if(S.tab==='pesakit')body=patientsView();
@@ -677,6 +688,7 @@ function liaisonDash(){
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
    ${mdroCard(mine)}
+   ${liaCard()}
    ${crsRemind()}
    ${pend.length?`<div class="panel remind ${S.remOpen!==false?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${S.remOpen!==false}">
      <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen!==false?'hide':'confirm'}</span></span>${CHEV}</button>
@@ -837,7 +849,7 @@ function coordDash(){
   const wa=list.filter(c=>c.abx);
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
-  return `<div class="stack">
+  return `<div class="stack">${pwReqPanel()}
    <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}${repBtn()}</div></div>
    ${rfFilterBar()}
    ${mdroCard(S.cases.filter(inD))}
@@ -1046,14 +1058,15 @@ function infoPanel(coord=true){
 }
 
 function liaisonAdmin(){
-  return `<div class="stack">${infoPanel()}<div>
+  return `<div class="stack">${pwReqPanel()}${infoPanel()}<div>
    <p class="hint" style="margin:.4em 0 0;font-size:.92rem">Assign a liaison (in-charge) for each department and set their password. Liaisons log in via <b>Log In → Department Liaison</b> and only see their own department's patients. Change the name to replace the liaison.</p></div>
    <div class="panel">${JAB.map(j=>{const l=S.liaisons[j],k=j.replace(/\W/g,'');return `<div class="lrow"><h3>${esc(j)}</h3>
     <label class="f"><span>Liaison name</span><input id="ln_${k}" value="${esc(l.nama)}" placeholder="Full name" style="text-transform:uppercase"></label>
-    <label class="f"><span>Phone No.</span><input id="lt_${k}" value="${esc(l.tel)}" inputmode="tel" placeholder="01x-xxxxxxx"></label>
+    <label class="f"><span>No. K/P</span><input id="li_${k}" value="${esc(icFmt(l.ic||''))}" inputmode="numeric" maxlength="14" placeholder="Boleh dibiarkan kosong – liaison daftar sendiri"></label>
+    <label class="f"><span>No. WhatsApp</span><input id="lt_${k}" value="${esc(l.tel)}" inputmode="tel" placeholder="01x-xxxxxxx"></label>
     <label class="f"><span>Password</span><input id="lp_${k}" type="text" autocomplete="off" placeholder="${l.pw?'•••• (leave blank to keep)':'Set password'}"></label>
     <div class="st" style="align-self:end"><button class="btn pri" data-lsave="${esc(j)}">Save</button>${l.pw?'<span class="ok">✓ active</span>':'<span class="pill n">Inactive</span>'}</div>
-    ${l.pw?`<div class="st" style="grid-column:1/-1"><span class="hint">Updated ${esc(l.upd||'')}</span>
+    ${l.pw?`<div class="st" style="grid-column:1/-1"><span class="hint">${l.since?'Liaison sejak '+esc(l.since)+' · ':''}Updated ${esc(l.upd||'')}</span><button class="btn sm" data-pwd="${esc(j)}" ${l.tel?'':'disabled title="Isi No. WhatsApp dahulu"'}>🔑 Kata laluan sementara via WhatsApp</button>${liaHist(j)}
      ${S.lpw.off===j?`<button class="btn sm danger" data-loff2="${esc(j)}">Confirm deactivate</button><button class="btn sm" data-loff0="1">Cancel</button>`:`<button class="btn sm" data-loff1="${esc(j)}">Deactivate</button>`}</div>`:''}
    </div>`}).join('')}</div>
    <div class="panel stack"><h3>Coordinator password</h3><div class="grid"><label class="f"><span>New coordinator password</span><input id="cpw" type="text" autocomplete="off" placeholder="min 4 characters"></label></div>
@@ -1177,26 +1190,30 @@ function crsState(){const c=crs(),items=crsItems(c),r=myTrain(),nm=S.user.nama;
 function crsBlock(id){if(S.user.role!=='liaison')return false;const st=crsState();if(!st.c.on||st.pre)return false;
   if(st.c.items.includes(id)){toast('Sila jawab ujian pra dahulu sebelum menanda bahan latihan selesai');return true}return false}
 function crsVidBlock(id){const m=S.mods.find(x=>x.id===id);if(!crsVid(m)||m.selesai.includes(S.user.nama)||crsWatched(id))return false;toast('Tonton video hingga habis – ia akan ditanda selesai secara automatik');return true}
-function crsRemind(){if(!S.user||S.user.role!=='liaison')return '';const st=crsState();if(!st.c.on||!st.items.length||st.cert)return '';
+function crsRemind(){if(!S.user||S.user.role!=='liaison'||!S.user.ic)return '';const st=crsState();if(!st.c.on||!st.items.length||st.cert)return '';
   const chk=(ok,t)=>`<span class="pill ${ok?'g':'w'}">${ok?'✓':'○'} ${t}</span>`;
   return `<div class="panel row between crsrem" style="gap:12px"><div class="stack" style="gap:6px"><b>🎓 Sila lengkapkan training untuk mendapatkan sijil</b>
     <span class="hint">${esc(st.c.title)}</span><div class="chips">${chk(st.pre,'Ujian pra')}${chk(st.done.length===st.items.length,'Bahan '+st.done.length+'/'+st.items.length)}${chk(st.passed,'Ujian pasca')}</div></div>
-    <button class="btn pri" data-tab="latihan">Pergi ke Training</button></div>`}
+    <button class="btn pri" data-tab="latihan">${st.pre?'Sambung training':'Mula training'}</button></div>`}
 function crsItemRow(m,st){const ok=m.selesai.includes(S.user.nama),pl=playLabel(m);
   return `<div class="crsitem ${ok?'ok':''}"><span class="crsck">${ok?'✓':''}</span><div style="flex:1;min-width:0"><b>${esc(m.tajuk)}</b><br><span class="hint">${esc(m.kategori)}</span></div>
    ${pl?`<button class="btn sm ${crsVid(m)&&!ok?'pri':''}" data-play="${m.id}">${crsVid(m)?'▶ Tonton':pl}</button>`:`<a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">Buka ↗</a>`}
    ${crsVid(m)?(ok?'<span class="pill g">✓ Ditonton</span>':`<span class="hint">${crsLS('p',m.id)?'Disambung dari '+mmss(+crsLS('p',m.id))+' · ':''}tonton hingga habis</span>`):`<button class="btn sm ${ok?'':'pri'}" data-done="${m.id}" ${st.pre?'':'disabled title="Jawab ujian pra dahulu"'}>${ok?'Batal':'Tanda selesai'}</button>`}</div>`}
-function crsCard(){const st=crsState(),{c,items,r}=st;if(!c.on||!items.length)return '';
-  const cls=(ok,cur)=>ok?'ok':cur?'cur':'lock';
+function crsCard(){const st=crsState(),{c,items,r}=st;if(!c.on||!items.length)return '';const reg=!!S.user.ic,all=st.done.length===items.length;
+  const cls=(ok,cur)=>ok?'ok':cur?'cur':'lock',nv=items.filter(m=>crsVid(m)).length,ns=items.length-nv;
+  const what=[nv?nv+' video':'',ns?ns+' slide / bahan bacaan':''].filter(Boolean).join(' dan ');
   return `<div class="panel stack crs"><div class="row between" style="gap:10px"><div><span class="sectag">PROGRAM LATIHAN</span><h3 style="margin:4px 0 2px">${esc(c.title)}</h3>
-     <span class="hint">Lengkapkan 4 langkah untuk mendapatkan sijil. Lulus ujian pasca: ≥ ${+c.pass||80}%.</span></div>${st.cert?'<span class="pill g">✓ Sijil sedia</span>':''}</div>
+     <span class="hint">Ikut 5 langkah di bawah mengikut turutan. Langkah seterusnya dibuka selepas langkah sebelumnya selesai. Lulus ujian pasca: ≥ ${+c.pass||80}%.</span></div>${st.cert?'<span class="pill g">✓ Sijil sedia</span>':''}</div>
    <ol class="csteps">
-    <li class="${cls(st.pre,!st.pre)}"><div class="csh"><b>1 · Ujian pra</b><span>${st.pre?`Selesai · markah <b>${r.pre}%</b>`:`<button class="btn sm pri" data-crs="pre">Mula ujian pra (${c.questions.length} soalan)</button>`}</span></div></li>
-    <li class="${cls(st.done.length===items.length,st.pre)}"><div class="csh"><b>2 · Tonton video dan baca slide</b><span>${st.done.length}/${items.length} selesai</span></div>
-     <div class="stack" style="gap:6px">${items.map(m=>crsItemRow(m,st)).join('')}</div>${st.pre?'':'<p class="hint" style="margin:0">Jawab ujian pra dahulu, kemudian tanda setiap bahan selesai selepas menonton atau membaca.</p>'}</li>
-    <li class="${cls(st.passed,st.ready)}"><div class="csh"><b>3 · Ujian pasca</b><span>${st.passed?`Lulus · markah <b>${r.post}%</b>`:st.ready?`${st.post?`Markah terakhir ${r.post}% · `:''}<button class="btn sm pri" data-crs="post">${st.post?'Cuba lagi':'Mula ujian pasca'}</button>`:'<span class="hint">Lengkapkan langkah 1 dan 2 dahulu</span>'}</span></div></li>
-    <li class="${cls(st.cert,st.passed)}"><div class="csh"><b>4 · Sijil</b><span>${st.cert?`No. ${esc(r.certNo)}`:'<span class="hint">Dikeluarkan selepas lulus ujian pasca</span>'}</span></div>
-     ${st.cert?`<div class="row" style="gap:8px"><label class="f" style="flex:1 1 260px;margin:0"><span>Nama pada sijil</span><input id="crsName" value="${esc(r.nama||S.user.nama||'')}" placeholder="Nama penuh"></label><button class="btn pri" data-crs="cert">⬇ Muat turun sijil (PDF)</button></div>`:''}</li>
+    <li class="${cls(reg,!reg)}"><div class="csh"><b>1 · Daftar peserta</b><span>${reg?`<span>${esc(S.user.nama)} · ${esc(icMask(S.user.ic))}</span> <button class="btn sm" data-reg="edit">Kemaskini</button>`:`<button class="btn sm pri" data-reg="register">Daftar nama & No. K/P</button>`}</span></div>
+     ${reg?'':'<p class="hint" style="margin:0">Nama dan No. K/P akan dicetak pada sijil. Liaison baharu mesti daftar dahulu.</p>'}</li>
+    <li class="${cls(st.pre,reg&&!st.pre)}"><div class="csh"><b>2 · Ujian pra</b><span>${st.pre?`Selesai · markah <b>${r.pre}%</b>`:reg?`<button class="btn sm pri" data-crs="pre">Mula ujian pra (${c.questions.length} soalan)</button>`:'<span class="hint">🔒 Daftar dahulu</span>'}</span></div>
+     ${reg&&!st.pre?'<p class="hint" style="margin:0">Jawab ujian pra <b>sebelum</b> menonton video. Markah ujian pra tidak menentukan lulus.</p>':''}</li>
+    <li class="${cls(all,st.pre)}"><div class="csh"><b>3 · Tonton video dan baca slide</b><span>${st.pre?st.done.length+'/'+items.length+' selesai':'<span class="hint">🔒 Dibuka selepas ujian pra</span>'}</span></div>
+     ${st.pre?`<div class="stack" style="gap:6px">${items.map(m=>crsItemRow(m,st)).join('')}</div><p class="hint" style="margin:0">Video ditanda selesai secara automatik selepas ditonton hingga habis. Slide: tekan <b>View</b>, baca, kemudian tekan <b>Tanda selesai</b>.</p>`:`<p class="hint" style="margin:0">${what} akan dipaparkan di sini selepas anda menjawab ujian pra.</p>`}</li>
+    <li class="${cls(st.passed,st.ready)}"><div class="csh"><b>4 · Ujian pasca</b><span>${st.passed?`Lulus · markah <b>${r.post}%</b>`:st.ready?`${st.post?`Markah terakhir ${r.post}% · `:''}<button class="btn sm pri" data-crs="post">${st.post?'Cuba lagi':'Mula ujian pasca'}</button>`:'<span class="hint">🔒 Lengkapkan langkah 2 dan 3 dahulu</span>'}</span></div></li>
+    <li class="${cls(st.cert,st.passed)}"><div class="csh"><b>5 · Sijil</b><span>${st.cert?`No. ${esc(r.certNo)}`:'<span class="hint">Dikeluarkan selepas lulus ujian pasca</span>'}</span></div>
+     ${st.cert?`<div class="row" style="gap:8px"><button class="btn pri" data-crs="cert">⬇ Muat turun sijil (PDF)</button><span class="hint">Nama dan No. K/P pada sijil ikut maklumat pendaftaran.</span></div>`:''}</li>
    </ol></div>`}
 const CRS_DEFQ_EN=[
  {q:'What is the first step before preparing the dressing trolley?',o:['Perform hand hygiene','Open the dressing set','Put on sterile gloves','Remove the old dressing']},
@@ -1230,23 +1247,22 @@ function quizView(){const z=S.quiz,c=crs(),Q=c.questions,pre=z.kind==='pre',en=q
    <div class="panel row between"><span class="hint" id="qcount">${n}/${Q.length} ${L('dijawab','answered')}</span><button class="btn pri" data-crs="submit">${L('Hantar jawapan','Submit answers')}</button></div></div>`}
 async function crsSave(body){
   if(typeof api==='function'){const r=await api('saveTrain',body);S.train=S.train||{};S.train.mine=r.row;return r.row}
-  const c=crs(),r=Object.assign({akaun:S.user.jabatan,jabatan:S.user.jabatan,nama:S.user.nama,pre:'',post:'',tries:'0',certNo:''},myTrain()),now=new Date().toISOString().slice(0,19);
+  const c=crs(),r=Object.assign({akaun:S.user.jabatan+'|'+(S.user.ic||''),ic:S.user.ic||'',jabatan:S.user.jabatan,nama:S.user.nama,pre:'',post:'',tries:'0',certNo:''},myTrain()),now=new Date().toISOString().slice(0,19);
   if(body.kind==='pre'&&!crsHas(r.pre)){r.pre=String(body.score);r.preAt=now}
   if(body.kind==='post'){r.tries=String((+r.tries||0)+1);if(!crsHas(r.post)||body.score>+r.post)r.post=String(body.score);r.postAt=now;
     if(+r.post>=(+c.pass||80)&&!r.certNo){r.certNo='SSI-HTPN-'+now.slice(0,4)+'-001';r.certAt=now}}
   if(body.kind==='name')r.nama=String(body.nama||'').toUpperCase();
   S.train=S.train||{};S.train.mine=r;return r}
-async function crsCertPDF(){const r=myTrain(),c=crs(),nm=(($('#crsName')||{}).value||r.nama||S.user.nama||'').trim().toUpperCase();if(!nm){toast('Isi nama pada sijil');return}
+async function crsCertPDF(){const r=myTrain(),c=crs(),nm=String(S.user.nama||r.nama||'').trim().toUpperCase(),ic=S.user.ic||r.ic||'';if(!nm){toast('Daftar nama dahulu');return}
   toast('Menjana sijil…');
   try{await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','jspdf');
-    if(nm!==r.nama)crsSave({kind:'name',nama:nm}).catch(()=>{});
     const {jsPDF}=window.jspdf,d=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),W=297,H=210,G=[31,122,77],K=[19,51,42];
     d.setFillColor(250,250,246);d.rect(0,0,W,H,'F');d.setDrawColor(...G);d.setLineWidth(2.2);d.rect(9,9,W-18,H-18);d.setLineWidth(.5);d.rect(13,13,W-26,H-26);
     try{d.addImage(LOGO,'JPEG',W/2-14,20,28,28)}catch(e){}
     const ctr=(t,y,sz,st,col)=>{d.setFont('helvetica',st||'normal');d.setFontSize(sz);d.setTextColor(...(col||K));d.text(t,W/2,y,{align:'center',maxWidth:W-50})};
     ctr('SIJIL PENYEMPURNAAN LATIHAN',62,24,'bold',G);ctr('Dengan ini disahkan bahawa',76,13,'normal',[74,90,82]);
     ctr(nm,92,22,'bold');d.setDrawColor(...G);d.setLineWidth(.4);d.line(W/2-80,96,W/2+80,96);
-    ctr('Jabatan '+(S.user.jabatan||''),104,12,'normal',[74,90,82]);
+    ctr((ic?'No. K/P: '+icFmt(ic)+'     ·     ':'')+'Jabatan '+(S.user.jabatan||''),104,12,'normal',[74,90,82]);
     ctr('telah menjalani',118,13,'normal',[74,90,82]);ctr(c.title,132,18,'bold');
     const dt=fmtD(String(r.certAt||new Date().toISOString()).slice(0,10));
     d.setFont('helvetica','normal');d.setFontSize(11);d.setTextColor(...K);
@@ -1261,15 +1277,20 @@ async function crsCertPDF(){const r=myTrain(),c=crs(),nm=(($('#crsName')||{}).va
   }catch(e){toast('Sijil tidak dapat dijana: '+e.message)}}
 function crsAdmin(){const c=crs(),saved=!!crsJSON((S.set||{}).TRAINING_COURSE),items=crsItems(c),rows=(S.train&&S.train.rows)||[];
   if(S.ced)return crsEditor();
+  const L=S.liaisons||{},curOf=d=>{const l=L[d]||{};return rows.find(x=>x.akaun===(l.ic?d+'|'+l.ic:d))||{}};
+  const belum=JAB.filter(d=>!curOf(d).certNo);
+  const tr=(r,nm,cur,d,noic)=>{const dn=items.filter(m=>m.selesai.includes(nm)).length;
+    return `<tr class="${cur?'':'past'}"><td>${cur?`<b>${esc(d)}</b>`:''}</td><td>${esc(nm||'—')}${cur?(noic?' <span class="pill w">belum daftar K/P</span>':''):' <span class="hint">(liaison terdahulu)</span>'}</td><td class="num">${crsHas(r.pre)?r.pre+'%':'—'}</td><td class="num">${cur||crsHas(r.pre)?dn+'/'+items.length:'—'}</td><td class="num">${crsHas(r.post)?r.post+'%'+(+r.tries>1?' ('+r.tries+'x)':''):'—'}</td>
+      <td>${r.certNo?`<span class="pill g">${esc(r.certNo)}</span>`:`<span class="pill w">${cur?'Belum':'Tiada'}</span>`}</td><td>${r.akaun&&(crsHas(r.pre)||crsHas(r.post))?`<button class="btn sm" data-crs="reset" data-d="${esc(r.akaun)}" data-n="${esc(nm||d)}">Reset</button>`:''}</td></tr>`};
   return `<div class="panel stack crs"><div class="row between" style="gap:10px"><div><span class="sectag">PROGRAM LATIHAN & SIJIL</span><h3 style="margin:4px 0 2px">${esc(c.title)}</h3>
      <span class="hint">${items.length} bahan · ${c.questions.length} soalan ujian pra dan pasca (soalan sama) · lulus ≥ ${+c.pass||80}% · ${c.on?'<b style="color:var(--good)">Aktif</b>':'<b>Tidak aktif</b>'}</span>
-     ${saved?'':'<p class="hint" style="margin:6px 0 0;color:var(--warn)">Soalan contoh belum disimpan. Semak soalan, kemudian tekan <b>Simpan</b> supaya program ini rasmi.</p>'}</div>
+     ${saved?'':'<p class="hint" style="margin:6px 0 0;color:var(--warn)">Soalan contoh belum disimpan. Semak soalan, kemudian tekan <b>Simpan</b> supaya program ini rasmi.</p>'}
+     ${belum.length?`<p class="hint" style="margin:6px 0 0">Liaison semasa yang belum ada sijil: <b>${belum.map(esc).join(', ')}</b> · mereka nampak peringatan di dashboard.</p>`:'<p class="hint" style="margin:6px 0 0;color:var(--good)">✓ Semua liaison semasa sudah ada sijil.</p>'}</div>
     <button class="btn pri" data-crs="edit">Edit soalan & tetapan</button></div>
    <div class="scroll"><table><thead><tr><th>Jabatan</th><th>Peserta</th><th class="num">Ujian pra</th><th class="num">Bahan</th><th class="num">Ujian pasca</th><th>Sijil</th><th></th></tr></thead><tbody>
-   ${JAB.map(d=>{const r=rows.find(x=>x.akaun===d)||{},nm=((S.liaisons||{})[d]||{}).nama||'',dn=items.filter(m=>m.selesai.includes(nm)).length;
-     return `<tr><td><b>${esc(d)}</b></td><td>${esc(r.nama||nm||'—')}</td><td class="num">${crsHas(r.pre)?r.pre+'%':'—'}</td><td class="num">${dn}/${items.length}</td><td class="num">${crsHas(r.post)?r.post+'%'+(+r.tries>1?' ('+r.tries+'x)':''):'—'}</td>
-      <td>${r.certNo?`<span class="pill g">${esc(r.certNo)}</span>`:'<span class="pill w">Belum</span>'}</td><td>${crsHas(r.pre)||crsHas(r.post)?`<button class="btn sm" data-crs="reset" data-d="${esc(d)}">Reset</button>`:''}</td></tr>`}).join('')}
-   </tbody></table></div></div>`}
+   ${JAB.map(d=>{const l=L[d]||{},cur=curOf(d),past=rows.filter(x=>x!==cur&&(x.akaun===d||String(x.akaun).indexOf(d+'|')===0));
+     return tr(cur,l.nama||cur.nama,true,d,!l.ic)+past.map(x=>tr(x,x.nama,false,d)).join('')}).join('')}
+   </tbody></table></div><p class="hint" style="margin:0">Setiap liaison mempunyai rekod training sendiri (ikut No. K/P). Bila liaison bertukar, rekod liaison lama kekal di sini.</p></div>`}
 function crsEditor(){const e=S.ced,mods=S.mods.filter(m=>m.jenis==='modul'),items=e.items.map(id=>S.mods.find(m=>m.id===id)).filter(Boolean);
   return `<div class="panel stack crs"><h3>Edit program latihan</h3>
    <div class="grid"><label class="f fwide"><span class="req">Nama program (dicetak pada sijil)</span><input data-ce="title" value="${esc(e.title)}"></label>
@@ -1286,13 +1307,14 @@ function crsEditor(){const e=S.ced,mods=S.mods.filter(m=>m.jenis==='modul'),item
      <span class="hint">Tanda bulatan pada jawapan yang betul. Ruangan English boleh dibiarkan kosong; peserta yang pilih English akan nampak versi BM.</span></div>`).join('')}
    <div class="row" style="gap:8px"><button class="btn" data-crs="addq">+ Tambah soalan</button><button class="btn" data-crs="defq">Guna semula soalan contoh</button></div>
    <div class="row" style="gap:8px"><button class="btn pri" data-crs="save">Simpan</button><button class="btn" data-crs="cancel">Batal</button></div></div>`}
-function crsInput(T){const D=T.dataset;if(!S.ced)return false;
+function crsInput(T){const D=T.dataset;if(D.rg&&S.reg){S.reg[D.rg]=T.type==='checkbox'?T.checked:T.value;return true}if(!S.ced)return false;
   if(D.ce){S.ced[D.ce]=D.ce==='on'?T.checked:D.ce==='pass'?Math.max(0,Math.min(100,+T.value||0)):T.value;return true}
   if(D.cei){const a=S.ced.items;T.checked?(a.includes(D.cei)||a.push(D.cei)):a.splice(a.indexOf(D.cei),1);return true}
   if(D.ca!=null){S.ced.questions[+D.ca].a=+T.value;return true}
   if(D.cq!=null){const q=S.ced.questions[+D.cq],f=D.cf;if(/^o\d$/.test(f))q.o[+f[1]]=T.value;else if(/^e\d$/.test(f)){q.oe=q.oe||['','','',''];q.oe[+f[1]]=T.value}else q[f]=T.value;return true}
   return false}
 async function crsClick(D,t){const k=D.crs;
+  if(k==='pre'&&S.user.role==='liaison'&&!S.user.ic){regClick({reg:'register'});return}
   if(k==='pre'||k==='post'){S.quiz={kind:k,ans:{},res:null};render();scrollTo(0,0);return}
   if(k==='lang'){S.qlang=D.l;try{localStorage.setItem('crslang',D.l)}catch(e){}render();return}
   if(k==='qback'){S.quiz=null;render();scrollTo(0,0);return}
@@ -1310,15 +1332,105 @@ async function crsClick(D,t){const k=D.crs;
     if(bad>=0){toast('Soalan '+(bad+1)+': isi soalan, sekurang-kurangnya 2 pilihan dan tanda jawapan betul');return}
     e.questions.forEach(q=>{q.o=q.o.map(x=>String(x).trim());q.oe=(q.oe||[]).map(x=>String(x||'').trim());q.qe=String(q.qe||'').trim()});const v=JSON.stringify(e);
     try{if(typeof api==='function')await api('saveSetting',{key:'TRAINING_COURSE',value:v});S.set=Object.assign({},S.set,{TRAINING_COURSE:v});S.ced=null;keepY();toast('Program latihan disimpan')}catch(er){toast('Tidak disimpan: '+er.message)}return}
-  if(k==='reset'){if(!confirm('Padam keputusan ujian dan sijil '+D.d+'? Peserta perlu mula semula.'))return;
-    try{if(typeof api==='function')await api('resetTrain',{akaun:D.d});S.train.rows=(S.train.rows||[]).filter(r=>r.akaun!==D.d);keepY();toast('Keputusan '+D.d+' dipadam')}catch(er){toast(er.message)}return}
+  if(k==='reset'){if(!confirm('Padam keputusan ujian dan sijil '+(D.n||D.d)+'? Peserta perlu mula semula.'))return;
+    try{if(typeof api==='function')await api('resetTrain',{akaun:D.d});S.train.rows=(S.train.rows||[]).filter(r=>r.akaun!==D.d);keepY();toast('Keputusan '+(D.n||D.d)+' dipadam')}catch(er){toast(er.message)}return}
 }
+// ---- Liaison profile: register name & IC, change liaison, change password, forgot password via WhatsApp ----
+const UKI_WA='60137386497';
+const icFmt=v=>{const d=String(v||'').replace(/\D/g,'');return d.length===12?d.slice(0,6)+'-'+d.slice(6,8)+'-'+d.slice(8):String(v||'')};
+const icMask=v=>{const f=icFmt(v);return f.length===14?'••••••-••-'+f.slice(10):f};
+const telN=t=>{let d=String(t||'').replace(/\D/g,'');if(d.startsWith('60'))d=d.slice(1);if(d&&!d.startsWith('0'))d='0'+d;return d};
+const telMask=t=>{const d=telN(t);return d.length>6?d.slice(0,3)+'-••• '+d.slice(-4):d};
+function tmpPw(){const a='abcdefghjkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint32Array(6));let s='';r.forEach(v=>s+=a[v%a.length]);return s}
+function liaCard(){if(!S.user||S.user.role!=='liaison')return '';const u=S.user,st=crsState(),reg=!!u.ic,on=st.c.on&&st.items.length;
+  const tr=!on?'':st.cert?`<span class="pill g">✓ Sudah training · ${esc(st.r.certNo)}</span>`:`<span class="pill w">○ Belum lengkap training</span>`;
+  return `<div class="panel liacard ${reg?'':'warn'}"><div class="liav">👤</div><div style="flex:1 1 220px;min-width:0"><span class="hint">Liaison semasa · ${esc(u.jabatan)}</span><b class="lianm">${reg?esc(u.nama):'Liaison belum didaftar'}</b>
+    <span class="hint">${reg?`No. K/P ${esc(icMask(u.ic))}${u.tel?' · WhatsApp '+esc(u.tel):''}${u.since?' · sejak '+esc(u.since):''}`:(on?'🎓 Liaison baharu? Daftar nama penuh dan No. K/P, kemudian mula training untuk mendapatkan sijil.':'Daftar nama penuh, No. K/P dan No. WhatsApp anda.')}</span>${tr?`<div class="chips" style="margin-top:6px">${tr}</div>`:''}</div>
+   <div class="row liabtn">${reg?`<button class="btn sm" data-reg="change">🔄 Tukar liaison</button><button class="btn sm" data-reg="edit">✏️ Kemaskini</button><button class="btn sm" data-reg="pw">🔑 Tukar kata laluan</button>`:`<button class="btn pri" data-reg="register">Daftar sekarang</button>`}</div></div>`}
+function regView(){const g=S.reg,u=S.user,ch=g.mode==='change',back=`<button class="btn" data-reg="close" style="align-self:flex-start">← Kembali</button>`;
+  if(g.mode==='pw')return `<div class="stack">${back}<div class="panel stack regf"><h3>🔑 Tukar kata laluan · liaison ${esc(u.jabatan)}</h3>
+    <label class="f"><span class="req">Kata laluan baharu</span><input type="text" autocomplete="off" data-rg="pw" value="${esc(g.pw||'')}" placeholder="sekurang-kurangnya 4 aksara"></label>
+    <label class="f"><span class="req">Taip semula kata laluan</span><input type="text" autocomplete="off" data-rg="pw2" value="${esc(g.pw2||'')}"></label>
+    <p class="hint" style="margin:0">Kata laluan ini untuk akaun liaison ${esc(u.jabatan)} (huruf besar dan kecil dibezakan). Jika terlupa, tekan <b>Lupa kata laluan?</b> di skrin log masuk.</p>
+    <div class="row"><button class="btn pri" data-reg="save">Simpan</button><button class="btn" data-reg="close">Batal</button></div></div></div>`;
+  return `<div class="stack">${back}<div class="panel stack regf"><span class="sectag">${ch?'TUKAR LIAISON':'PENDAFTARAN LIAISON'} · ${esc(u.jabatan)}</span><h3 style="margin:0">${ch?'🔄 Daftar liaison baharu':g.mode==='edit'?'✏️ Kemaskini maklumat liaison':'📝 Daftar liaison'}</h3>
+   ${ch?`<p class="hint" style="margin:0">Liaison sekarang: <b>${esc(u.nama)}</b>. Isi maklumat <b>liaison baharu</b>. Rekod training liaison lama tetap disimpan; liaison baharu perlu menjalani training sendiri untuk mendapatkan sijil.</p>`:'<p class="hint" style="margin:0">Nama dan No. K/P akan dicetak pada sijil latihan. Pastikan ejaan betul seperti dalam kad pengenalan.</p>'}
+   <label class="f"><span class="req">Nama penuh (seperti dalam K/P)</span><input data-rg="nama" value="${esc(g.nama||'')}" placeholder="cth. NURUL AIN BINTI AHMAD" style="text-transform:uppercase" autocomplete="off"></label>
+   <label class="f"><span class="req">No. K/P</span><input data-rg="ic" value="${esc(g.ic||'')}" inputmode="numeric" maxlength="14" placeholder="900101-10-1234" autocomplete="off"></label>
+   <label class="f"><span class="req">No. telefon WhatsApp</span><input data-rg="tel" value="${esc(g.tel||'')}" inputmode="tel" placeholder="012-345 6789" autocomplete="off"><small class="hint">Digunakan oleh UKI untuk menghantar kata laluan sementara jika terlupa.</small></label>
+   ${ch?`<label class="f"><span class="req">Kata laluan baharu untuk akaun ${esc(u.jabatan)}</span><input type="text" data-rg="pw" value="${esc(g.pw||'')}" placeholder="sekurang-kurangnya 4 aksara" autocomplete="off"><small class="hint">Supaya liaison lama tidak boleh log masuk lagi.</small></label>`:''}
+   <label class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-rg="ok" ${g.ok?'checked':''} style="width:auto;margin-top:3px"><span>Saya mengesahkan maklumat di atas adalah betul.</span></label>
+   <div class="row"><button class="btn pri" data-reg="save">${ch?'Tukar liaison':'Simpan'}</button><button class="btn" data-reg="close">Batal</button></div></div></div>`}
+async function regClick(D,t){const k=D.reg,u=S.user;
+  if(k==='register'||k==='edit'||k==='change'){S.reg=k==='change'?{mode:k}:{mode:u.ic?'edit':'register',nama:u.ic?u.nama:'',ic:icFmt(u.ic||''),tel:u.tel||''};S.quiz=null;render();scrollTo(0,0);return}
+  if(k==='pw'){S.reg={mode:'pw'};render();scrollTo(0,0);return}
+  if(k==='close'){S.reg=null;render();scrollTo(0,0);return}
+  if(k!=='save')return;const g=S.reg;
+  if(g.mode==='pw'){const pw=g.pw||'';if(pw.length<4){toast('Kata laluan sekurang-kurangnya 4 aksara');return}if(pw!==g.pw2){toast('Kata laluan tidak sama');return}
+    t.disabled=true;try{if(typeof api==='function')await api('changeMyPw',{pw});else S.liaisons[u.jabatan].pw=pw;S.reg=null;render();scrollTo(0,0);toast('Kata laluan ditukar')}catch(e){t.disabled=false;toast('Tidak disimpan: '+e.message)}return}
+  const nama=String(g.nama||'').trim().replace(/\s+/g,' ').toUpperCase(),ic=String(g.ic||'').replace(/\D/g,''),tel=String(g.tel||'').trim();
+  if(nama.length<5){toast('Isi nama penuh');return}if(ic.length!==12){toast('No. K/P mesti 12 digit');return}if(telN(tel).length<10){toast('Isi No. telefon WhatsApp yang betul');return}
+  if(g.mode==='change'&&(g.pw||'').length<4){toast('Tetapkan kata laluan baharu (sekurang-kurangnya 4 aksara)');return}
+  if(g.mode==='change'&&ic===u.ic){toast('No. K/P sama dengan liaison semasa. Guna Kemaskini untuk membetulkan maklumat.');return}
+  if(!g.ok){toast('Tandakan kotak pengesahan maklumat');return}
+  if(g.mode==='change'&&!confirm(`Tukar liaison ${u.jabatan} daripada ${u.nama} kepada ${nama}?`))return;
+  t.disabled=true;
+  try{if(typeof api==='function'){const r=await api('setLiaison',{mode:g.mode,nama,ic,tel,pw:g.pw||''});S.user=r.user;S.train=S.train||{};S.train.mine=r.mine||{}}
+    else{const j=u.jabatan,l=S.liaisons[j],old=u.nama;S.user=Object.assign({},u,{nama,ic,tel,since:g.mode==='change'||!u.since?fmtD(TODAYISO):u.since});Object.assign(l,{nama,tel,ic,since:S.user.since,upd:fmtD(TODAYISO)});if(g.pw)l.pw=g.pw;
+      S.train=S.train||{};if(g.mode==='change')S.train.mine={};else{if(old!==nama)S.mods.forEach(m=>{const i=m.selesai.indexOf(old);if(i>=0&&!m.selesai.includes(nama))m.selesai[i]=nama});if(S.train.mine)Object.assign(S.train.mine,{nama,ic})}}
+    S.reg=null;render();scrollTo(0,0);toast(g.mode==='change'?'Liaison ditukar kepada '+nama+'. Sila mula training.':'Maklumat liaison disimpan')}
+  catch(e){t.disabled=false;toast('Tidak disimpan: '+e.message)}}
+// Forgot password (login screen) → request to UKI → coordinator sends a temporary password by WhatsApp
+function fpView(){const f=S.fp,j=S.ljab,msg='Salam UKI. Saya liaison '+j+' terlupa kata laluan SSI Tracker dan telah menghantar permintaan melalui app. Terima kasih.';
+  return `<div class="lg">${STARS}<form class="lcard" id="fpform" novalidate>
+   <button type="button" class="back" data-act="fpclose">← Kembali ke log masuk</button>
+   <div class="logo"><img src="${LOGO}" alt="Logo SSI Tracker HTPN"></div><h2>Lupa kata laluan</h2><p class="lsub">Liaison jabatan<br>Kata laluan sementara dihantar melalui WhatsApp</p>
+   <label class="lf"><span>Jabatan</span><select id="ljab">${JAB.map(x=>`<option ${j===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+   ${f.ok?`<p class="lok">✓ Permintaan dihantar kepada UKI. Kata laluan sementara akan dihantar ke WhatsApp <b>${esc(f.ok)}</b>.</p>
+     <a class="lbtn" style="text-align:center;text-decoration:none" href="https://wa.me/${UKI_WA}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">💬 Maklumkan UKI melalui WhatsApp</a>
+     <p class="lhint">Selepas log masuk dengan kata laluan sementara, tukar kata laluan di Dashboard → 🔑 Tukar kata laluan.</p>`
+    :`<label class="lf"><span>No. WhatsApp berdaftar</span><input id="fptel" inputmode="tel" placeholder="012-345 6789" autocomplete="tel" value="${esc(f.tel||'')}"></label>
+     <p class="lhint">Masukkan nombor WhatsApp yang didaftarkan untuk liaison ${esc(j)}. Atas sebab keselamatan, kata laluan hanya dihantar ke nombor yang berdaftar.</p>
+     ${f.err?`<p class="lerr">${esc(f.err)}</p>`:''}<button class="lbtn" type="submit" ${f.busy?'disabled':''}>${f.busy?'Menghantar…':'📲 Hantar permintaan'}</button>`}
+  </form></div>`}
+async function fpSend(){const f=S.fp;if(!f||f.busy||f.ok)return;const tel=(($('#fptel')||{}).value||'').trim(),j=S.ljab;f.tel=tel;
+  if(telN(tel).length<10){f.err='Isi No. WhatsApp yang didaftarkan';render();return}
+  f.busy=true;f.err='';render();
+  try{let m;if(typeof api==='function'){const r=await api('forgotPw',{jabatan:j,tel});m=r.tel}
+    else{const l=S.liaisons[j]||{};if(!l.tel)throw new Error('Tiada No. WhatsApp berdaftar untuk '+j+'. Sila hubungi UKI.');if(telN(l.tel)!==telN(tel))throw new Error('No. WhatsApp tidak sepadan dengan rekod liaison '+j+'. Sila hubungi UKI.');
+      S.pwreq=S.pwreq||[];S.pwreq.push({id:'d'+Date.now(),at:new Date(Date.now()+288e5).toISOString().slice(0,19),jabatan:j,nama:l.nama,tel:l.tel,status:'open'});m=telMask(l.tel)}
+    f.busy=false;f.ok=m;render()}
+  catch(e){f.busy=false;f.err=e.message;render()}}
+function pwReqPanel(){const q=(S.pwreq||[]).filter(x=>x.status==='open'),lp=S.lastpw;if(!q.length&&!lp)return '';
+  const at=a=>a?fmtD(String(a).slice(0,10))+' '+String(a).slice(11,16):'';
+  return `<div class="panel stack pwreq"><b>🔑 Permintaan kata laluan${q.length?' ('+q.length+')':''}</b>
+   ${lp?`<div class="lok">Kata laluan sementara <b>${esc(lp.jab)}</b>: <code>${esc(lp.pw)}</code> · <a href="${esc(lp.u)}" target="_blank" rel="noopener">Buka WhatsApp semula ↗</a> <button class="btn sm" data-act="lpclose">Tutup</button></div>`:''}
+   ${q.map(x=>`<div class="row between pwrow"><span><b>${esc(x.jabatan)}</b> · ${esc(x.nama||'')}<br><span class="hint">WhatsApp ${esc(x.tel||'')} · ${esc(at(x.at))}</span></span>
+     <span class="row" style="gap:6px"><button class="btn sm pri" data-pwr="${esc(x.id)}">Jana & hantar WhatsApp</button><button class="btn sm" data-pwx="${esc(x.id)}">Abaikan</button></span></div>`).join('')}
+   ${q.length?'<p class="hint" style="margin:0">Butang ini menjana kata laluan sementara baharu dan membuka WhatsApp dengan mesej siap ditaip ke nombor liaison. Tekan <b>Send</b> di WhatsApp.</p>':''}</div>`}
+async function pwrClick(D,t){const id=D.pwr,x=id?(S.pwreq||[]).find(r=>r.id===id):null,jab=x?x.jabatan:D.pwd,l=(S.liaisons||{})[jab]||{};
+  if(!x&&!confirm('Jana kata laluan sementara baharu untuk liaison '+jab+' dan hantar melalui WhatsApp? Kata laluan lama tidak boleh digunakan lagi.'))return;
+  const w=window.open('','_blank');t.disabled=true;
+  try{let pw,tel=x?x.tel:l.tel,nama=x?x.nama:l.nama;
+    if(typeof api==='function'){const r=await api('resetPw',id?{id}:{jabatan:jab});pw=r.pw;tel=r.tel;nama=r.nama}else{pw=tmpPw();l.pw=pw}
+    if(x)x.status='done';l.upd=fmtD(TODAYISO);
+    const msg=`Salam ${nama||''}.\nKata laluan sementara SSI Tracker HTPN (liaison ${jab}): ${pw}\n\nLog masuk: ${location.origin}${location.pathname}\nSelepas log masuk, sila tukar kata laluan di Dashboard → 🔑 Tukar kata laluan.\n\n– Unit Kawalan Infeksi HTPN`;
+    const u='https://wa.me/'+waNum(tel)+'?text='+encodeURIComponent(msg);
+    try{if(w&&!w.closed)w.location.href=u}catch(_){}
+    S.lastpw={jab,pw,u};keepY();toast('Kata laluan sementara '+jab+': '+pw)}
+  catch(e){try{w&&w.close()}catch(_){}t.disabled=false;toast(e.message)}}
+async function pwxClick(id){const x=(S.pwreq||[]).find(r=>r.id===id);if(!x)return;try{if(typeof api==='function')await api('dismissPw',{id});x.status='dismissed';keepY()}catch(e){toast(e.message)}}
+function liaHist(j){const h=(S.liaLog||[]).filter(x=>x.jabatan===j);if(!h.length)return '';
+  return `<details class="lhist"><summary>Sejarah liaison (${h.length})</summary>${h.map(x=>`<div><b>${esc(x.nama)}</b> · ${esc(x.jenis)}${x.sebelum&&x.jenis==='Tukar liaison'?' (ganti '+esc(x.sebelum)+')':''} <span class="hint">· ${esc(fmtD(String(x.at).slice(0,10)))}</span></div>`).join('')}</details>`}
 function trainLiaison(){
   if(S.quiz)return quizView();
+  const st=crsState();
+  if(st.c.on&&st.items.length&&!st.cert)return `<div class="stack"><h2>Training</h2>${crsCard()}
+   <div class="panel row" style="gap:10px;flex-wrap:nowrap"><span style="font-size:1.5rem">📚</span><span class="hint">Perpustakaan bahan latihan dan rujukan akan dibuka selepas anda menerima sijil. Buat masa ini, ikut langkah 1 hingga 5 di atas sahaja.</span></div></div>`;
   const mods=S.mods.filter(m=>m.jenis==='modul'),done=mods.filter(m=>m.selesai.includes(S.user.nama)).length;
   return `<div class="stack"><h2>Training & references</h2>
-   <div class="panel row"><div class="meter"><i class="${done===mods.length?'done':''}" style="width:${pct(done,mods.length)}%"></i></div><span><b>${done}/${mods.length}</b> modules completed</span></div>
    ${crsCard()}
+   <div class="panel row"><div class="meter"><i class="${done===mods.length?'done':''}" style="width:${pct(done,mods.length)}%"></i></div><span><b>${done}/${mods.length}</b> modules completed</span></div>
    ${libView(false)}</div>`;
 }
 function trainCoord(){
@@ -2693,15 +2805,17 @@ function guessDept(I){
 // ================= EVENTS =================
 const keepY=()=>{const y=scrollY;render();scrollTo(0,y)};
 document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.closest('.thumb'))e.target.remove()},true);
-document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
+document.addEventListener('submit',e=>{if(e.target.id==='fpform'){e.preventDefault();fpSend();return}if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
   {const pc=e.target.closest('[data-pclose]');if(pc||e.target.id==='player'){closePlayer();return}
    const pd=e.target.closest('[data-pdone]');if(pd){if(crsBlock(pd.dataset.pdone))return;const m=S.mods.find(x=>x.id===pd.dataset.pdone),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);$('#pdoneW').innerHTML=playerDoneBtn(m);keepY();return}
    const vb=e.target.closest('[data-vpp]');if(vb){if(VP&&VP.p&&VP.p.getPlayerState){VP.p.getPlayerState()===1?VP.p.pauseVideo():VP.p.playVideo();setTimeout(vpUI,300)}return}
    const pl=e.target.closest('[data-play]');if(pl){openPlayer(pl.dataset.play);return}}
   const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel],[data-osel]');if(!t)return;const D=t.dataset;
-  if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
-  if(D.tab){S.tab=D.tab;S.cur=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
+  if(D.lrole){S.lrole=D.lrole;S.lerr='';S.fp=null;render();return}
+  if(D.act==='fpopen'){S.fp={};S.lerr='';render();return}
+  if(D.act==='fpclose'){S.fp=null;render();return}
+  if(D.tab){S.tab=D.tab;S.cur=null;S.reg=null;if(D.tab!=='entry'||(S.draft&&S.draft.id))S.draft=S.draft&&!S.draft.id?S.draft:null;render();scrollTo(0,0);return}
   if(D.open){openCase(D.open);return}
   if(D.k){const tgt=D.s==='sd'?S.sd:S.draft;const k=D.k,v=D.v;
     if(D.multi){let a=(tgt[k]||'').split(', ').filter(Boolean);if(v==='None')a=a.includes('None')?[]:['None'];else{a=a.filter(x=>x!=='None');a=a.includes(v)?a.filter(x=>x!==v):[...a,v]}tgt[k]=a.join(', ')}
@@ -2754,6 +2868,10 @@ document.addEventListener('click',e=>{
   if(D.tk){S.tk=D.tk;S.tcat='Semua';keepY();return}
   if(D.tcat){S.tcat=D.tcat;keepY();return}
   if(D.crs){crsClick(D,t);return}
+  if(D.reg){regClick(D,t);return}
+  if(D.pwr||D.pwd){pwrClick(D,t);return}
+  if(D.pwx){pwxClick(D.pwx);return}
+  if(D.act==='lpclose'){S.lastpw=null;keepY();return}
   if(D.done){if(crsBlock(D.done)||crsVidBlock(D.done))return;const m=S.mods.find(x=>x.id===D.done),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);keepY();return}
   if(D.medit){const m=S.mods.find(x=>x.id===D.medit);S.madd={id:m.id,jenis:m.jenis,tajuk:m.tajuk,kategori:m.kategori,url:m.url,penerangan:m.penerangan};S.mdel=null;render();setTimeout(()=>{const e=$('#maddp');e&&e.scrollIntoView({behavior:'smooth',block:'start'})},30);return}
   if(D.del1){S.mdel=D.del1;keepY();return}
@@ -2761,12 +2879,12 @@ document.addEventListener('click',e=>{
   if(D.del2){api('deleteModule',{id:D.del2}).catch(fail);S.mods=S.mods.filter(m=>m.id!==D.del2);S.mdel=null;keepY();toast('Material deleted');return}
   if(D.mj){readMadd();S.madd.jenis=D.mj;keepY();return}
   if(D.lsave){const j=D.lsave,k=j.replace(/\W/g,''),l=S.liaisons[j];
-    const nama=$('#ln_'+k).value.trim().toUpperCase(),tel=$('#lt_'+k).value.trim(),pw=$('#lp_'+k).value;
+    const nama=$('#ln_'+k).value.trim().toUpperCase(),tel=$('#lt_'+k).value.trim(),pw=$('#lp_'+k).value,ic=(($('#li_'+k)||{}).value||'').replace(/\D/g,'');if(ic&&ic.length!==12){toast('No. K/P mesti 12 digit');return}
     if(!nama){toast('Enter the liaison name for '+j);return}
     if(!l.pw&&!pw){toast('Set a password for '+j);return}
     if(pw&&pw.length<4){toast('Password must be at least 4 characters');return}
     const tukar=l.nama&&l.nama!==nama;
-    Object.assign(l,{nama,tel,pw:pw?'set':l.pw,upd:fmtD(TODAYISO)});api('saveLiaison',{jabatan:j,nama,tel,pw}).catch(fail);S.lpw.off=null;keepY();
+    Object.assign(l,{nama,tel,ic:ic||(tukar?'':l.ic||''),since:tukar?fmtD(TODAYISO):l.since,pw:pw?'set':l.pw,upd:fmtD(TODAYISO)});api('saveLiaison',{jabatan:j,nama,tel,pw,ic}).catch(fail);S.lpw.off=null;keepY();
     toast(tukar?`${j} liaison changed to ${nama}`:`${j} liaison saved`);return}
   if(D.loff1){S.lpw.off=D.loff1;keepY();return}
   if(D.loff0){S.lpw.off=null;keepY();return}
