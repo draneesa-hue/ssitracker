@@ -330,7 +330,7 @@ a.btn.pri{color:var(--accent-ink)}
 .crsck{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:inline-grid;place-items:center;font-weight:800;color:var(--good);flex:none}.crsitem.ok .crsck{border-color:var(--good)}
 .qopt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}.qopt input{width:auto;margin-top:3px}.qopt.on{border-color:var(--good);background:var(--good-soft)}
 .qrev{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-bottom:1px solid var(--line)}.qrev.no span{color:var(--bad)}
-.qedit{border:1px solid var(--line);border-radius:12px;padding:12px;gap:8px}.qedit textarea{width:100%}.qopt2 input:not([type=radio]){flex:1}
+.qedit{border:1px solid var(--line);border-radius:12px;padding:12px;gap:8px}.qedit textarea{width:100%}.qopt2{flex-wrap:wrap}.qopt2 input:not([type=radio]){flex:1 1 200px}
 .crsrem{border-left:6px solid var(--warn)}
 .vpbarw{height:6px;border-radius:6px;background:var(--line);overflow:hidden}.vpbarw i{display:block;height:100%;width:0;background:var(--good);transition:width .5s}
 #ytp,#ytp iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -1166,7 +1166,7 @@ function crsJSON(s){try{return s?JSON.parse(s):null}catch(e){return null}}
 function crsDefault(){const mods=S.mods.filter(m=>m.jenis==='modul'),find=rx=>(mods.find(m=>rx.test(m.tajuk))||{}).id||'';
   const va=find(/asepti/i),vp=find(/pengisian|isi.*ssi|ssi.*form/i);
   return{on:true,title:'Latihan Surveilans dan Pencegahan SSI',pass:80,signName:'DR FERWAHN FAIRIS BIN AB KARIM',signTitle:'Timbalan Pengarah Perubatan 1',items:mods.map(m=>m.id),
-    questions:CRS_DEFQ.map((x,i)=>({id:'q'+(i+1),src:x.s==='a'?va:vp,q:x.q,o:x.o.slice(),a:x.a}))}}
+    questions:CRS_DEFQ.map((x,i)=>({id:'q'+(i+1),src:x.s==='a'?va:vp,q:x.q,o:x.o.slice(),qe:CRS_DEFQ_EN[i].q,oe:CRS_DEFQ_EN[i].o.slice(),a:x.a}))}}
 function crs(){const c=crsJSON((S.set||{}).TRAINING_COURSE);return c&&Array.isArray(c.questions)?c:crsDefault()}
 function crsItems(c){return (c.items||[]).map(id=>S.mods.find(m=>m.id===id)).filter(Boolean)}
 function myTrain(){return (S.train&&S.train.mine)||{}}
@@ -1198,20 +1198,36 @@ function crsCard(){const st=crsState(),{c,items,r}=st;if(!c.on||!items.length)re
     <li class="${cls(st.cert,st.passed)}"><div class="csh"><b>4 · Sijil</b><span>${st.cert?`No. ${esc(r.certNo)}`:'<span class="hint">Dikeluarkan selepas lulus ujian pasca</span>'}</span></div>
      ${st.cert?`<div class="row" style="gap:8px"><label class="f" style="flex:1 1 260px;margin:0"><span>Nama pada sijil</span><input id="crsName" value="${esc(r.nama||S.user.nama||'')}" placeholder="Nama penuh"></label><button class="btn pri" data-crs="cert">⬇ Muat turun sijil (PDF)</button></div>`:''}</li>
    </ol></div>`}
-function quizView(){const z=S.quiz,c=crs(),Q=c.questions,pre=z.kind==='pre';
+const CRS_DEFQ_EN=[
+ {q:'What is the first step before preparing the dressing trolley?',o:['Perform hand hygiene','Open the dressing set','Put on sterile gloves','Remove the old dressing']},
+ {q:'Before opening a sterile dressing set, you should check:',o:['The colour of the package','The expiry date and that the pack is not torn or wet','The manufacturer name','Only the number of gauze pieces']},
+ {q:'The old dressing should be removed using:',o:['Sterile gloves from the dressing set','Bare hands','Clean (non-sterile) gloves','Sterile forceps from the dressing set']},
+ {q:'The correct way to clean a wound is:',o:['From the dirty area to the clean area','Repeated strokes with the same swab','Rub firmly over the wound','From the cleanest to the less clean area, one stroke per swab']},
+ {q:'If a sterile glove touches a non-sterile surface during the procedure, you should:',o:['Change to a new pair of sterile gloves','Continue the procedure','Wipe the glove with alcohol','Rinse the glove with normal saline']},
+ {q:'When should antibiotic prophylaxis be given?',o:['After skin incision','Within 60 minutes before skin incision','The day before surgery in the ward','After the operation ends']},
+ {q:'In the SSI form, surgery duration is counted from:',o:['Patient enters OT until leaves OT','Induction of anaesthesia until the patient wakes','Skin incision until skin closure','OT entry until arrival in recovery']},
+ {q:'Surgery that enters the digestive, respiratory or urogenital tract under controlled conditions without spillage is classified as:',o:['Clean','Contaminated','Dirty','Clean contaminated']},
+ {q:'Antibiotic prophylaxis redosing is needed when:',o:['Surgery exceeds two half-lives of the drug (e.g. cefazolin > 4 hours) or blood loss > 1500 mL','The patient has fever after surgery','Every time surgery exceeds 1 hour','It is never needed']},
+ {q:'Why must implant use be recorded in the SSI form?',o:['For hospital billing','SSI surveillance is extended up to 1 year','Implants are not related to SSI','To decide the type of anaesthesia']}];
+function qLang(){if(!S.qlang){try{S.qlang=localStorage.getItem('crslang')||'bm'}catch(e){S.qlang='bm'}}return S.qlang}
+function qT(q,en){return en&&String(q.qe||'').trim()?q.qe:q.q}
+function qO(q,j,en){return en&&q.oe&&String(q.oe[j]||'').trim()?q.oe[j]:q.o[j]}
+function quizView(){const z=S.quiz,c=crs(),Q=c.questions,pre=z.kind==='pre',en=qLang()==='en',L=(b,e)=>en?e:b;
+  const lang=`<div class="vseg" role="group" aria-label="Language"><button type="button" class="${en?'':'on'}" data-crs="lang" data-l="bm">BM</button><button type="button" class="${en?'on':''}" data-crs="lang" data-l="en">English</button></div>`;
+  const tag=pre?L('UJIAN PRA','PRE-TEST'):L('UJIAN PASCA','POST-TEST');
   if(z.res){const s=z.res.score,pass=+c.pass||80,ok=!pre&&s>=pass;
-    return `<div class="stack"><button class="btn" data-crs="qback" style="align-self:flex-start">← Kembali ke Training</button>
-     <div class="panel stack" style="text-align:center;align-items:center"><span class="sectag">${pre?'UJIAN PRA':'UJIAN PASCA'}</span><div style="font-size:3rem;font-weight:800;color:${pre?'var(--ink)':ok?'var(--good)':'var(--bad)'}">${s}%</div>
-      <b>${z.res.right}/${Q.length} betul</b>
-      <p class="hint" style="max-width:520px">${pre?'Markah ujian pra direkod. Sekarang tonton video dan baca slide, kemudian jawab ujian pasca.':ok?'Tahniah, anda lulus! Sijil anda kini sedia untuk dimuat turun.':`Markah lulus ialah ${pass}%. Ulang kaji bahan latihan dan cuba lagi.`}</p>
-      <button class="btn pri" data-crs="qback">${ok?'Muat turun sijil':'Teruskan'}</button></div>
-     ${ok?`<div class="panel stack"><h3>Semakan jawapan</h3>${Q.map((q,i)=>{const a=z.ans[i];return `<div class="qrev ${a===q.a?'ok':'no'}"><b>${i+1}. ${esc(q.q)}</b><span>${a===q.a?'✓':'✗'} Jawapan anda: ${esc(q.o[a]||'-')}${a===q.a?'':` · Betul: <b>${esc(q.o[q.a])}</b>`}</span></div>`}).join('')}</div>`:''}</div>`}
+    return `<div class="stack"><div class="row between"><button class="btn" data-crs="qback">${L('← Kembali ke Training','← Back to Training')}</button>${lang}</div>
+     <div class="panel stack" style="text-align:center;align-items:center"><span class="sectag">${tag}</span><div style="font-size:3rem;font-weight:800;color:${pre?'var(--ink)':ok?'var(--good)':'var(--bad)'}">${s}%</div>
+      <b>${z.res.right}/${Q.length} ${L('betul','correct')}</b>
+      <p class="hint" style="max-width:520px">${pre?L('Markah ujian pra direkod. Sekarang tonton video dan baca slide, kemudian jawab ujian pasca.','Your pre-test score is recorded. Now watch the videos and read the slides, then answer the post-test.'):ok?L('Tahniah, anda lulus! Sijil anda kini sedia untuk dimuat turun.','Congratulations, you passed! Your certificate is ready to download.'):L(`Markah lulus ialah ${pass}%. Ulang kaji bahan latihan dan cuba lagi.`,`The pass mark is ${pass}%. Review the training materials and try again.`)}</p>
+      <button class="btn pri" data-crs="qback">${ok?L('Muat turun sijil','Download certificate'):L('Teruskan','Continue')}</button></div>
+     ${ok?`<div class="panel stack"><h3>${L('Semakan jawapan','Answer review')}</h3>${Q.map((q,i)=>{const a=z.ans[i];return `<div class="qrev ${a===q.a?'ok':'no'}"><b>${i+1}. ${esc(qT(q,en))}</b><span>${a===q.a?'✓':'✗'} ${L('Jawapan anda','Your answer')}: ${esc(qO(q,a,en)||'-')}${a===q.a?'':` · ${L('Betul','Correct')}: <b>${esc(qO(q,q.a,en))}</b>`}</span></div>`}).join('')}</div>`:''}</div>`}
   const n=Object.keys(z.ans).length,src=id=>{const m=S.mods.find(x=>x.id===id);return m?m.tajuk:''};
-  return `<div class="stack"><button class="btn" data-crs="qback" style="align-self:flex-start">← Batal</button>
-   <div class="panel"><span class="sectag">${pre?'UJIAN PRA':'UJIAN PASCA'}</span><h2 style="margin:4px 0">${esc(c.title)}</h2><span class="hint">${Q.length} soalan · pilih satu jawapan bagi setiap soalan${pre?'':' · lulus ≥ '+(+c.pass||80)+'%'}</span></div>
-   ${Q.map((q,i)=>`<div class="panel stack qcard"><span class="hint">Soalan ${i+1}${src(q.src)?' · '+esc(src(q.src)):''}</span><b>${esc(q.q)}</b>
-     ${q.o.map((o,j)=>o?`<label class="qopt ${z.ans[i]===j?'on':''}"><input type="radio" name="cq${i}" value="${j}" data-qa="${i}" ${z.ans[i]===j?'checked':''}> <span>${String.fromCharCode(65+j)}. ${esc(o)}</span></label>`:'').join('')}</div>`).join('')}
-   <div class="panel row between"><span class="hint" id="qcount">${n}/${Q.length} dijawab</span><button class="btn pri" data-crs="submit">Hantar jawapan</button></div></div>`}
+  return `<div class="stack"><div class="row between"><button class="btn" data-crs="qback">${L('← Batal','← Cancel')}</button>${lang}</div>
+   <div class="panel"><span class="sectag">${tag}</span><h2 style="margin:4px 0">${esc(c.title)}</h2><span class="hint">${Q.length} ${L('soalan · pilih satu jawapan bagi setiap soalan','questions · choose one answer for each question')}${pre?'':' · '+L('lulus','pass')+' ≥ '+(+c.pass||80)+'%'}</span></div>
+   ${Q.map((q,i)=>`<div class="panel stack qcard"><span class="hint">${L('Soalan','Question')} ${i+1}${src(q.src)?' · '+esc(src(q.src)):''}</span><b>${esc(qT(q,en))}</b>
+     ${q.o.map((o,j)=>o?`<label class="qopt ${z.ans[i]===j?'on':''}"><input type="radio" name="cq${i}" value="${j}" data-qa="${i}" ${z.ans[i]===j?'checked':''}> <span>${String.fromCharCode(65+j)}. ${esc(qO(q,j,en))}</span></label>`:'').join('')}</div>`).join('')}
+   <div class="panel row between"><span class="hint" id="qcount">${n}/${Q.length} ${L('dijawab','answered')}</span><button class="btn pri" data-crs="submit">${L('Hantar jawapan','Submit answers')}</button></div></div>`}
 async function crsSave(body){
   if(typeof api==='function'){const r=await api('saveTrain',body);S.train=S.train||{};S.train.mine=r.row;return r.row}
   const c=crs(),r=Object.assign({akaun:S.user.jabatan,jabatan:S.user.jabatan,nama:S.user.nama,pre:'',post:'',tries:'0',certNo:''},myTrain()),now=new Date().toISOString().slice(0,19);
@@ -1264,19 +1280,21 @@ function crsEditor(){const e=S.ced,mods=S.mods.filter(m=>m.jenis==='modul'),item
    <div class="f"><span class="flabel">Bahan wajib (tonton / baca)</span><div class="stack" style="gap:4px">${mods.map(m=>`<label class="row" style="gap:8px"><input type="checkbox" data-cei="${m.id}" ${e.items.includes(m.id)?'checked':''} style="width:auto"> ${esc(m.tajuk)} <span class="hint">· ${esc(m.kategori)}</span></label>`).join('')}</div></div>
    <h3 style="margin:8px 0 0">Soalan (${e.questions.length}) · sama untuk ujian pra dan pasca</h3>
    ${e.questions.map((q,i)=>`<div class="qedit stack"><div class="row between" style="gap:8px"><b>Soalan ${i+1}</b><span class="row" style="gap:6px"><select data-cq="${i}" data-cf="src"><option value="">— Bahan berkaitan —</option>${items.map(m=>`<option value="${m.id}" ${q.src===m.id?'selected':''}>${esc(m.tajuk)}</option>`).join('')}</select><button class="btn sm danger" data-crs="delq" data-i="${i}">Padam</button></span></div>
-     <textarea rows="2" data-cq="${i}" data-cf="q" placeholder="Soalan">${esc(q.q)}</textarea>
-     ${[0,1,2,3].map(j=>`<label class="row qopt2" style="gap:8px"><input type="radio" name="ca${i}" data-ca="${i}" value="${j}" ${q.a===j?'checked':''} style="width:auto" title="Jawapan betul"><b>${String.fromCharCode(65+j)}</b><input data-cq="${i}" data-cf="o${j}" value="${esc(q.o[j]||'')}" placeholder="Pilihan ${String.fromCharCode(65+j)}"></label>`).join('')}
-     <span class="hint">Tanda bulatan pada jawapan yang betul.</span></div>`).join('')}
+     <textarea rows="2" data-cq="${i}" data-cf="q" placeholder="Soalan (BM)">${esc(q.q)}</textarea>
+     <textarea rows="2" data-cq="${i}" data-cf="qe" placeholder="Question (English, pilihan)">${esc(q.qe||'')}</textarea>
+     ${[0,1,2,3].map(j=>`<label class="row qopt2" style="gap:8px"><input type="radio" name="ca${i}" data-ca="${i}" value="${j}" ${q.a===j?'checked':''} style="width:auto" title="Jawapan betul"><b>${String.fromCharCode(65+j)}</b><input data-cq="${i}" data-cf="o${j}" value="${esc(q.o[j]||'')}" placeholder="Pilihan ${String.fromCharCode(65+j)} (BM)"><input data-cq="${i}" data-cf="e${j}" value="${esc((q.oe||[])[j]||'')}" placeholder="Option ${String.fromCharCode(65+j)} (English)"></label>`).join('')}
+     <span class="hint">Tanda bulatan pada jawapan yang betul. Ruangan English boleh dibiarkan kosong; peserta yang pilih English akan nampak versi BM.</span></div>`).join('')}
    <div class="row" style="gap:8px"><button class="btn" data-crs="addq">+ Tambah soalan</button><button class="btn" data-crs="defq">Guna semula soalan contoh</button></div>
    <div class="row" style="gap:8px"><button class="btn pri" data-crs="save">Simpan</button><button class="btn" data-crs="cancel">Batal</button></div></div>`}
 function crsInput(T){const D=T.dataset;if(!S.ced)return false;
   if(D.ce){S.ced[D.ce]=D.ce==='on'?T.checked:D.ce==='pass'?Math.max(0,Math.min(100,+T.value||0)):T.value;return true}
   if(D.cei){const a=S.ced.items;T.checked?(a.includes(D.cei)||a.push(D.cei)):a.splice(a.indexOf(D.cei),1);return true}
   if(D.ca!=null){S.ced.questions[+D.ca].a=+T.value;return true}
-  if(D.cq!=null){const q=S.ced.questions[+D.cq],f=D.cf;if(/^o\d$/.test(f))q.o[+f[1]]=T.value;else q[f]=T.value;return true}
+  if(D.cq!=null){const q=S.ced.questions[+D.cq],f=D.cf;if(/^o\d$/.test(f))q.o[+f[1]]=T.value;else if(/^e\d$/.test(f)){q.oe=q.oe||['','','',''];q.oe[+f[1]]=T.value}else q[f]=T.value;return true}
   return false}
 async function crsClick(D,t){const k=D.crs;
   if(k==='pre'||k==='post'){S.quiz={kind:k,ans:{},res:null};render();scrollTo(0,0);return}
+  if(k==='lang'){S.qlang=D.l;try{localStorage.setItem('crslang',D.l)}catch(e){}render();return}
   if(k==='qback'){S.quiz=null;render();scrollTo(0,0);return}
   if(k==='submit'){const Q=crs().questions,z=S.quiz;if(Object.keys(z.ans).length<Q.length){toast('Sila jawab semua soalan ('+Object.keys(z.ans).length+'/'+Q.length+')');return}
     const right=Q.filter((q,i)=>z.ans[i]===q.a).length,score=Math.round(right/Q.length*100);t.disabled=true;
@@ -1290,7 +1308,7 @@ async function crsClick(D,t){const k=D.crs;
   if(k==='save'){const e=S.ced,bad=e.questions.findIndex(q=>!q.q.trim()||q.o.filter(x=>String(x).trim()).length<2||!String(q.o[q.a]||'').trim());
     if(!e.title.trim()){toast('Isi nama program');return}if(!e.items.length){toast('Pilih sekurang-kurangnya satu bahan');return}if(!e.questions.length){toast('Tambah sekurang-kurangnya satu soalan');return}
     if(bad>=0){toast('Soalan '+(bad+1)+': isi soalan, sekurang-kurangnya 2 pilihan dan tanda jawapan betul');return}
-    e.questions.forEach(q=>q.o=q.o.map(x=>String(x).trim()));const v=JSON.stringify(e);
+    e.questions.forEach(q=>{q.o=q.o.map(x=>String(x).trim());q.oe=(q.oe||[]).map(x=>String(x||'').trim());q.qe=String(q.qe||'').trim()});const v=JSON.stringify(e);
     try{if(typeof api==='function')await api('saveSetting',{key:'TRAINING_COURSE',value:v});S.set=Object.assign({},S.set,{TRAINING_COURSE:v});S.ced=null;keepY();toast('Program latihan disimpan')}catch(er){toast('Tidak disimpan: '+er.message)}return}
   if(k==='reset'){if(!confirm('Padam keputusan ujian dan sijil '+D.d+'? Peserta perlu mula semula.'))return;
     try{if(typeof api==='function')await api('resetTrain',{akaun:D.d});S.train.rows=(S.train.rows||[]).filter(r=>r.akaun!==D.d);keepY();toast('Keputusan '+D.d+' dipadam')}catch(er){toast(er.message)}return}
