@@ -322,6 +322,18 @@ a.btn.pri{color:var(--accent-ink)}
 .mod .thumb[data-play]{cursor:pointer}.mod .thumb[data-play]:hover .ico{transform:scale(1.08)}
 .pitem.lkitem{grid-template-columns:86px minmax(0,1fr);align-items:start}.lkitem .pn{overflow-wrap:anywhere}.lkitem .lkbtn{grid-column:1/-1;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:600px){.pitem.lkitem{grid-template-columns:minmax(0,1fr)}.lkitem .lkbtn{justify-content:stretch}.lkitem .lkbtn .btn{flex:1 1 auto}}
+.crs .sectag{align-self:flex-start}.csteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.csteps>li{border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--card)}
+.csteps>li.ok{border-left-color:var(--good)}.csteps>li.cur{border-left-color:var(--warn)}.csteps>li.lock{opacity:.75}
+.csh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.crsitem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}.crsitem.ok{background:var(--good-soft)}
+.crsck{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:inline-grid;place-items:center;font-weight:800;color:var(--good);flex:none}.crsitem.ok .crsck{border-color:var(--good)}
+.qopt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}.qopt input{width:auto;margin-top:3px}.qopt.on{border-color:var(--good);background:var(--good-soft)}
+.qrev{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-bottom:1px solid var(--line)}.qrev.no span{color:var(--bad)}
+.qedit{border:1px solid var(--line);border-radius:12px;padding:12px;gap:8px}.qedit textarea{width:100%}.qopt2 input:not([type=radio]){flex:1}
+.crsrem{border-left:6px solid var(--warn)}
+.vpbarw{height:6px;border-radius:6px;background:var(--line);overflow:hidden}.vpbarw i{display:block;height:100%;width:0;background:var(--good);transition:width .5s}
+#ytp,#ytp iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 </style>
 </head>
 <body>
@@ -518,7 +530,7 @@ async function doLogin(){
   catch(e){S.lbusy=false;S.lerr=e.message;render();const p=$('#lpw');p&&p.focus()}
 }
 function applyData(r){
-  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};S.mdro=r.mdro||null;
+  S.user=r.user;S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||[];S.liaisons=r.liaisons||{};S.set=r.settings||{};S.mdro=r.mdro||null;S.train=r.train||S.train||{};
   S.tab='dash';S.draft=null;S.cur=null;const ms=months().filter(m=>m<CURM);S.rmonths=[ms.length?ms[ms.length-1]:CURM];
   if(S.user&&S.user.role==='coord')setTimeout(autoPullLinks,1500);
 }
@@ -527,7 +539,7 @@ function applyData(r){
 let LAST_SYNC=Date.now();
 async function reloadData(quiet){
   if(!S.user||!S.token||typeof api!=='function')return;
-  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;S.mdro=r.mdro||null;
+  try{const r=await api('bootstrap');S.cases=r.cases||[];S.mods=r.mods||[];S.sent=r.sent||{};S.mailLog=r.mailLog||S.mailLog||[];if(r.liaisons)S.liaisons=r.liaisons;S.set=r.settings||S.set;S.mdro=r.mdro||null;S.train=r.train||S.train||{};
     if(S.cur&&!S.cases.some(c=>c.id===S.cur))S.cur=null;LAST_SYNC=Date.now();if(!S.draft||!S.draft.nama)keepY();if(!quiet)toast('Data updated · '+S.cases.length+' patients')}
   catch(e){if(!quiet)toast('Could not refresh: '+e.message)}
 }
@@ -665,6 +677,7 @@ function liaisonDash(){
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
    ${mdroCard(mine)}
+   ${crsRemind()}
    ${pend.length?`<div class="panel remind ${S.remOpen!==false?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${S.remOpen!==false}">
      <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen!==false?'hide':'confirm'}</span></span>${CHEV}</button>
     ${S.remOpen!==false?`<div class="remlist">${pend.map(pendRow).join('')}</div>`:''}</div>`:''}
@@ -1076,13 +1089,15 @@ function embedOf(u){u=String(u||'');let m;
   return null}
 function playLabel(m){const e=embedOf(m.url);if(!e)return '';return e.kind==='video'||(e.kind==='drive'&&/video|vid|mp4/i.test(m.tajuk+' '+m.kategori+' '+(m.penerangan||'')))?'▶ Play':'👁 View'}
 function playerDoneBtn(m){return S.user.role==='liaison'&&m.jenis==='modul'?`<button class="btn sm ${m.selesai.includes(S.user.nama)?'':'good'}" data-pdone="${m.id}">${m.selesai.includes(S.user.nama)?'Undo done':'✓ Mark as done'}</button>`:''}
-function openPlayer(id){const m=S.mods.find(x=>x.id===id),e=m&&embedOf(m.url);if(!e)return;closePlayer();
+function openPlayer(id){const m=S.mods.find(x=>x.id===id),e=m&&embedOf(m.url);if(!e)return;
+  const cv=crsVid(m);if(cv){if(!crsState().pre){toast('Sila jawab ujian pra dahulu');return}openLockedVideo(m,cv);return}
+  closePlayer();
   const d=document.createElement('div');d.id='player';d.className='modal pmodal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
   d.innerHTML=`<div class="modalc pbox"><div class="row between" style="gap:8px;flex-wrap:nowrap"><div style="min-width:0"><span class="hint">${esc(m.kategori)}</span><h3 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.tajuk)}</h3></div><button class="btn sm" data-pclose="1" aria-label="Close">✕</button></div>
    <div class="pframe ${e.kind==='video'||e.kind==='drive'?'vid':'doc'}"><iframe src="${esc(e.url)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
    <div class="row between" style="gap:8px"><span class="hint">Not showing? The file must be shared "Anyone with the link", or open it in a new tab.</span><div class="row" style="gap:6px"><span id="pdoneW">${playerDoneBtn(m)}</span><a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">↗ Open in new tab</a></div></div></div>`;
   document.body.appendChild(d);document.body.style.overflow='hidden'}
-function closePlayer(){const p=$('#player');if(p){p.remove();document.body.style.overflow=''}}
+function closePlayer(){vpStop();const p=$('#player');if(p){p.remove();document.body.style.overflow=''}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#player'))closePlayer()});
 function libItems(){const k=S.tk||'modul';let l=S.mods.filter(m=>m.jenis===k);if(S.tcat&&S.tcat!=='Semua')l=l.filter(m=>m.kategori===S.tcat);
   const q=(S.tq||'').trim().toLowerCase();if(q)l=l.filter(m=>(m.tajuk+' '+m.kategori+' '+(m.penerangan||'')).toLowerCase().includes(q));
@@ -1096,10 +1111,196 @@ function libView(coord){
     <div class="search libq">${IC.search}<input id="tq" placeholder="Search title or category" value="${esc(S.tq||'')}" autocomplete="off"></div></div>
    ${cats.length>1?`<div class="chips">${['Semua',...cats].map(c=>`<button type="button" class="chip ${tc===c?'on':''}" data-tcat="${esc(c)}">${c==='Semua'?'All categories':esc(c)} (${c==='Semua'?all.length:all.filter(m=>m.kategori===c).length})</button>`).join('')}</div>`:''}</div>
   <div id="tgrid">${libGrid(coord)}</div>`}
+// ================= Training programme: pre-test, materials, post-test, certificate =================
+const CRS_DEFQ=[
+ {s:'a',q:'Apakah langkah pertama sebelum menyediakan troli balutan?',o:['Melakukan kebersihan tangan','Membuka set balutan','Memakai sarung tangan steril','Menanggalkan balutan lama'],a:0},
+ {s:'a',q:'Perkara yang perlu disemak sebelum membuka set balutan steril ialah:',o:['Warna bungkusan','Tarikh luput dan bungkusan tidak koyak atau basah','Nama pengeluar','Bilangan kasa sahaja'],a:1},
+ {s:'a',q:'Balutan lama ditanggalkan menggunakan:',o:['Sarung tangan steril dari set balutan','Tangan tanpa sarung tangan','Sarung tangan bersih (non-steril)','Forceps steril dari set balutan'],a:2},
+ {s:'a',q:'Cara mencuci luka yang betul ialah:',o:['Dari kawasan kotor ke kawasan bersih','Sapuan berulang dengan swab yang sama','Gosok kuat di atas luka','Dari kawasan bersih ke kurang bersih, satu sapuan bagi setiap swab'],a:3},
+ {s:'a',q:'Jika sarung tangan steril tersentuh permukaan tidak steril semasa prosedur, tindakan yang betul ialah:',o:['Tukar kepada sarung tangan steril yang baharu','Teruskan prosedur','Lap sarung tangan dengan alkohol','Bilas sarung tangan dengan normal saline'],a:0},
+ {s:'p',q:'Bilakah antibiotik profilaksis sepatutnya diberi?',o:['Selepas insisi kulit','Dalam tempoh 60 minit sebelum insisi kulit','Sehari sebelum pembedahan di wad','Selepas pembedahan tamat'],a:1},
+ {s:'p',q:'Tempoh pembedahan (surgery duration) dalam borang SSI dikira dari:',o:['Pesakit masuk OT hingga keluar OT','Induksi anestesia hingga pesakit sedar','Insisi kulit hingga penutupan kulit','Masuk OT hingga masuk recovery'],a:2},
+ {s:'p',q:'Pembedahan yang membuka saluran pencernaan, pernafasan atau urogenital secara terkawal tanpa tumpahan dikelaskan sebagai:',o:['Clean','Contaminated','Dirty','Clean contaminated'],a:3},
+ {s:'p',q:'Redosing antibiotik profilaksis diperlukan apabila:',o:['Pembedahan melebihi dua kali separuh hayat ubat (cth cefazolin > 4 jam) atau kehilangan darah > 1500 mL','Pesakit demam selepas pembedahan','Setiap kali pembedahan melebihi 1 jam','Tidak pernah diperlukan'],a:0},
+ {s:'p',q:'Mengapa penggunaan implant perlu direkod dalam borang SSI?',o:['Untuk tujuan bil hospital','Tempoh pemantauan SSI dilanjutkan sehingga 1 tahun','Implant tidak berkaitan dengan SSI','Untuk menentukan jenis anestesia'],a:1}];
+// ---- Course videos: no skipping, normal speed only, auto-complete when watched to the end ----
+function ytIdOf(u){const m=String(u||'').match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/);return m?m[1]:''}
+function crsVid(m){if(!m||!S.user||S.user.role!=='liaison')return '';const c=crs();return c.on&&c.items.includes(m.id)?ytIdOf(m.url):''}
+const crsWK=(k,id)=>'crs'+k+'_'+(S.user&&S.user.nama)+'_'+id;
+function crsLS(k,id,v){try{if(v===undefined)return localStorage.getItem(crsWK(k,id));localStorage.setItem(crsWK(k,id),String(v))}catch(e){return null}}
+const crsWatched=id=>crsLS('w',id)==='1';
+function ytAPI(){if(window.YT&&window.YT.Player)return Promise.resolve();
+  return new Promise((res,rej)=>{const prev=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{try{prev&&prev()}catch(e){}res()};
+    if(!document.querySelector('script[src*="youtube.com/iframe_api"]')){const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>rej(new Error('YouTube tidak dapat dimuatkan'));document.head.appendChild(s)}
+    setTimeout(()=>rej(new Error('YouTube lambat dimuatkan – semak internet')),20000)})}
+let VP=null;
+const mmss=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function vpStop(){if(VP){clearInterval(VP.tm);try{VP.p&&VP.p.destroy&&VP.p.destroy()}catch(e){}VP=null}}
+function vpUI(){if(!VP)return;const el=$('#vpprog'),b=$('#vpbtn');let d=0,st=-1;try{d=VP.p.getDuration()||0;st=VP.p.getPlayerState()}catch(e){}
+  if(el)el.innerHTML=VP.done?'<b style="color:var(--good)">✓ Video selesai ditonton</b>':`Ditonton ${mmss(VP.max)} / ${d?mmss(d):'–:––'}${d?' ('+Math.min(100,Math.round(VP.max/d*100))+'%)':''}`;
+  const bar=$('#vpbar');if(bar)bar.style.width=(VP.done?100:d?Math.min(100,VP.max/d*100):0)+'%';if(b)b.textContent=st===1?'⏸ Jeda':'▶ Main'}
+function vpTick(){const p=VP&&VP.p;if(!p||!p.getCurrentTime)return;
+  try{if(p.getPlaybackRate&&p.getPlaybackRate()!==1)p.setPlaybackRate(1);
+    const t=p.getCurrentTime(),d=p.getDuration()||0;
+    if(t>VP.max+3){p.seekTo(VP.max,true);toast('Video tidak boleh dilangkau')}else if(t>VP.max){VP.max=t;crsLS('p',VP.id,Math.floor(t))}
+    if(d&&VP.max>=d*0.95)vpDone();vpUI()}catch(e){}}
+function vpDone(){if(!VP||VP.done)return;VP.done=true;crsLS('w',VP.id,'1');const m=S.mods.find(x=>x.id===VP.id);
+  if(m&&!m.selesai.includes(S.user.nama)){m.selesai.push(S.user.nama);if(typeof api==='function')api('toggleDone',{id:m.id}).catch(fail)}
+  const w=$('#pdoneW');if(w)w.innerHTML='<span class="pill g">✓ Ditanda selesai</span>';toast('Video selesai ditonton ✓');vpUI();keepY()}
+async function openLockedVideo(m,vid){closePlayer();
+  const d=document.createElement('div');d.id='player';d.className='modal pmodal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+  const done=m.selesai.includes(S.user.nama)||crsWatched(m.id);
+  d.innerHTML=`<div class="modalc pbox"><div class="row between" style="gap:8px;flex-wrap:nowrap"><div style="min-width:0"><span class="hint">${esc(m.kategori)}</span><h3 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.tajuk)}</h3></div><button class="btn sm" data-pclose="1" aria-label="Close">✕</button></div>
+   <div class="pframe vid"><div id="ytp"></div></div>
+   <div class="vpbarw"><i id="vpbar"></i></div>
+   <div class="row between" style="gap:8px"><span class="row" style="gap:10px"><button class="btn pri" id="vpbtn" data-vpp="1">▶ Main</button><span class="hint" id="vpprog">Memuatkan video…</span></span><span id="pdoneW">${done?'<span class="pill g">✓ Ditanda selesai</span>':'<span class="hint">Ditanda selesai secara automatik selepas habis ditonton</span>'}</span></div>
+   <p class="hint" style="margin:0">Video latihan ini tidak boleh dipercepatkan atau dilangkau. Tonton hingga habis; kedudukan terakhir disimpan jika anda berhenti.</p></div>`;
+  document.body.appendChild(d);document.body.style.overflow='hidden';
+  VP={id:m.id,max:+(crsLS('p',m.id)||0),done:false,p:null};const me=VP;
+  try{await ytAPI();if(VP!==me)return;
+    me.p=new YT.Player('ytp',{videoId:vid,width:'100%',height:'100%',playerVars:{controls:0,disablekb:1,rel:0,modestbranding:1,playsinline:1,fs:0,iv_load_policy:3,start:Math.floor(me.max)},
+      events:{onReady:()=>vpUI(),onStateChange:e=>{if(e.data===0){let d=0;try{d=me.p.getDuration()||0}catch(x){}if(d&&(me.max>=d*0.9||me.max>=d-3))vpDone();else{try{me.p.seekTo(me.max,true);me.p.pauseVideo()}catch(x){}toast('Video tidak boleh dilangkau')}}vpUI()},onPlaybackRateChange:e=>{if(e.data!==1)e.target.setPlaybackRate(1)}}});
+    me.tm=setInterval(vpTick,1000)}
+  catch(e){const p=$('#vpprog');if(p)p.textContent=e.message}}
+function crsJSON(s){try{return s?JSON.parse(s):null}catch(e){return null}}
+function crsDefault(){const mods=S.mods.filter(m=>m.jenis==='modul'),find=rx=>(mods.find(m=>rx.test(m.tajuk))||{}).id||'';
+  const va=find(/asepti/i),vp=find(/pengisian|isi.*ssi|ssi.*form/i);
+  return{on:true,title:'Latihan Surveilans dan Pencegahan SSI',pass:80,signName:'DR FERWAHN FAIRIS BIN AB KARIM',signTitle:'Timbalan Pengarah Perubatan 1',items:mods.map(m=>m.id),
+    questions:CRS_DEFQ.map((x,i)=>({id:'q'+(i+1),src:x.s==='a'?va:vp,q:x.q,o:x.o.slice(),a:x.a}))}}
+function crs(){const c=crsJSON((S.set||{}).TRAINING_COURSE);return c&&Array.isArray(c.questions)?c:crsDefault()}
+function crsItems(c){return (c.items||[]).map(id=>S.mods.find(m=>m.id===id)).filter(Boolean)}
+function myTrain(){return (S.train&&S.train.mine)||{}}
+const crsHas=v=>v!==''&&v!=null;
+function crsState(){const c=crs(),items=crsItems(c),r=myTrain(),nm=S.user.nama;
+  const done=items.filter(m=>m.selesai.includes(nm)),pre=crsHas(r.pre),post=crsHas(r.post),passed=post&&+r.post>=(+c.pass||80);
+  return{c,items,r,done,pre,post,passed,cert:!!r.certNo,ready:pre&&done.length===items.length&&items.length>0}}
+function crsBlock(id){if(S.user.role!=='liaison')return false;const st=crsState();if(!st.c.on||st.pre)return false;
+  if(st.c.items.includes(id)){toast('Sila jawab ujian pra dahulu sebelum menanda bahan latihan selesai');return true}return false}
+function crsVidBlock(id){const m=S.mods.find(x=>x.id===id);if(!crsVid(m)||m.selesai.includes(S.user.nama)||crsWatched(id))return false;toast('Tonton video hingga habis – ia akan ditanda selesai secara automatik');return true}
+function crsRemind(){if(!S.user||S.user.role!=='liaison')return '';const st=crsState();if(!st.c.on||!st.items.length||st.cert)return '';
+  const chk=(ok,t)=>`<span class="pill ${ok?'g':'w'}">${ok?'✓':'○'} ${t}</span>`;
+  return `<div class="panel row between crsrem" style="gap:12px"><div class="stack" style="gap:6px"><b>🎓 Sila lengkapkan training untuk mendapatkan sijil</b>
+    <span class="hint">${esc(st.c.title)}</span><div class="chips">${chk(st.pre,'Ujian pra')}${chk(st.done.length===st.items.length,'Bahan '+st.done.length+'/'+st.items.length)}${chk(st.passed,'Ujian pasca')}</div></div>
+    <button class="btn pri" data-tab="latihan">Pergi ke Training</button></div>`}
+function crsItemRow(m,st){const ok=m.selesai.includes(S.user.nama),pl=playLabel(m);
+  return `<div class="crsitem ${ok?'ok':''}"><span class="crsck">${ok?'✓':''}</span><div style="flex:1;min-width:0"><b>${esc(m.tajuk)}</b><br><span class="hint">${esc(m.kategori)}</span></div>
+   ${pl?`<button class="btn sm ${crsVid(m)&&!ok?'pri':''}" data-play="${m.id}">${crsVid(m)?'▶ Tonton':pl}</button>`:`<a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">Buka ↗</a>`}
+   ${crsVid(m)?(ok?'<span class="pill g">✓ Ditonton</span>':`<span class="hint">${crsLS('p',m.id)?'Disambung dari '+mmss(+crsLS('p',m.id))+' · ':''}tonton hingga habis</span>`):`<button class="btn sm ${ok?'':'pri'}" data-done="${m.id}" ${st.pre?'':'disabled title="Jawab ujian pra dahulu"'}>${ok?'Batal':'Tanda selesai'}</button>`}</div>`}
+function crsCard(){const st=crsState(),{c,items,r}=st;if(!c.on||!items.length)return '';
+  const cls=(ok,cur)=>ok?'ok':cur?'cur':'lock';
+  return `<div class="panel stack crs"><div class="row between" style="gap:10px"><div><span class="sectag">PROGRAM LATIHAN</span><h3 style="margin:4px 0 2px">${esc(c.title)}</h3>
+     <span class="hint">Lengkapkan 4 langkah untuk mendapatkan sijil. Lulus ujian pasca: ≥ ${+c.pass||80}%.</span></div>${st.cert?'<span class="pill g">✓ Sijil sedia</span>':''}</div>
+   <ol class="csteps">
+    <li class="${cls(st.pre,!st.pre)}"><div class="csh"><b>1 · Ujian pra</b><span>${st.pre?`Selesai · markah <b>${r.pre}%</b>`:`<button class="btn sm pri" data-crs="pre">Mula ujian pra (${c.questions.length} soalan)</button>`}</span></div></li>
+    <li class="${cls(st.done.length===items.length,st.pre)}"><div class="csh"><b>2 · Tonton video dan baca slide</b><span>${st.done.length}/${items.length} selesai</span></div>
+     <div class="stack" style="gap:6px">${items.map(m=>crsItemRow(m,st)).join('')}</div>${st.pre?'':'<p class="hint" style="margin:0">Jawab ujian pra dahulu, kemudian tanda setiap bahan selesai selepas menonton atau membaca.</p>'}</li>
+    <li class="${cls(st.passed,st.ready)}"><div class="csh"><b>3 · Ujian pasca</b><span>${st.passed?`Lulus · markah <b>${r.post}%</b>`:st.ready?`${st.post?`Markah terakhir ${r.post}% · `:''}<button class="btn sm pri" data-crs="post">${st.post?'Cuba lagi':'Mula ujian pasca'}</button>`:'<span class="hint">Lengkapkan langkah 1 dan 2 dahulu</span>'}</span></div></li>
+    <li class="${cls(st.cert,st.passed)}"><div class="csh"><b>4 · Sijil</b><span>${st.cert?`No. ${esc(r.certNo)}`:'<span class="hint">Dikeluarkan selepas lulus ujian pasca</span>'}</span></div>
+     ${st.cert?`<div class="row" style="gap:8px"><label class="f" style="flex:1 1 260px;margin:0"><span>Nama pada sijil</span><input id="crsName" value="${esc(r.nama||S.user.nama||'')}" placeholder="Nama penuh"></label><button class="btn pri" data-crs="cert">⬇ Muat turun sijil (PDF)</button></div>`:''}</li>
+   </ol></div>`}
+function quizView(){const z=S.quiz,c=crs(),Q=c.questions,pre=z.kind==='pre';
+  if(z.res){const s=z.res.score,pass=+c.pass||80,ok=!pre&&s>=pass;
+    return `<div class="stack"><button class="btn" data-crs="qback" style="align-self:flex-start">← Kembali ke Training</button>
+     <div class="panel stack" style="text-align:center;align-items:center"><span class="sectag">${pre?'UJIAN PRA':'UJIAN PASCA'}</span><div style="font-size:3rem;font-weight:800;color:${pre?'var(--ink)':ok?'var(--good)':'var(--bad)'}">${s}%</div>
+      <b>${z.res.right}/${Q.length} betul</b>
+      <p class="hint" style="max-width:520px">${pre?'Markah ujian pra direkod. Sekarang tonton video dan baca slide, kemudian jawab ujian pasca.':ok?'Tahniah, anda lulus! Sijil anda kini sedia untuk dimuat turun.':`Markah lulus ialah ${pass}%. Ulang kaji bahan latihan dan cuba lagi.`}</p>
+      <button class="btn pri" data-crs="qback">${ok?'Muat turun sijil':'Teruskan'}</button></div>
+     ${ok?`<div class="panel stack"><h3>Semakan jawapan</h3>${Q.map((q,i)=>{const a=z.ans[i];return `<div class="qrev ${a===q.a?'ok':'no'}"><b>${i+1}. ${esc(q.q)}</b><span>${a===q.a?'✓':'✗'} Jawapan anda: ${esc(q.o[a]||'-')}${a===q.a?'':` · Betul: <b>${esc(q.o[q.a])}</b>`}</span></div>`}).join('')}</div>`:''}</div>`}
+  const n=Object.keys(z.ans).length,src=id=>{const m=S.mods.find(x=>x.id===id);return m?m.tajuk:''};
+  return `<div class="stack"><button class="btn" data-crs="qback" style="align-self:flex-start">← Batal</button>
+   <div class="panel"><span class="sectag">${pre?'UJIAN PRA':'UJIAN PASCA'}</span><h2 style="margin:4px 0">${esc(c.title)}</h2><span class="hint">${Q.length} soalan · pilih satu jawapan bagi setiap soalan${pre?'':' · lulus ≥ '+(+c.pass||80)+'%'}</span></div>
+   ${Q.map((q,i)=>`<div class="panel stack qcard"><span class="hint">Soalan ${i+1}${src(q.src)?' · '+esc(src(q.src)):''}</span><b>${esc(q.q)}</b>
+     ${q.o.map((o,j)=>o?`<label class="qopt ${z.ans[i]===j?'on':''}"><input type="radio" name="cq${i}" value="${j}" data-qa="${i}" ${z.ans[i]===j?'checked':''}> <span>${String.fromCharCode(65+j)}. ${esc(o)}</span></label>`:'').join('')}</div>`).join('')}
+   <div class="panel row between"><span class="hint" id="qcount">${n}/${Q.length} dijawab</span><button class="btn pri" data-crs="submit">Hantar jawapan</button></div></div>`}
+async function crsSave(body){
+  if(typeof api==='function'){const r=await api('saveTrain',body);S.train=S.train||{};S.train.mine=r.row;return r.row}
+  const c=crs(),r=Object.assign({akaun:S.user.jabatan,jabatan:S.user.jabatan,nama:S.user.nama,pre:'',post:'',tries:'0',certNo:''},myTrain()),now=new Date().toISOString().slice(0,19);
+  if(body.kind==='pre'&&!crsHas(r.pre)){r.pre=String(body.score);r.preAt=now}
+  if(body.kind==='post'){r.tries=String((+r.tries||0)+1);if(!crsHas(r.post)||body.score>+r.post)r.post=String(body.score);r.postAt=now;
+    if(+r.post>=(+c.pass||80)&&!r.certNo){r.certNo='SSI-HTPN-'+now.slice(0,4)+'-001';r.certAt=now}}
+  if(body.kind==='name')r.nama=String(body.nama||'').toUpperCase();
+  S.train=S.train||{};S.train.mine=r;return r}
+async function crsCertPDF(){const r=myTrain(),c=crs(),nm=(($('#crsName')||{}).value||r.nama||S.user.nama||'').trim().toUpperCase();if(!nm){toast('Isi nama pada sijil');return}
+  toast('Menjana sijil…');
+  try{await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','jspdf');
+    if(nm!==r.nama)crsSave({kind:'name',nama:nm}).catch(()=>{});
+    const {jsPDF}=window.jspdf,d=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),W=297,H=210,G=[31,122,77],K=[19,51,42];
+    d.setFillColor(250,250,246);d.rect(0,0,W,H,'F');d.setDrawColor(...G);d.setLineWidth(2.2);d.rect(9,9,W-18,H-18);d.setLineWidth(.5);d.rect(13,13,W-26,H-26);
+    try{d.addImage(LOGO,'JPEG',W/2-14,20,28,28)}catch(e){}
+    const ctr=(t,y,sz,st,col)=>{d.setFont('helvetica',st||'normal');d.setFontSize(sz);d.setTextColor(...(col||K));d.text(t,W/2,y,{align:'center',maxWidth:W-50})};
+    ctr('SIJIL PENYEMPURNAAN LATIHAN',62,24,'bold',G);ctr('Dengan ini disahkan bahawa',76,13,'normal',[74,90,82]);
+    ctr(nm,92,22,'bold');d.setDrawColor(...G);d.setLineWidth(.4);d.line(W/2-80,96,W/2+80,96);
+    ctr('Jabatan '+(S.user.jabatan||''),104,12,'normal',[74,90,82]);
+    ctr('telah menjalani',118,13,'normal',[74,90,82]);ctr(c.title,132,18,'bold');
+    const dt=fmtD(String(r.certAt||new Date().toISOString()).slice(0,10));
+    d.setFont('helvetica','normal');d.setFontSize(11);d.setTextColor(...K);
+    d.text('Tarikh: '+dt,30,170);d.text('No. sijil: '+(r.certNo||''),30,177);
+    const sx=W-85,sn=String(c.signName||'DR FERWAHN FAIRIS BIN AB KARIM').toUpperCase(),stt=c.signTitle||'Timbalan Pengarah Perubatan 1';
+    d.setDrawColor(...K);d.setLineWidth(.3);d.line(sx-45,160,sx+45,160);
+    d.setFont('helvetica','bold');d.setFontSize(11);d.text(sn,sx,166,{align:'center'});
+    d.setFont('helvetica','normal');d.setFontSize(10);d.text(stt,sx,172,{align:'center'});d.text('Hospital Tengku Permaisuri Norashikin, Kajang',sx,178,{align:'center'});
+    d.setFontSize(8.5);d.setTextColor(120,130,125);d.text('Dijana oleh SSI Tracker HTPN · Unit Kawalan Infeksi',W/2,190,{align:'center'});
+    const blob=d.output('blob'),fn='Sijil_'+nm.replace(/[^A-Z0-9]+/g,'_').slice(0,40)+'.pdf';
+    if(typeof saveBlob==='function')saveBlob(blob,fn);else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;a.click()}
+  }catch(e){toast('Sijil tidak dapat dijana: '+e.message)}}
+function crsAdmin(){const c=crs(),saved=!!crsJSON((S.set||{}).TRAINING_COURSE),items=crsItems(c),rows=(S.train&&S.train.rows)||[];
+  if(S.ced)return crsEditor();
+  return `<div class="panel stack crs"><div class="row between" style="gap:10px"><div><span class="sectag">PROGRAM LATIHAN & SIJIL</span><h3 style="margin:4px 0 2px">${esc(c.title)}</h3>
+     <span class="hint">${items.length} bahan · ${c.questions.length} soalan ujian pra dan pasca (soalan sama) · lulus ≥ ${+c.pass||80}% · ${c.on?'<b style="color:var(--good)">Aktif</b>':'<b>Tidak aktif</b>'}</span>
+     ${saved?'':'<p class="hint" style="margin:6px 0 0;color:var(--warn)">Soalan contoh belum disimpan. Semak soalan, kemudian tekan <b>Simpan</b> supaya program ini rasmi.</p>'}</div>
+    <button class="btn pri" data-crs="edit">Edit soalan & tetapan</button></div>
+   <div class="scroll"><table><thead><tr><th>Jabatan</th><th>Peserta</th><th class="num">Ujian pra</th><th class="num">Bahan</th><th class="num">Ujian pasca</th><th>Sijil</th><th></th></tr></thead><tbody>
+   ${JAB.map(d=>{const r=rows.find(x=>x.akaun===d)||{},nm=((S.liaisons||{})[d]||{}).nama||'',dn=items.filter(m=>m.selesai.includes(nm)).length;
+     return `<tr><td><b>${esc(d)}</b></td><td>${esc(r.nama||nm||'—')}</td><td class="num">${crsHas(r.pre)?r.pre+'%':'—'}</td><td class="num">${dn}/${items.length}</td><td class="num">${crsHas(r.post)?r.post+'%'+(+r.tries>1?' ('+r.tries+'x)':''):'—'}</td>
+      <td>${r.certNo?`<span class="pill g">${esc(r.certNo)}</span>`:'<span class="pill w">Belum</span>'}</td><td>${crsHas(r.pre)||crsHas(r.post)?`<button class="btn sm" data-crs="reset" data-d="${esc(d)}">Reset</button>`:''}</td></tr>`}).join('')}
+   </tbody></table></div></div>`}
+function crsEditor(){const e=S.ced,mods=S.mods.filter(m=>m.jenis==='modul'),items=e.items.map(id=>S.mods.find(m=>m.id===id)).filter(Boolean);
+  return `<div class="panel stack crs"><h3>Edit program latihan</h3>
+   <div class="grid"><label class="f fwide"><span class="req">Nama program (dicetak pada sijil)</span><input data-ce="title" value="${esc(e.title)}"></label>
+    <label class="f"><span class="req">Markah lulus ujian pasca (%)</span><input type="number" min="0" max="100" data-ce="pass" value="${+e.pass||80}"></label>
+    <label class="f"><span>Nama penandatangan sijil</span><input data-ce="signName" value="${esc(e.signName||'DR FERWAHN FAIRIS BIN AB KARIM')}"></label>
+    <label class="f"><span>Jawatan penandatangan</span><input data-ce="signTitle" value="${esc(e.signTitle||'Timbalan Pengarah Perubatan 1')}"></label>
+    <label class="f"><span>Status</span><span class="row" style="gap:8px"><input type="checkbox" data-ce="on" ${e.on?'checked':''} style="width:auto"> Aktif (liaison nampak program ini)</span></label></div>
+   <div class="f"><span class="flabel">Bahan wajib (tonton / baca)</span><div class="stack" style="gap:4px">${mods.map(m=>`<label class="row" style="gap:8px"><input type="checkbox" data-cei="${m.id}" ${e.items.includes(m.id)?'checked':''} style="width:auto"> ${esc(m.tajuk)} <span class="hint">· ${esc(m.kategori)}</span></label>`).join('')}</div></div>
+   <h3 style="margin:8px 0 0">Soalan (${e.questions.length}) · sama untuk ujian pra dan pasca</h3>
+   ${e.questions.map((q,i)=>`<div class="qedit stack"><div class="row between" style="gap:8px"><b>Soalan ${i+1}</b><span class="row" style="gap:6px"><select data-cq="${i}" data-cf="src"><option value="">— Bahan berkaitan —</option>${items.map(m=>`<option value="${m.id}" ${q.src===m.id?'selected':''}>${esc(m.tajuk)}</option>`).join('')}</select><button class="btn sm danger" data-crs="delq" data-i="${i}">Padam</button></span></div>
+     <textarea rows="2" data-cq="${i}" data-cf="q" placeholder="Soalan">${esc(q.q)}</textarea>
+     ${[0,1,2,3].map(j=>`<label class="row qopt2" style="gap:8px"><input type="radio" name="ca${i}" data-ca="${i}" value="${j}" ${q.a===j?'checked':''} style="width:auto" title="Jawapan betul"><b>${String.fromCharCode(65+j)}</b><input data-cq="${i}" data-cf="o${j}" value="${esc(q.o[j]||'')}" placeholder="Pilihan ${String.fromCharCode(65+j)}"></label>`).join('')}
+     <span class="hint">Tanda bulatan pada jawapan yang betul.</span></div>`).join('')}
+   <div class="row" style="gap:8px"><button class="btn" data-crs="addq">+ Tambah soalan</button><button class="btn" data-crs="defq">Guna semula soalan contoh</button></div>
+   <div class="row" style="gap:8px"><button class="btn pri" data-crs="save">Simpan</button><button class="btn" data-crs="cancel">Batal</button></div></div>`}
+function crsInput(T){const D=T.dataset;if(!S.ced)return false;
+  if(D.ce){S.ced[D.ce]=D.ce==='on'?T.checked:D.ce==='pass'?Math.max(0,Math.min(100,+T.value||0)):T.value;return true}
+  if(D.cei){const a=S.ced.items;T.checked?(a.includes(D.cei)||a.push(D.cei)):a.splice(a.indexOf(D.cei),1);return true}
+  if(D.ca!=null){S.ced.questions[+D.ca].a=+T.value;return true}
+  if(D.cq!=null){const q=S.ced.questions[+D.cq],f=D.cf;if(/^o\d$/.test(f))q.o[+f[1]]=T.value;else q[f]=T.value;return true}
+  return false}
+async function crsClick(D,t){const k=D.crs;
+  if(k==='pre'||k==='post'){S.quiz={kind:k,ans:{},res:null};render();scrollTo(0,0);return}
+  if(k==='qback'){S.quiz=null;render();scrollTo(0,0);return}
+  if(k==='submit'){const Q=crs().questions,z=S.quiz;if(Object.keys(z.ans).length<Q.length){toast('Sila jawab semua soalan ('+Object.keys(z.ans).length+'/'+Q.length+')');return}
+    const right=Q.filter((q,i)=>z.ans[i]===q.a).length,score=Math.round(right/Q.length*100);t.disabled=true;
+    try{await crsSave({kind:z.kind,score});z.res={score,right};render();scrollTo(0,0)}catch(e){t.disabled=false;toast('Tidak disimpan: '+e.message)}return}
+  if(k==='cert'){crsCertPDF();return}
+  if(k==='edit'){S.ced=JSON.parse(JSON.stringify(crs()));keepY();return}
+  if(k==='cancel'){S.ced=null;keepY();return}
+  if(k==='addq'){S.ced.questions.push({id:'q'+Date.now(),src:'',q:'',o:['','','',''],a:0});keepY();return}
+  if(k==='delq'){if(confirm('Padam soalan '+(+D.i+1)+'?')){S.ced.questions.splice(+D.i,1);keepY()}return}
+  if(k==='defq'){if(confirm('Ganti semua soalan dengan soalan contoh?')){S.ced.questions=crsDefault().questions;keepY()}return}
+  if(k==='save'){const e=S.ced,bad=e.questions.findIndex(q=>!q.q.trim()||q.o.filter(x=>String(x).trim()).length<2||!String(q.o[q.a]||'').trim());
+    if(!e.title.trim()){toast('Isi nama program');return}if(!e.items.length){toast('Pilih sekurang-kurangnya satu bahan');return}if(!e.questions.length){toast('Tambah sekurang-kurangnya satu soalan');return}
+    if(bad>=0){toast('Soalan '+(bad+1)+': isi soalan, sekurang-kurangnya 2 pilihan dan tanda jawapan betul');return}
+    e.questions.forEach(q=>q.o=q.o.map(x=>String(x).trim()));const v=JSON.stringify(e);
+    try{if(typeof api==='function')await api('saveSetting',{key:'TRAINING_COURSE',value:v});S.set=Object.assign({},S.set,{TRAINING_COURSE:v});S.ced=null;keepY();toast('Program latihan disimpan')}catch(er){toast('Tidak disimpan: '+er.message)}return}
+  if(k==='reset'){if(!confirm('Padam keputusan ujian dan sijil '+D.d+'? Peserta perlu mula semula.'))return;
+    try{if(typeof api==='function')await api('resetTrain',{akaun:D.d});S.train.rows=(S.train.rows||[]).filter(r=>r.akaun!==D.d);keepY();toast('Keputusan '+D.d+' dipadam')}catch(er){toast(er.message)}return}
+}
 function trainLiaison(){
+  if(S.quiz)return quizView();
   const mods=S.mods.filter(m=>m.jenis==='modul'),done=mods.filter(m=>m.selesai.includes(S.user.nama)).length;
   return `<div class="stack"><h2>Training & references</h2>
    <div class="panel row"><div class="meter"><i class="${done===mods.length?'done':''}" style="width:${pct(done,mods.length)}%"></i></div><span><b>${done}/${mods.length}</b> modules completed</span></div>
+   ${crsCard()}
    ${libView(false)}</div>`;
 }
 function trainCoord(){
@@ -1114,6 +1315,7 @@ function trainCoord(){
      <label class="f fwide"><span>Thumbnail image link (optional)</span><input id="ma_thumb" type="url" value="${esc(a.thumb||'')}" placeholder="Leave blank for an automatic cover"></label></div>
     <p class="hint" style="margin:0">Thumbnails are generated automatically from YouTube or Drive links. Make sure Drive files are shared with "Anyone with the link".</p>
     <div class="row"><button class="btn pri" data-act="maddsave">${a.id?'Save changes':'Save'}</button><button class="btn" data-act="maddclose">Cancel</button></div></div>`:''}
+   ${crsAdmin()}
    ${libView(true)}
 </div>`;
 }
@@ -2476,7 +2678,8 @@ document.addEventListener('error',e=>{if(e.target.tagName==='IMG'&&e.target.clos
 document.addEventListener('submit',e=>{if(e.target.id==='lform'){e.preventDefault();doLogin()}});
 document.addEventListener('click',e=>{
   {const pc=e.target.closest('[data-pclose]');if(pc||e.target.id==='player'){closePlayer();return}
-   const pd=e.target.closest('[data-pdone]');if(pd){const m=S.mods.find(x=>x.id===pd.dataset.pdone),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);$('#pdoneW').innerHTML=playerDoneBtn(m);keepY();return}
+   const pd=e.target.closest('[data-pdone]');if(pd){if(crsBlock(pd.dataset.pdone))return;const m=S.mods.find(x=>x.id===pd.dataset.pdone),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);$('#pdoneW').innerHTML=playerDoneBtn(m);keepY();return}
+   const vb=e.target.closest('[data-vpp]');if(vb){if(VP&&VP.p&&VP.p.getPlayerState){VP.p.getPlayerState()===1?VP.p.pauseVideo():VP.p.playVideo();setTimeout(vpUI,300)}return}
    const pl=e.target.closest('[data-play]');if(pl){openPlayer(pl.dataset.play);return}}
   const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel],[data-osel]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';render();return}
@@ -2532,7 +2735,8 @@ document.addEventListener('click',e=>{
   if(D.rm){const m=D.rm;S.rmonths=S.rmonths.includes(m)?S.rmonths.filter(x=>x!==m):[...S.rmonths,m].sort();S.mail=null;keepY();return}
   if(D.tk){S.tk=D.tk;S.tcat='Semua';keepY();return}
   if(D.tcat){S.tcat=D.tcat;keepY();return}
-  if(D.done){const m=S.mods.find(x=>x.id===D.done),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);keepY();return}
+  if(D.crs){crsClick(D,t);return}
+  if(D.done){if(crsBlock(D.done)||crsVidBlock(D.done))return;const m=S.mods.find(x=>x.id===D.done),i=m.selesai.indexOf(S.user.nama);i<0?m.selesai.push(S.user.nama):m.selesai.splice(i,1);api('toggleDone',{id:m.id}).catch(fail);keepY();return}
   if(D.medit){const m=S.mods.find(x=>x.id===D.medit);S.madd={id:m.id,jenis:m.jenis,tajuk:m.tajuk,kategori:m.kategori,url:m.url,penerangan:m.penerangan};S.mdel=null;render();setTimeout(()=>{const e=$('#maddp');e&&e.scrollIntoView({behavior:'smooth',block:'start'})},30);return}
   if(D.del1){S.mdel=D.del1;keepY();return}
   if(D.del0){S.mdel=null;keepY();return}
@@ -2633,6 +2837,7 @@ function readMail(){if(!S.mail)return;S.mail.to=$('#m_to').value;S.mail.cc=$('#m
 function readMadd(){if(!S.madd||!$('#ma_tajuk'))return;S.madd.tajuk=$('#ma_tajuk').value.trim();S.madd.kategori=$('#ma_kat').value.trim();S.madd.url=$('#ma_url').value.trim();S.madd.penerangan=$('#ma_desc').value.trim();if($('#ma_thumb'))S.madd.thumb=$('#ma_thumb').value.trim()}
 document.addEventListener('input',e=>{
   const T=e.target,k=T.dataset.in;
+  if(crsInput(T))return;
   if(k){(T.dataset.s==='sd'?S.sd:S.draft)[k]=T.value;if(T.dataset.s!=='sd'&&['nama','ic','mrn'].includes(k))mdroCheckDraft();
     T.classList.toggle('miss',(T.dataset.s==='sd'?reqAll(S.sd):reqFields(S.draft)).includes(k)&&T.value==='');
     liveCalc();return}
@@ -2642,6 +2847,8 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   const T=e.target,id=T.id;
+  if(T.dataset.qa!=null&&S.quiz){S.quiz.ans[T.dataset.qa]=+T.value;T.closest('.qcard').querySelectorAll('.qopt').forEach(l=>l.classList.toggle('on',l.contains(T)));const q=$('#qcount');if(q)q.textContent=Object.keys(S.quiz.ans).length+'/'+crs().questions.length+' dijawab';return}
+  if(crsInput(T))return;
   if(['lyS','lmS','lkS','lsS','lwS'].includes(id)){S[{lyS:'ly',lmS:'lm',lkS:'lk',lsS:'ls',lwS:'lw'}[id]]=T.value;S.lim=50;keepY();return}
   if(id==='otfile'||id==='otcam'||id==='otgal'){otRead(T.files[0]);T.value='';return}
   if(T.dataset.otf){const [i,k]=T.dataset.otf.split(':');S.ot.rows[+i][k]=T.value;T.classList.toggle('miss',!T.value&&['nama','ic','mrn'].includes(k));return}
