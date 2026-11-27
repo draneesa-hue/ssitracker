@@ -318,6 +318,9 @@ tr.past td{color:var(--muted,#6b7c70);font-size:.92em}
 .mdbox{background:#fff;border-radius:18px;border:3px solid #d93025;max-width:460px;width:100%;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .mdh{background:#d93025;color:#fff;font-weight:900;letter-spacing:.06em;border-radius:10px;padding:8px 12px;align-self:flex-start}
 .mdl{background:#fde8e6;color:#8a1c12;border-radius:10px;padding:10px 12px;line-height:1.6;font-size:.93rem}
+.fuitem{border:1px solid var(--line);border-left:5px solid var(--good);border-radius:10px;padding:8px 12px;background:var(--card)}.fuitem.bad{border-left-color:#d93025}
+.fuform{border:1px dashed var(--line);border-radius:12px;padding:12px 14px;gap:12px}.fuprint{border-top:1px solid var(--line);padding-top:12px;gap:8px}
+.chip.okc.on{background:var(--good);border-color:var(--good);color:#fff}.chip.badc.on{background:#d93025;border-color:#d93025;color:#fff}
 .lerr{margin:0;background:#fde8e6;color:#b0281c;border-radius:10px;padding:9px 12px;font-weight:700;font-size:.9rem}
 .lbtn{border:0;border-radius:16px;padding:16px;font-weight:800;font-size:1.15rem;color:#fff;background:linear-gradient(90deg,#1f8a35,#7cbf2e);box-shadow:0 10px 24px rgba(31,138,53,.35)}
 @media (max-width:560px){ .case{grid-template-columns:1fr} .case .tags{justify-content:flex-start} .bar{grid-template-columns:1fr 1.3fr 48px} }
@@ -807,8 +810,77 @@ function patientsView(){
    <div class="panel">${l.length?l.map(c=>status(c).key==='sah'&&!S.user.staff?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
 }
 
+// ================= FOLLOW-UP: where seen → wound findings → plan (+ discharge leaflet) =================
+const FU_LOC=['Wad','Klinik','ED (Kecemasan)','Telefon','Rekod perubatan'];
+const FU_OK='Luka bersih & kering';
+const FU_SIGN=['Sakit','Kemerahan','Bengkak','Lelehan / nanah','Demam','Jurang luka / luka terbuka'];
+const FU_PLAN=['Masih di wad','Discaj – temujanji klinik','Susulan telefon','Rujuk doktor – disyaki SSI','Tamat susulan'];
+const fuNeedsDate=p=>p==='Discaj – temujanji klinik'||p==='Susulan telefon';
+function fuNew(){return{t:TODAYISO,cara:'',dap:[],nota:'',plan:'',next:'',edit:false}}
+function fuSync(){const f=S.fu;if(!f)return;const g=id=>{const e=$(id);return e?e.value:null};
+  const t=g('#fu_t'),n=g('#fu_n'),x=g('#fu_x'),w=g('#lf_wad'),p=g('#lf_tel');if(t!=null)f.t=t;if(n!=null)f.nota=n;if(x!=null)f.next=x;
+  S.lf=S.lf||{};if(w!=null)S.lf.wad=w;if(p!=null)S.lf.tel=p}
+function fuEntry(c,s){const sign=(s.dap||[]).filter(x=>x!==FU_OK);
+  return `<div class="fuitem ${sign.length?'bad':''}"><div class="row between" style="gap:6px"><span><b>${fmtD(s.t)}</b> · ${esc(s.cara||'')} <span class="hint">· day ${dayDiff(c.tarikhOp,s.t)}</span></span>${s.by?`<span class="hint">${esc(s.by)}</span>`:''}</div>
+   ${s.dap&&s.dap.length?`<div class="chips" style="margin-top:4px">${s.dap.map(x=>`<span class="pill ${x===FU_OK?'g':'b'}">${esc(x)}</span>`).join('')}</div>`:''}
+   ${s.nota&&s.nota!=='—'?`<div class="hint" style="margin-top:4px">${esc(s.nota)}</div>`:''}
+   ${s.plan?`<div style="margin-top:4px;font-size:.9rem">📋 <b>Pelan:</b> ${esc(s.plan)}${s.next?' · <b>'+fmtD(s.next)+'</b>':''}</div>`:''}</div>`}
+function fupPanel(c){const f=S.fu||(S.fu=fuNew()),L=S.lf||(S.lf={wad:'',tel:''}),log=(c.susulan||[]).slice().reverse(),last=log[0];
+  const sign=f.dap.filter(x=>x!==FU_OK),chip=(on,attr,v,cls)=>`<button type="button" class="chip ${on?'on':''} ${cls||''}" ${attr}="${esc(v)}">${esc(v)}</button>`;
+  const due=last&&last.next&&last.next>=TODAYISO?last.next:'';
+  return `<div class="panel stack fup"><div class="row between" style="gap:8px"><h3 style="margin:0">Rekod susulan (follow-up)</h3>${due?`<span class="pill a">Susulan seterusnya: ${fmtD(due)}</span>`:''}</div>
+   ${log.length?`<div class="stack" style="gap:8px">${log.map(s=>fuEntry(c,s)).join('')}</div>`:'<p class="hint" style="margin:0">Belum ada susulan direkod.</p>'}
+   <div class="fuform stack"><b>➕ Tambah susulan</b>
+    <div class="f"><span class="flabel req">1 · Pesakit dilihat di mana?</span><div class="chips">${FU_LOC.map(x=>chip(f.cara===x,'data-fu',x)).join('')}</div>
+     <span class="hint">Tarikh: <b>${fmtD(f.t)}</b>${f.t===TODAYISO?' (hari ini)':''} ${f.edit?`<input type="date" id="fu_t" value="${esc(f.t)}" max="${TODAYISO}" style="max-width:180px;margin-left:6px">`:'<button type="button" class="lnk" data-act="fudate" style="font-size:.85rem">tukar tarikh</button>'}</span></div>
+    <div class="f"><span class="flabel req">2 · Dapatan luka</span><div class="chips">${chip(f.dap.includes(FU_OK),'data-fud',FU_OK,'okc')}${FU_SIGN.map(x=>chip(f.dap.includes(x),'data-fud',x,'badc')).join('')}</div>
+     ${sign.length?`<p class="flag b" style="margin:4px 0 0">⚠️ Tanda jangkitan dikesan. Jika doktor sahkan SSI, tukar <b>SSI status → Yes</b> di atas dan lengkapkan borang SSI.</p>`:''}
+     <input id="fu_n" value="${esc(f.nota)}" placeholder="Nota tambahan (pilihan) – cth. jahitan dibuang, dressing ditukar" style="margin-top:6px"></div>
+    <div class="f"><span class="flabel req">3 · Pelan</span><div class="chips">${FU_PLAN.map(x=>chip(f.plan===x,'data-fup',x)).join('')}</div>
+     ${fuNeedsDate(f.plan)?`<label class="f" style="max-width:240px;margin-top:6px"><span class="req">Tarikh susulan seterusnya</span><input type="date" id="fu_x" value="${esc(f.next)}" min="${TODAYISO}"></label>`:''}</div>
+    <div class="row"><button class="btn pri" data-act="addfu">Simpan susulan</button></div></div>
+   <div class="fuprint stack"><b>🖨 Risalah Discaj Surveilans SSI</b><span class="hint">Cetak dan beri kepada pesakit semasa discaj. Butiran pesakit diisi secara automatik.</span>
+    <div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1 1 160px;margin:0"><span>Wad</span><input id="lf_wad" value="${esc(L.wad||'')}" placeholder="cth. Wad 5"></label>
+     <label class="f" style="flex:1 1 180px;margin:0"><span>No. telefon untuk dihubungi</span><input id="lf_tel" value="${esc(L.tel!=null&&L.tel!==''?L.tel:((S.set||{}).REPORTER_PHONE||'013-7386497'))}" inputmode="tel"></label>
+     <button class="btn" data-act="leaflet">🖨 Print risalah</button></div></div></div>`}
+function fuClick(D,a){const f=S.fu;
+  if(D.fu){fuSync();f.cara=D.fu;keepY();return true}
+  if(D.fud){fuSync();const v=D.fud,i=f.dap.indexOf(v);if(i>=0)f.dap.splice(i,1);else{if(v===FU_OK)f.dap=[];else{const k=f.dap.indexOf(FU_OK);if(k>=0)f.dap.splice(k,1)}f.dap.push(v)}keepY();return true}
+  if(D.fup){fuSync();f.plan=D.fup;if(!fuNeedsDate(D.fup))f.next='';keepY();return true}
+  if(a==='fudate'){fuSync();f.edit=true;keepY();return true}
+  if(a==='leaflet'){fuSync();printLeaflet(S.cases.find(x=>x.id===S.cur));return true}
+  if(a==='addfu'){fuSync();const c=S.cases.find(x=>x.id===S.cur);
+    if(!f.cara){toast('Pilih di mana pesakit dilihat');return true}
+    if(!f.t||f.t>TODAYISO||(c.tarikhOp&&f.t<c.tarikhOp)){toast('Tarikh susulan tidak sah');return true}
+    if(!f.dap.length){toast('Pilih dapatan luka');return true}
+    if(!f.plan){toast('Pilih pelan');return true}
+    if(fuNeedsDate(f.plan)&&!f.next){toast('Isi tarikh susulan seterusnya');return true}
+    const sign=f.dap.filter(x=>x!==FU_OK);
+    c.susulan=c.susulan||[];c.susulan.push({t:f.t,cara:f.cara,dap:f.dap.slice(),nota:[f.dap.join(', '),f.nota.trim()].filter(Boolean).join(' · '),plan:f.plan,next:f.next||'',by:S.user.nama||''});
+    c.susulan.sort((x,y)=>x.t.localeCompare(y.t));if(typeof persist==='function')persist(c);S.fu=fuNew();keepY();toast(sign.length?'Susulan disimpan · tanda jangkitan direkod':'Susulan disimpan');return true}
+  return false}
+function printLeaflet(c){if(!c)return;const L=S.lf||{},tel=String(L.tel||(S.set||{}).REPORTER_PHONE||'013-7386497'),last=(c.susulan||[]).slice(-1)[0],nx=last&&last.next?last.next:'';
+  const row=(k,v)=>`<tr><td class="k">${k}</td><td>${esc(v||'')}</td></tr>`,sy=['Rasa sakit','Bengkak','Lelehan/ Berair/ Nanah','Demam','Jurang Luka/ Luka Terbuka'];
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Risalah Discaj Surveilans SSI</title><style>
+   @page{size:A4;margin:18mm}body{font-family:Arial,Helvetica,sans-serif;font-size:11.5pt;color:#000;max-width:170mm;margin:0 auto}
+   h1{text-align:center;font-size:13pt;margin:0 0 18px}p{line-height:1.5;text-align:justify}table{width:100%;border-collapse:collapse;margin:10px 0}td{border:1px solid #000;padding:6px 8px;vertical-align:middle}
+   td.k{width:32%}.hd td{background:#ddd;font-weight:normal}.box{display:inline-block;width:12px;height:12px;border:1px solid #000;vertical-align:middle;margin-right:6px}
+   .sign{margin-top:36px}.foot{text-align:right;font-size:8.5pt;font-style:italic;font-weight:bold;margin-top:30px}.nx{border:2px solid #000;padding:8px 10px;margin:12px 0;font-weight:bold}
+  </style></head><body>
+   <h1>RISALAH DISCAJ SURVELAN SSI</h1>
+   <p>Jika anda mengalami <b>mana-mana gejala berikut</b>, sila pergi ke Jabatan Kecemasan atau Klinik (KK/ Swasta) yang terdekat*.</p>
+   <table>${row('Hospital','Hospital Tengku Permaisuri Norashikin, Kajang')}${row('Nama Pesakit',c.nama)}${row('Wad',L.wad)}${row('Nama Pembedahan',(c.prosedur||c.kategori||'')+(c.tarikhOp?' ('+fmtD(c.tarikhOp)+')':''))}${row('Diagnosis',c.diagnosis)}
+    <tr class="hd"><td colspan="2">Tanda dan gejala</td></tr>
+    ${sy.map(s=>`<tr><td>&bull;&nbsp; ${s}</td><td><span style="display:inline-block;width:45%"><span class="box"></span>Ya</span><span class="box"></span>Tidak</td></tr>`).join('')}</table>
+   ${nx?`<div class="nx">Tarikh temujanji / susulan seterusnya: ${fmtD(nx)}</div>`:''}
+   <p>* Bagi doktor di Jabatan Kecemasan/ Klinik Kesihatan/ Klinik Swasta, sekiranya <u>SSI dikesan</u>, sila <u>rujuk pesakit ini kembali kepada kami</u> atau <u>hubungi kami</u> di nombor ini: <b>${esc(tel)}</b>.</p>
+   <div class="sign">Yang benar,<br><br><br>.......................................................<br>(&nbsp;${'&nbsp;'.repeat(60)})<br>*Cop rasmi dan tarikh.</div>
+   <div class="foot">SSI CAU MOH 2023</div></body></html>`;
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(fr);
+  const d=fr.contentWindow.document;d.open();d.write(html);d.close();
+  setTimeout(()=>{try{fr.contentWindow.focus();fr.contentWindow.print()}catch(e){toast('Tidak dapat mencetak: '+e.message)}setTimeout(()=>fr.remove(),60000)},300)}
 // ================= BORANG SSI (paparan pesakit) =================
-function openCase(id){const c=S.cases.find(x=>x.id===id);S.cur=id;S.sd=JSON.parse(JSON.stringify(c));S.copen=c.ssi==='Ya'?SECTIONS.length:null;S.formv=false;S.fu={t:TODAYISO,cara:'Phone',nota:''};S.closeAsk=false;S.delAsk=false;render();scrollTo(0,0);if(mdroMap()[id])mdroPop(c.nama,c.tarikhOp,mdroMap()[id])}
+function openCase(id){const c=S.cases.find(x=>x.id===id);S.cur=id;S.sd=JSON.parse(JSON.stringify(c));S.copen=c.ssi==='Ya'?SECTIONS.length:null;S.formv=false;S.fu=fuNew();S.closeAsk=false;S.delAsk=false;render();scrollTo(0,0);if(mdroMap()[id])mdroPop(c.nama,c.tarikhOp,mdroMap()[id])}
 function caseView(){
   if(S.formv)return formView();
   const c=S.cases.find(x=>x.id===S.cur),sd=S.sd,st=status(c),d=daysPost(c),p=survDays(c),cp=complete(c),g=abxGap(c);
@@ -837,12 +909,7 @@ function caseView(){
     ${isSSI?`<p class="flag b" style="margin:0">Patient confirmed with SSI. Complete the SSI Data Collection Form below. Surgery data is pre-filled from the entry; check and complete the red sections.</p>
      <div class="accs">${accHTML(ALLSEC,sd,'sd','copen','csec')}</div>`:''}
     <div class="row"><button class="btn pri" data-act="savessi">${isSSI?'Save SSI form':'Save'}</button></div></div>
-   <div class="panel stack"><h3>Follow-up record</h3>
-    ${c.susulan&&c.susulan.length?`<div class="log">${c.susulan.map(s=>`<div><b>${fmtD(s.t)}</b> · ${esc(s.cara)} <span class="hint">day ${dayDiff(c.tarikhOp,s.t)}</span><br><span class="hint">${esc(s.nota)}</span></div>`).join('')}</div>`:'<p class="hint" style="margin:0">No follow-up recorded yet.</p>'}
-    <div class="grid"><label class="f"><span>Follow-up date</span><input type="date" id="fu_t" value="${esc(S.fu.t)}"></label>
-     <div class="f fwide"><span class="flabel">Method</span><div class="chips">${['Phone','Clinic','Ward','Medical record'].map(x=>`<button type="button" class="chip ${S.fu.cara===x?'on':''}" data-fu="${x}">${x}</button>`).join('')}</div></div>
-     <label class="f fwide"><span>Notes</span><input id="fu_n" value="${esc(S.fu.nota)}" placeholder="e.g. Wound clean, no discharge"></label></div>
-    <div class="row"><button class="btn" data-act="addfu">Add follow-up</button></div></div>
+   ${fupPanel(c)}
    ${canClose&&!S.user.staff?`<div class="panel remind stack"><h3>Surveillance period ended</h3><p class="hint" style="margin:0">Patient has passed ${p} days. Tick whether the patient has SSI or not.</p>
     <div class="pbtn"><button class="btn good" data-conf="${c.id}" data-v="tiada">✓ No SSI</button><button class="btn danger" data-conf="${c.id}" data-v="ada">SSI present</button></div></div>`:''}
    <div class="panel row between" ${S.user.staff?'hidden':''}><span class="hint">Entered by mistake or duplicate? Deleting removes this patient from the app and reports.</span>
@@ -2901,7 +2968,7 @@ document.addEventListener('click',e=>{
     if(D.v==='tiada'){Object.assign(c,{tutup:true,ssi:'Tiada'});persist(c);if(S.cur===c.id)S.sd=JSON.parse(JSON.stringify(c));keepY();toast(c.nama+': confirmed no SSI')}
     else{openCase(c.id);S.sd.ssi='Ya';S.copen=SECTIONS.length;render();toast('Complete the SSI form, then tap Save')}
     return}
-  if(D.fu){S.fu.cara=D.fu;S.fu.t=$('#fu_t').value;S.fu.nota=$('#fu_n').value;keepY();return}
+  if(S.cur&&S.fu&&fuClick(D,D.act))return;
   if(D.pf){S.pf=D.pf;render();return}
   if(D.rf!==undefined){S.rf=D.rf;keepY();return}
   if(D.ai!==undefined){S.ai=D.ai==='1';keepY();return}
@@ -2975,8 +3042,6 @@ document.addEventListener('click',e=>{
   if(a==='formclose'){S.formv=false;render();scrollTo(0,0)}
   if(a==='editcase'){S.draft=JSON.parse(JSON.stringify(S.cases.find(x=>x.id===S.cur)));S.open=null;S.cur=null;S.tab='entry';render();scrollTo(0,0)}
   if(a==='savessi')saveSSI();
-  if(a==='addfu'){const c=S.cases.find(x=>x.id===S.cur),tt=$('#fu_t').value,nn=$('#fu_n').value.trim();if(!tt){toast('Choose a follow-up date');return}
-    c.susulan=c.susulan||[];c.susulan.push({t:tt,cara:S.fu.cara,nota:nn||'—'});c.susulan.sort((x,y)=>x.t.localeCompare(y.t));persist(c);S.fu={t:TODAYISO,cara:'Phone',nota:''};keepY();toast('Follow-up recorded')}
   if(a==='cpwsave'){const v=$('#cpw').value;if(v.length<4){toast('Password must be at least 4 characters');return}api('changeCoordPw',{pw:v}).then(()=>{$('#cpw').value='';toast('Coordinator password changed')}).catch(fail)}
   if(a==='alopen'){S.al={};keepY()}
   if(a==='alx'){S.al=null;keepY()}
