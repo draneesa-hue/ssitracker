@@ -766,7 +766,7 @@ function liaisonDash(){
   const rows=PROC[S.user.jabatan].map(p=>{const l=list.filter(c=>c.kategori===p);return{p,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
-   ${S.user.staff?'':mdroCard(mine)+liaCard()+crsRemind()}
+   ${S.user.staff?'':mdroCard(mine)+autoSSICard(mine)+liaCard()+crsRemind()}
    ${pend.length&&!S.user.staff?`<div class="panel remind ${S.remOpen!==false?'open':''}"><button type="button" class="remh" data-act="remtog" aria-expanded="${S.remOpen!==false}">
      <span class="remn">${pend.length}</span><span><b>🔔 Patient${pend.length>1?'s':''} to confirm</b><br><span class="hint">Surveillance ended · tap to ${S.remOpen!==false?'hide':'confirm'}</span></span>${CHEV}</button>
     ${S.remOpen!==false?`<div class="remlist">${pend.map(pendRow).join('')}</div>`:''}</div>`:''}
@@ -939,7 +939,7 @@ function caseView(){
      <div><span>Diagnosis</span><b>${esc(c.diagnosis||'—')}</b></div></div></div>`}
    <div class="panel stack"><h3>SSI status</h3>
     <div class="grid">${fieldHTML(SSI_CHIP,sd,'sd')}</div>
-    ${isSSI?`<p class="flag b" style="margin:0">Patient confirmed with SSI. Complete the SSI Data Collection Form below. Surgery data is pre-filled from the entry; check and complete the red sections.</p>
+    ${isSSI&&c.ssiAuto?`<p class="flag b" style="margin:0">🧫 <b>Didaftar automatik sebagai SSI (lab confirmed)</b> daripada masterlist MDRO – UKI tandakan “SSI own facility”. Organisma dan tarikh sudah diisi; pilih <b>Site of SSI</b> dan <b>readmission</b>, kemudian Save SSI form.</p>`:''}${isSSI?`<p class="flag b" style="margin:0">Patient confirmed with SSI. Complete the SSI Data Collection Form below. Surgery data is pre-filled from the entry; check and complete the red sections.</p>
      <div class="accs">${accHTML(ALLSEC,sd,'sd','copen','csec')}</div>`:''}
     <div class="row"><button class="btn pri" data-act="savessi">${isSSI?'Save SSI form':'Save'}</button></div></div>
    ${fupPanel(c)}
@@ -1134,6 +1134,10 @@ function allRes(){
 // ================= MDRO SURVEILLANCE LINK (client) =================
 const mdroMap=()=>S.mdro&&!S.mdro.error?S.mdro:{};
 const mdroKeyOf=m=>m.o+'|'+m.d;
+// Patients registered as SSI automatically (UKI marked the masterlist row "SSI own facility"): the liaison only completes site of SSI and readmission
+function autoSSICard(cases){const l=cases.filter(c=>c.ssiAuto&&c.ssi==='Ya'&&(!c.tapak||!c.readmit));if(!l.length)return '';
+  return `<div class="panel remind open"><div class="remh" style="cursor:default"><span class="remn" style="background:#d93025">${l.length}</span><span><b>🧫 SSI didaftar automatik – lengkapkan tapak SSI</b><br><span class="hint">UKI tandakan “SSI own facility” dalam masterlist MDRO. Tidak perlu sahkan SSI; pilih Site of SSI dan readmission sahaja.</span></span></div>
+   <div class="remlist">${l.map(c=>`<div class="pend"><button class="pinfo" data-open="${c.id}"><b>${esc(c.nama)}</b><span class="hint">${esc(c.kategori||'')} · op ${fmtD(c.tarikhOp)} · <b style="color:#d93025">${esc(c.organisma||'')}</b> · ${fmtD(c.tarikhLab||c.tarikhSSI)}</span></button><div class="pbtn"><button class="btn sm danger" data-open="${c.id}">Lengkapkan</button></div></div>`).join('')}</div></div>`}
 function mdroPending(cases){
   const M=mdroMap(),out=[];
   cases.forEach(c=>{const l=M[c.id];if(!l||c.ssi==='Ya'||!c.tarikhOp)return;const no=String(c.mdroNo||'').split(';');
@@ -2905,7 +2909,7 @@ function otPanel(){
     ${O.rows.length?`<p class="hint" style="margin:0">Check every row before adding. Untick rows you do not want, correct any wrong text.</p>
     <div class="scroll"><table class="ot"><thead><tr><th>Add</th><th>Name</th><th>IC No.</th><th>MRN</th><th>Date of surgery</th><th>Surgery performed</th></tr></thead><tbody>
     ${O.rows.map((r,i)=>`<tr class="${r.dup?'dupr':''}"><td><input type="checkbox" data-otc="${i}" ${r.on?'checked':''}>${r.dup?`<br><span class="hint" style="color:var(--bad)">already in app${r.dupOf?': '+esc(r.dupOf):''}</span>`:''}</td>
-     <td><input data-otf="${i}:nama" class="${r.nama?'':'miss'}" placeholder="${r.nama?'':'Not read – fill in'}" value="${esc(r.nama)}"></td><td><input data-otf="${i}:ic" class="${r.ic?'':'miss'}" placeholder="${r.ic?'':'Not read – fill in'}" value="${esc(r.ic)}"></td><td><input data-otf="${i}:mrn" class="${r.mrn?'':'miss'}" placeholder="${r.mrn?'':'Not read – fill in'}" value="${esc(r.mrn)}"></td>
+     <td><input data-otf="${i}:nama" class="${r.nama?'':'miss'}" placeholder="${r.nama?'':'Not read – fill in'}" value="${esc(r.nama)}">${r.mdro&&r.mdro.length?`<div style="margin-top:4px"><span class="pill mdro">MDRO: ${esc(r.mdro.map(m=>m.o).join(', '))}</span></div>`:''}</td><td><input data-otf="${i}:ic" class="${r.ic?'':'miss'}" placeholder="${r.ic?'':'Not read – fill in'}" value="${esc(r.ic)}"></td><td><input data-otf="${i}:mrn" class="${r.mrn?'':'miss'}" placeholder="${r.mrn?'':'Not read – fill in'}" value="${esc(r.mrn)}"></td>
      <td><input type="date" data-otf="${i}:tarikhOp" value="${esc(r.tarikhOp)}"></td>
      <td><select data-otf="${i}:kategori">${(PROC[jab]||[]).map(p=>`<option ${p===r.kategori?'selected':''}>${esc(p)}</option>`).join('')}</select><div class="hint">${esc(r.prosedur||'')}</div></td></tr>`).join('')}</tbody></table></div>
     <div class="row"><button class="btn pri" data-act="otadd">Add ${O.rows.filter(r=>r.on).length} patients</button><button class="btn" data-act="otclear">Clear</button></div>
@@ -2920,7 +2924,17 @@ function otApply(text){
   const R=parseOT(text,jab);if(S.ot)S.ot.note=note;
   R.rows.forEach((r,i)=>{r.jabatan=jab;const ex=possibleDup(r)||R.rows.slice(0,i).find(y=>y.tarikhOp===r.tarikhOp&&((r.ic&&y.ic&&nKey(r.ic)===nKey(y.ic))||name2(y.nama)===name2(r.nama)));r.dup=!!ex;r.dupOf=ex?ex.nama:'';r.on=!r.dup});
   S.ot=Object.assign(S.ot||{},{text,rows:R.rows,skipped:R.skipped,busy:false,err:'',showPaste:!R.rows.length});keepY();
+  otMdro();
 }
+// OT list upload: check every patient found against the MDRO masterlist and alert in one pop-up
+async function otMdro(){const rows=(S.ot&&S.ot.rows)||[];if(!rows.length||typeof api!=='function')return;
+  await Promise.all(rows.map(async r=>{if(!r.ic&&!r.mrn&&!(r.nama&&r.nama.length>5))return;try{const x=await api('mdroLookup',{nama:r.nama||'',ic:r.ic||'',mrn:r.mrn||''});r.mdro=x.hits||[]}catch(e){}}));
+  if(!S.ot||S.ot.rows!==rows)return;keepY();otMdroPop(rows)}
+function otMdroPop(rows){const h=rows.filter(r=>r.mdro&&r.mdro.length);if(!h.length||$('#mdpop'))return;const d=document.createElement('div');d.id='mdpop';d.className='mdpop';
+  d.innerHTML=`<div class="mdbox" role="alertdialog" aria-modal="true"><div class="mdh">⚠️ ALERT MDRO</div><b style="font-size:1.05rem">${h.length} pesakit dalam OT list ini ada sampel MDRO</b>
+   <div class="mdl">${h.map(r=>`<b>${esc(r.nama||r.mrn)}</b><br>${mdroList_(r.tarikhOp,r.mdro)}`).join('<hr style="border:0;border-top:1px solid #f3b6b0;margin:6px 0">')}</div>
+   <p class="hint" style="margin:0">Pesakit ini ditanda <b style="color:#d93025">MDRO</b> dalam senarai di bawah. Amalkan contact precaution.</p>
+   <button type="button" class="btn danger" data-mdpop="1">Faham</button></div>`;document.body.appendChild(d)}
 function ocrErr(m,isPdf){
   if(/OCR_SETUP/.test(m))return 'Photo/PDF reading is not switched on in the server yet (Drive API service). Coordinator: open Apps Script → Services (+) → Drive API → v3 → Add, then Deploy → New version.';
   if(/OCR_AUTH/.test(m))return 'The server has no permission to read photos yet. Coordinator: in Apps Script select the function testOCR → Run → Allow, then Deploy → New version.';
