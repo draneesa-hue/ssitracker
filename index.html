@@ -301,6 +301,7 @@ a.btn.pri{color:var(--accent-ink)}
 .pwreq{border-left:6px solid var(--warn)}.pwrow{gap:8px;border-top:1px solid var(--line);padding-top:8px;flex-wrap:wrap}
 .lhist{flex-basis:100%;order:9;font-size:.9rem}.lhist summary{cursor:pointer;color:var(--good);font-weight:700}.lhist div{padding:3px 0}
 tr.past td{color:var(--muted,#6b7c70);font-size:.92em}
+html body{background:#d6ecca}
 .ukilink{position:relative;z-index:1;margin-top:14px;border:0;background:rgba(255,255,255,.92);color:#0f3d1c;font-weight:800;font-size:.92rem;padding:9px 18px;border-radius:999px;box-shadow:0 4px 14px rgba(15,61,28,.15);cursor:pointer}
 .lcard.notice{max-width:520px;padding:0;overflow:hidden;gap:0}
 .nhead{display:flex;gap:12px;align-items:center;background:#0f3d1c;color:#fff;padding:18px 20px;border-bottom:4px solid #f0b429;flex-wrap:wrap}
@@ -321,6 +322,19 @@ tr.past td{color:var(--muted,#6b7c70);font-size:.92em}
 .fuitem{border:1px solid var(--line);border-left:5px solid var(--good);border-radius:10px;padding:8px 12px;background:var(--card)}.fuitem.bad{border-left-color:#d93025}
 .fuform{border:1px dashed var(--line);border-radius:12px;padding:12px 14px;gap:12px}.fuprint{border-top:1px solid var(--line);padding-top:12px;gap:8px}
 .chip.okc.on{background:var(--good);border-color:var(--good);color:#fff}.chip.badc.on{background:#d93025;border-color:#d93025;color:#fff}
+.splash{justify-content:center}.lg.lg{background:radial-gradient(ellipse at 50% 115%,#a6d98f 0%,#3f9a4e 28%,#14532d 52%,#0b2a3a 78%,#06172b 100%)}
+.sst{position:absolute;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.9);animation:tw 3s ease-in-out infinite;pointer-events:none}
+.shoot{position:absolute;width:120px;height:2px;background:linear-gradient(90deg,rgba(255,255,255,.95),transparent);border-radius:2px;transform:rotate(-35deg);opacity:0;animation:shoot 9s linear infinite;pointer-events:none}
+@keyframes shoot{0%{opacity:0;translate:0 0}3%{opacity:1}12%{opacity:0;translate:-260px 180px}100%{opacity:0;translate:-260px 180px}}
+@media (prefers-reduced-motion:reduce){.sst,.shoot,.splogo{animation:none}}.spl{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;animation:spin .7s ease both}
+@keyframes spin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.splogo{width:132px;height:132px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 12px 40px rgba(0,0,0,.25);margin-bottom:10px;animation:spl 2.6s ease-in-out infinite}
+.splogo img{width:112px;height:112px;object-fit:contain;border-radius:50%}@keyframes spl{50%{transform:translateY(-6px)}}
+.spl h1{color:#fff;font-size:2.4rem;margin:0;letter-spacing:.01em;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.spsub{color:#f0d675;font-weight:800;margin:0;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem}
+.spsub{margin-bottom:18px}.sphosp{background:rgba(255,255,255,.88);border-radius:12px;padding:8px 16px;color:#111;font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;font-size:.76rem;font-weight:700;letter-spacing:.02em;margin:16px 0 0;line-height:1.7}.sphosp span{font-weight:500;color:#333}
+.spbtn{border:0;background:#f0b429;color:#0f3d1c;font-weight:900;font-size:1.1rem;padding:14px 48px;border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.25);cursor:pointer;transition:transform .15s}.spbtn:hover{transform:translateY(-2px)}
+.spfoot{color:rgba(255,255,255,.8);font-size:.72rem;margin-top:8px;font-weight:600}
 .lerr{margin:0;background:#fde8e6;color:#b0281c;border-radius:10px;padding:9px 12px;font-weight:700;font-size:.9rem}
 .lbtn{border:0;border-radius:16px;padding:16px;font-weight:800;font-size:1.15rem;color:#fff;background:linear-gradient(90deg,#1f8a35,#7cbf2e);box-shadow:0 10px 24px rgba(31,138,53,.35)}
 @media (max-width:560px){ .case{grid-template-columns:1fr} .case .tags{justify-content:flex-start} .bar{grid-template-columns:1fr 1.3fr 48px} }
@@ -394,6 +408,8 @@ const PROC={
 const BULAN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const YN=['Ya','Tidak']; const SKIN=['Alcohol base','Aqueous base','Povidone','Chlorhexidine','Unknown'];
 
+// Surgeon name & MO in-charge of OT: compulsory for new entries and for surgeries from 1 Dec 2026 (older records stay complete)
+const NEWREQ=c=>!c.id||(c.tarikhOp||'')>='2026-12-01';
 // Borang Entry Baru — ikut SSI Data Collection Form (KKM)
 const SECTIONS=[
  {t:'PATIENT DETAIL',f:[
@@ -405,8 +421,6 @@ const SECTIONS=[
   {k:'ic',l:'ID No. / Passport',t:'text'},
   {k:'mrn',l:'MRN No.',t:'text',req:1,ph:'HTPNK…'},
   {k:'telefon',l:'Contact No.',t:'text'},
-  {k:'drNama',l:'Doctor in-charge',t:'text',ph:'e.g. Dr Ahmad'},
-  {k:'drTel',l:"Doctor's phone No.",t:'text',ph:'01x-xxxxxxx'},
   {k:'tarikhOp',l:'Date of surgery',t:'date',req:1},
   {k:'masaMula',l:'Surgery start time',t:'time',req:1},
   {k:'masaTamat',l:'Surgery end time',t:'time',req:1},
@@ -415,7 +429,9 @@ const SECTIONS=[
   {k:'prosedur',l:'Name of procedure',t:'text',req:1,ph:'e.g. ELLSCS + BTL'},
   {k:'implan',l:'Implant used',t:'chip',o:YN,req:1},
   {k:'jenisLuka',l:'Type of surgery',t:'chip',o:['Clean','Clean contaminated','Contaminated'],req:1},
-  {k:'pakar',l:'Primary surgeon',t:'chip',o:['Specialist > 5 years','Specialist < 5 years','MO'],req:1}
+  {k:'pakar',l:'Primary surgeon',t:'chip',o:['Specialist > 5 years','Specialist < 5 years','MO'],req:1},
+  {k:'surgeon',l:'Name of primary surgeon',t:'text',req:NEWREQ,ph:'e.g. Dr Ahmad Bin Ali'},
+  {k:'moOT',l:'MO in-charge of OT (that day)',t:'text',req:NEWREQ,ns:1,ph:'e.g. Dr Siti Binti Omar'}
  ]},
  {t:'PRE-OPERATIVE',f:[
   {k:'diagnosis',l:'Diagnosis',t:'text',req:1},
@@ -532,12 +548,21 @@ const TL={back:'Back',tc:'Coordinator Panel',tl:'Liaison Panel',unit:'Infection 
 const PW={coord:'ssi123'};
 const EYE=`<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const STARS=[[10,9],[57,9],[80,14],[33,16],[22,30],[70,34],[90,45],[8,58],[56,90],[12,82]].map(([x,y],i)=>`<i class="star" style="left:${x}%;top:${y}%;animation-delay:${i*.4}s"></i>`).join('');
+// Splash screen – shown when the app opens, before the confidentiality notice and login
+const SPSTARS=(()=>{let h='',r=7;const R=()=>(r=(r*9301+49297)%233280)/233280;for(let i=0;i<90;i++){const z=R()<.12?3:R()<.45?2:1;h+=`<i class="sst" style="left:${(R()*100).toFixed(1)}%;top:${(R()*78).toFixed(1)}%;width:${z}px;height:${z}px;animation-delay:${(R()*4).toFixed(2)}s;animation-duration:${(2+R()*3).toFixed(1)}s"></i>`}return h+'<i class="shoot" style="top:12%;left:70%"></i><i class="shoot" style="top:30%;left:20%;animation-delay:4.5s"></i>'})();
+function splashView(){return `<div class="lg splash">${SPSTARS}<div class="spl">
+  <div class="splogo"><img src="${LOGO}" alt="Logo SSI Tracker HTPN"></div>
+  <h1>SSI Tracker</h1><p class="spsub">Surgical Site Infection Surveillance</p>
+  <button type="button" class="spbtn" data-act="enter">Masuk <span aria-hidden="true">→</span></button>
+  <p class="sphosp">© 2026 · Dr. Aneesa Tharek<br><span>IPC Team · Hospital Tengku Permaisuri Norashikin</span></p>
+  <p class="spfoot">Untuk kegunaan kakitangan HTPN yang diberi kuasa sahaja</p></div></div>`}
 function loginView(){
+  if(!S.entered)return splashView();
   if(!agreed())return noticeView();
   const L=TL,c=S.lrole==='coord',st=S.lrole==='staff',demo=typeof api!=='function',hub=typeof IPC_HUB_URL!=='undefined'&&IPC_HUB_URL;
   if(S.fp&&S.lrole==='liaison')return fpView();
   const rem=typeof remGet==='function';
-  return `<div class="lg">${STARS}
+  return `<div class="lg">${SPSTARS}
    <form class="lcard" id="lform" novalidate>
     ${c?'<button type="button" class="back" data-lrole="liaison">← Log masuk jabatan</button>':hub?`<a class="back" href="${esc(hub)}">← ${L.back}</a>`:''}
     <div class="logo"><img src="${LOGO}" alt="Logo SSI Tracker HTPN"></div>
@@ -545,7 +570,7 @@ function loginView(){
     ${c?'':`<div class="seg"><button type="button" data-lrole="liaison" class="${st?'':'on'}">🏥 Liaison</button><button type="button" data-lrole="staff" class="${st?'on':''}">👩‍⚕️ Staf</button></div>
      <p class="lhint" style="margin:-4px 0 0">${st?'Staf jabatan: daftar kes baharu, cari pesakit dan laporkan SSI.':'Liaison yang dilantik jabatan: susulan pesakit, pengesahan SSI dan training.'}</p>
      <label class="lf"><span>Jabatan</span><select id="ljab">${JAB.map(j=>`<option ${S.ljab===j?'selected':''}>${esc(j)}</option>`).join('')}</select></label>
-     ${st?`<label class="lf"><span>Nama anda</span><input id="lnama" value="${esc(S.lnama||'')}" placeholder="Nama penuh" autocomplete="name" style="text-transform:uppercase"></label>`:''}`}
+`}
     <label class="lf"><span>${st?'Kata laluan staf jabatan':'Kata laluan'}</span><div class="pw"><input type="text" name="username" autocomplete="username" value="${esc(c?'UKI coordinator':(st?'Staff ':'Liaison ')+S.ljab)}" readonly tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none"><input id="lpw" name="password" type="password" placeholder="Masukkan kata laluan" autocomplete="current-password" value="${esc(rem?(remGet()||{}).pw||'':'')}"><button type="button" class="eye" data-act="eye" aria-label="Show password">${EYE}</button></div></label>
     ${rem?`<label class="row" style="gap:8px;align-items:center;margin:-2px 0 2px;font-size:.88rem"><input type="checkbox" id="lrem" style="width:auto" ${remGet()?'checked':''}><span>Ingat kata laluan pada peranti ini</span></label>`:''}
     <p class="lhint">Huruf besar dan kecil dibezakan.${rem?' Jangan tanda “Ingat” pada komputer kongsi.':''}</p>
@@ -559,7 +584,7 @@ function loginView(){
 // Confidentiality notice – must be accepted once per browser session before the login screen
 function agreed(){if(S.agree)return true;try{return sessionStorage.getItem('ssiAgree')==='1'}catch(e){return false}}
 function noticeView(){const en=S.nlang==='en',L=(b,e)=>en?e:b;
-  return `<div class="lg">${STARS}<div class="lcard notice">
+  return `<div class="lg">${SPSTARS}<div class="lcard notice">
    <div class="nhead"><span class="nico">⚠️</span><div style="flex:1;min-width:0"><small>SSI TRACKER · HTPN</small><h2>${L('NOTIS KERAHSIAAN & SYARAT PENGGUNAAN','CONFIDENTIALITY NOTICE & TERMS OF USE')}</h2></div>
     <div class="nlang"><button type="button" data-act="nlang" data-l="bm" class="${en?'':'on'}">BM</button><button type="button" data-act="nlang" data-l="en" class="${en?'on':''}">EN</button></div></div>
    <div class="nbody">
@@ -586,9 +611,8 @@ function remGet(){try{const v=localStorage.getItem(remKey());return v?JSON.parse
 function remSet(on,pw){try{if(on)localStorage.setItem(remKey(),btoa(unescape(encodeURIComponent(JSON.stringify({pw})))));else localStorage.removeItem(remKey())}catch(e){}}
 async function doLogin(){
   if(S.lbusy)return;
-  if(S.lrole==='staff'){S.lnama=(($('#lnama')||{}).value||'').trim().replace(/\s+/g,' ').toUpperCase();if(S.lnama.length<3){S.lerr='Isi nama anda';render();return}}
   const pw=$('#lpw').value,rem=!!($('#lrem')&&$('#lrem').checked);S.lbusy=true;S.lerr='';render();
-  try{const r=await api('login',{role:S.lrole,jabatan:S.ljab,password:pw,nama:S.lnama});remSet(rem,pw);S.token=r.token;store(r.token);applyData(r);S.lbusy=false;render();scrollTo(0,0)}
+  try{const r=await api('login',{role:S.lrole,jabatan:S.ljab,password:pw});remSet(rem,pw);S.token=r.token;store(r.token);applyData(r);S.lbusy=false;render();scrollTo(0,0)}
   catch(e){S.lbusy=false;S.lerr=e.message;render();const p=$('#lpw');p&&p.focus()}
 }
 function applyData(r){
@@ -694,7 +718,9 @@ function fieldHTML(f,c,scope){
     return `<div class="f fwide"><span class="flabel ${rq} ${miss?'miss-l':''}">${f.l}</span><div class="chips">${o.length?o.map(x=>`<button type="button" class="chip ${c[f.k]===x?'on':''}" data-s="${scope}" data-k="${f.k}" data-v="${esc(x)}">${esc(L_(x))}</button>`).join(''):'<span class="hint">No options</span>'}</div></div>`;
   }
   const type={text:'text',num:'number',date:'date',time:'time'}[f.t];
-  return `<label class="f ${f.wide?'fwide':''}"><span class="${rq}">${f.l}</span><input type="${type}" class="${miss?'miss':''}" id="${scope}_${f.k}" data-s="${scope}" data-in="${f.k}" value="${esc(c[f.k])}" ${f.ph?`placeholder="${f.ph}"`:''} ${f.step?`step="${f.step}"`:''} ${f.t==='num'?'inputmode="decimal"':''}></label>`;
+  const inp=`<input type="${type}" class="${miss?'miss':''}" id="${scope}_${f.k}" data-s="${scope}" data-in="${f.k}" value="${esc(c[f.k])}" ${f.ph?`placeholder="${f.ph}"`:''} ${f.step?`step="${f.step}"`:''} ${f.t==='num'?'inputmode="decimal"':''}>`;
+  if(f.ns)return `<div class="f ${f.wide?'fwide':''}"><span class="flabel ${rq} ${miss?'miss-l':''}">${f.l}</span><div class="row" style="gap:8px;flex-wrap:nowrap">${inp.replace('<input','<input style="flex:1;min-width:0"')}<button type="button" class="chip ${c[f.k]==='Not sure'?'on':''}" data-s="${scope}" data-k="${f.k}" data-v="Not sure" style="flex:none">Not sure</button></div></div>`;
+  return `<label class="f ${f.wide?'fwide':''}"><span class="${rq}">${f.l}</span>${inp}</label>`;
 }
 function caseRow(c,showJab){
   const cp=complete(c),st=status(c);
@@ -735,8 +761,8 @@ function monthSel(id,cur,all){return `<select class="inline" id="${id}">${all?`<
 // ================= LIAISON =================
 function liaisonDash(){
   Object.keys(CH).forEach(k=>delete CH[k]);
-  const mine=myCases(),base=mine.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),list=base.filter(rfOk),ML=pLabel(S.dy,S.dm),MS=pShort(S.dy,S.dm);
-  const ssiM=list.filter(c=>c.ssi==='Ya'),aktif=mine.filter(c=>status(c).key==='aktif').length,sah=mine.filter(c=>status(c).key==='sah').length;
+  const mine=myCases(),base=mine.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)&&fsOk(c)),list=base.filter(rfOk),fsm=mine.filter(fsOk),ML=pLabel(S.dy,S.dm),MS=pShort(S.dy,S.dm);
+  const ssiM=list.filter(c=>c.ssi==='Ya'),aktif=fsm.filter(c=>status(c).key==='aktif').length,sah=fsm.filter(c=>status(c).key==='sah').length;
   const rows=PROC[S.user.jabatan].map(p=>{const l=list.filter(c=>c.kategori===p);return{p,n:l.length,s:l.filter(c=>c.ssi==='Ya').length}});
   const pend=mine.filter(c=>status(c).key==='sah').sort((a,b)=>a.tarikhOp.localeCompare(b.tarikhOp));
   return `<div class="stack">
@@ -747,20 +773,20 @@ function liaisonDash(){
    <div class="panel stack"><h3>Find a patient for the SSI form</h3><p class="hint" style="margin:-4px 0 0">Hanya pesakit yang masih dalam tempoh pemantauan (30 hari, 1 tahun jika implan) dipaparkan.</p>
     <div class="search">${IC.search}<input id="q" placeholder="Name, IC No. or MRN" value="${esc(S.q)}" autocomplete="off"></div>
     <div id="qres">${searchRes(S.q,mine)}</div></div>
-   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${rfSelect()}${repBtn()}</div></div>
+   <div class="row between"><h2>Summary · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('d',S.dy,S.dm)}${fsSelect([S.user.jabatan])}${rfSelect()}${repBtn()}</div></div>
    ${rfFilterBar()}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored (${MS})</span></div>
     <div class="kpi ${ssiM.length?'alert':''}"><b>${ssiM.length}</b><span>SSI cases (${MS})</span></div>
     <div class="kpi"><b>${aktif}</b><span>In 30-day surveillance</span></div>
     <div class="kpi ${sah?'warn':''}"><b>${sah}</b><span>Awaiting confirmation</span></div></div>
-   ${(DASH={list,DL:S.user.jabatan,ML,src:mine.filter(c=>isMon(c)&&rfOk(c)),ctx:{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah}},'')}${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:sah})}
+   ${(DASH={list,DL:S.user.jabatan,ML,src:mine.filter(c=>isMon(c)&&rfOk(c)),ctx:{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:rfLab(),pend:sah}},'')}${aiPanel(list,mine.filter(c=>isMon(c)&&rfOk(c)),{DL:S.user.jabatan,ML,depts:[S.user.jabatan],rf:rfLab(),pend:sah})}
    ${trendPanel(mine.filter(c=>isMon(c)&&rfOk(c)),S.user.jabatan)}
    ${dayPanel(ssiM,S.user.jabatan)}
    ${procTable(list,[S.user.jabatan],'Surgery types · '+ML)}
    ${woundPanel(list,S.user.jabatan)}
    ${orgPanel(ssiM,S.user.jabatan)}
    ${riskPanel(base,S.user.jabatan)}
-   <div class="panel"><h3>SSI patients (${mine.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${mine.filter(c=>c.ssi==='Ya').length?mine.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
+   <div class="panel"><h3>SSI patients (${fsm.filter(c=>c.ssi==='Ya').length})</h3><p class="hint" style="margin:.2em 0 4px">Tap a patient to view or complete the SSI form.</p>${fsm.filter(c=>c.ssi==='Ya').length?fsm.filter(c=>c.ssi==='Ya').sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp)).map(c=>caseRow(c)).join(''):'<div class="empty">No SSI patients.</div>'}</div>
   </div>`;
 }
 function searchRes(q,pool){
@@ -804,11 +830,18 @@ function patientsView(){
   const opts=[['Semua','All'],['aktif','In surveillance'],['sah','Needs confirmation'],['ssi','SSI'],['selesai','Completed'],['kosong','Incomplete']];
   const l=mine.filter(c=>f==='Semua'||(f==='kosong'?complete(c).pct<100:status(c).key===f)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
   return `<div class="stack"><div class="row between"><h2>Patient list · ${esc(S.user.jabatan)}</h2><div class="row">${periodSel('p',S.py,S.pm)}<select class="inline" id="pwS" aria-label="Type of surgery"><option value="Semua">All types</option>${[['Clean','Clean'],['Clean contaminated','Clean contaminated'],['Contaminated','Contaminated'],['_none','Not recorded']].map(([v,l])=>`<option value="${v}" ${S.pw===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
+   <div class="search">${IC.search}<input id="pq" placeholder="Cari pesakit: nama, No. K/P atau MRN" value="${esc(S.pq||'')}" autocomplete="off"></div>
+   <div id="pqres">${pqRes()}</div>
    ${patAlerts()}
    ${S.user.staff?'':dataCheckPanel()}
    <div class="chips">${opts.map(([k,lb])=>`<button class="chip ${f===k?'on':''}" data-pf="${k}">${lb} (${cnt(k)})</button>`).join('')}</div>
-   <div class="panel">${l.length?l.map(c=>status(c).key==='sah'&&!S.user.staff?pendRow(c):caseRow(c)).join(''):'<div class="empty">No patients in this list.</div>'}</div></div>`;
+   <div id="plist">${patList(l)}</div></div>`;
 }
+const pRow=c=>status(c).key==='sah'&&!S.user.staff?pendRow(c):caseRow(c);
+function patList(l){return `<div class="panel">${l.length?l.map(pRow).join(''):'<div class="empty">No patients in this list.</div>'}</div>`}
+function pqRes(){const q=String(S.pq||'').trim().toLowerCase();if(q.length<2)return '';
+  const r=myCases().filter(c=>(c.nama+' '+(c.ic||'')+' '+c.mrn).toLowerCase().includes(q)).sort((a,b)=>b.tarikhOp.localeCompare(a.tarikhOp));
+  return `<div class="panel stack" style="gap:6px"><div class="row between"><b>🔎 ${r.length} pesakit dijumpai</b><span class="hint">semua tahun, bulan dan status</span></div><div>${r.length?r.slice(0,100).map(pRow).join(''):'<div class="empty">Tiada pesakit sepadan.</div>'}</div></div>`}
 
 // ================= FOLLOW-UP: where seen → wound findings → plan (+ discharge leaflet) =================
 const FU_LOC=['Wad','Klinik','ED (Kecemasan)','Telefon','Rekod perubatan'];
@@ -894,13 +927,13 @@ function caseView(){
      <div><span>Surgery</span><b>${esc(c.kategori)}</b></div><div><span>Date of surgery</span><b>${fmtD(c.tarikhOp)}</b></div></div>
     ${c.ssi!=='Ya'&&!c.tutup?`<div class="row"><div class="meter"><i style="width:${Math.min(d/p,1)*100}%"></i></div><span class="hint">Day ${Math.max(d,0)} of ${p}${d<p?' · ends '+fmtD(new Date(new Date(c.tarikhOp).getTime()+p*864e5).toISOString().slice(0,10)):''}</span></div>`:''}
     ${mdroInfo(c)}
-    ${(c.drNama||c.drTel)?`<div class="row"><span class="hint">Doctor in-charge: <b>${esc(c.drNama||'-')}</b>${c.drTel?' · '+esc(c.drTel):''}</span>${missingSecs(c).length?waBtn(c,true):''}</div>`:`<p class="hint" style="margin:0">No doctor in-charge recorded. Add the name and phone in <b>Edit data → Patient detail</b> to send a WhatsApp reminder.</p>`}
+    ${(c.drNama||c.drTel)?`<div class="row"><span class="hint">Doctor in-charge: <b>${esc(c.drNama||'-')}</b>${c.drTel?' · '+esc(c.drTel):''}</span>${missingSecs(c).length?waBtn(c,true):''}</div>`:''}
     ${c.ssi==='Ya'?`<div class="row"><button class="btn pri" data-act="formv">📄 View SSI form</button>${miss?`<span class="pill w">${miss} fields missing</span>`:'<span class="pill g">Form complete</span>'}</div>`:''}
    </div>
    ${isSSI?'':`<div class="panel stack"><div class="row between"><h3>Surgery summary</h3><button class="btn sm" data-act="editcase">Edit data</button></div>
     ${cp.pct<100?`<p class="flag w">${cp.missing} required fields missing</p>`:''}
     <div class="kv"><div><span>Procedure</span><b>${esc(c.prosedur||'—')}</b></div><div><span>Time</span><b>${esc(c.masaMula||'—')}–${esc(c.masaTamat||'—')} (${hhmm(durasi(c))||'—'})</b></div>
-     <div><span>Type of surgery</span><b>${esc(c.jenisLuka||'—')}</b></div><div><span>Surgeon</span><b>${esc(c.pakar||'—')}</b></div>
+     <div><span>Type of surgery</span><b>${esc(c.jenisLuka||'—')}</b></div><div><span>Surgeon</span><b>${esc(c.pakar||'—')}${c.surgeon?' · '+esc(c.surgeon):''}</b></div><div><span>MO in-charge OT</span><b>${esc(c.moOT||'—')}</b></div>
      <div><span>Implant</span><b>${esc(L_(c.implan)||'—')}</b></div><div><span>BMI</span><b>${esc(c.bmi||'—')}</b></div>
      <div><span>Prophylaxis</span><b>${c.abx==='Ya'?esc(c.masaAbx)+(g!=null?` (${g} min)`:''):esc(L_(c.abx)||'—')}</b></div><div><span>Skin prep</span><b>${esc(c.kulit1||'—')} / ${esc(c.kulit2||'—')}</b></div>
      <div><span>Diagnosis</span><b>${esc(c.diagnosis||'—')}</b></div></div></div>`}
@@ -959,21 +992,21 @@ function formView(){
 function coordDash(){
   Object.keys(CH).forEach(k=>delete CH[k]);
   const D=S.cjab,inD=c=>D==='Semua'||c.jabatan===D,DL=D==='Semua'?'All departments':D;
-  const all=S.cases.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)),ML=pLabel(S.dy,S.dm),SK=S.dy!=='Semua'&&S.dm!=='Semua'?S.dy+'-'+S.dm:'';
+  const all=S.cases.filter(c=>isMon(c)&&pMatch(c,S.dy,S.dm)&&fsOk(c)),ML=pLabel(S.dy,S.dm),SK=S.dy!=='Semua'&&S.dm!=='Semua'?S.dy+'-'+S.dm:'';
   const base=all.filter(inD),list=base.filter(rfOk);
   const ssiL=list.filter(c=>c.ssi==='Ya'),ssi=ssiL.length,full=list.filter(c=>complete(c).pct===100).length;
-  const pend=S.cases.filter(c=>inD(c)&&status(c).key==='sah');
+  const pend=S.cases.filter(c=>inD(c)&&fsOk(c)&&status(c).key==='sah');
   const perJ=JAB.map(j=>{const l=all.filter(c=>c.jabatan===j);return{j,n:l.length,s:l.filter(c=>c.ssi==='Ya').length,f:l.filter(c=>complete(c).pct===100).length,sah:S.cases.filter(c=>c.jabatan===j&&status(c).key==='sah').length}});
   const wa=list.filter(c=>c.abx);
   const bundle=[['Prophylaxis ≤ 60 min before incision',pct(list.filter(abxOK).length,wa.length)],['Skin prep chlorhexidine',pct(list.filter(c=>c.kulit1==='Chlorhexidine').length,list.filter(c=>c.kulit1).length)],
    ['No shaving',pct(list.filter(c=>c.rambut&&c.rambut!=='Shaving').length,list.filter(c=>c.rambut).length)],['Post-op antibiotic ≤ 24 h',pct(list.filter(c=>c.abxPost==='NIL'||c.abxPost==='Within 24 hours').length,list.filter(c=>c.abxPost).length)]];
   return `<div class="stack">${pwReqPanel()}
-   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${rfSelect()}${repBtn()}</div></div>
+   <div class="row between"><h2>${D==='Semua'?'All departments summary':esc(D)+' summary'}</h2><div class="row">${periodSel('d',S.dy,S.dm)}<select class="inline" id="cjabSel">${['Semua',...JAB].map(j=>`<option value="${esc(j)}" ${D===j?'selected':''}>${j==='Semua'?'All departments':esc(j)}</option>`).join('')}</select>${fsSelect(D==='Semua'?JAB:[D])}${rfSelect()}${repBtn()}</div></div>
    ${rfFilterBar()}
    ${mdroCard(S.cases.filter(inD))}
    <div class="kpis"><div class="kpi"><b>${list.length}</b><span>Surgeries monitored · ${esc(DL)}</span></div><div class="kpi ${ssi?'alert':''}"><b>${ssi}</b><span>SSI cases</span></div>
     <div class="kpi"><b>${pct(ssi,list.length)}%</b><span>SSI rate</span></div><div class="kpi"><b>${pct(full,list.length)}%</b><span>Data complete · all required fields filled</span></div></div>
-   ${(DASH={list,DL,ML,src:S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),ctx:{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length}},'')}${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'',pend:pend.length})}
+   ${(DASH={list,DL,ML,src:S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),ctx:{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:rfLab(),pend:pend.length}},'')}${aiPanel(list,S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),{DL,ML,depts:JAB.filter(j=>D==='Semua'||j===D),rf:rfLab(),pend:pend.length})}
    ${trendPanel(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),DL)}
    ${D==='Semua'?deptPanel(list,ML,SK):''}
    ${S.dy==='Semua'?yearSummary(S.cases.filter(c=>isMon(c)&&inD(c)&&rfOk(c)),JAB.filter(j=>D==='Semua'||j===D),DL):''}
@@ -1522,7 +1555,7 @@ async function regClick(D,t){const k=D.reg,u=S.user;
   catch(e){t.disabled=false;toast('Tidak disimpan: '+e.message)}}
 // Forgot password (login screen) → request to UKI → coordinator sends a temporary password by WhatsApp
 function fpView(){const f=S.fp,j=S.ljab,msg='Salam UKI. Saya liaison '+j+' terlupa kata laluan SSI Tracker dan telah menghantar permintaan melalui app. Terima kasih.';
-  return `<div class="lg">${STARS}<form class="lcard" id="fpform" novalidate>
+  return `<div class="lg">${SPSTARS}<form class="lcard" id="fpform" novalidate>
    <button type="button" class="back" data-act="fpclose">← Kembali ke log masuk</button>
    <div class="logo"><img src="${LOGO}" alt="Logo SSI Tracker HTPN"></div><h2>Lupa kata laluan</h2><p class="lsub">Liaison jabatan<br>Kata laluan sementara dihantar melalui WhatsApp</p>
    <label class="lf"><span>Jabatan</span><select id="ljab">${JAB.map(x=>`<option ${j===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
@@ -1920,7 +1953,7 @@ const DASH_ORDER=[['trend','Trend'],['dept','SSI by department'],['ys','Year-by-
 // ================= REPORT OF THIS VIEW as PDF or Word =================
 function loadLib(src,glob){return window[glob]?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=()=>window[glob]?res():rej(new Error('library not loaded'));s.onerror=()=>rej(new Error('Could not load the report library – check the internet connection'));document.head.appendChild(s)})}
 async function reportModel(){
-  const D=DASH,list=D.list,ssi=list.filter(c=>c.ssi==='Ya'),rf=S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'All';
+  const D=DASH,list=D.list,ssi=list.filter(c=>c.ssi==='Ya'),rf=(rfLab()||'All');
   const keep=S.ai;S.ai=true;const tmp=document.createElement('div');tmp.innerHTML=aiPanel(list,D.src,D.ctx);S.ai=keep;
   const uls=tmp.querySelectorAll('#aiText ul'),li=u=>u?[...u.querySelectorAll('li')].map(x=>x.textContent.trim()):[];
   const sections=[];
@@ -1991,7 +2024,7 @@ async function dashReport(){
     const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c}});
     let r=1;const line=(v,st)=>{const c=ws.getCell(r,1);c.value=v;if(st)Object.assign(c,st);r++};
     line('SSI DASHBOARD REPORT – HOSPITAL TENGKU PERMAISURI NORASHIKIN',{font:{bold:true,size:14,color:{argb:'FF0F5A20'}}});
-    line(`Department: ${D.DL}   ·   Period: ${D.ML}   ·   Risk factor: ${S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:'All'}`,{font:{bold:true}});
+    line(`Department: ${D.DL}   ·   Period: ${D.ML}   ·   Risk factor: ${(rfLab()||'All')}`,{font:{bold:true}});
     line(`Generated ${fmtD(TODAYISO)} ${new Date().toTimeString().slice(0,5)} by ${S.user.nama} · monitored surgeries only`,{font:{italic:true,size:9,color:{argb:'FF666666'}}});r++;
     [['Surgeries monitored',list.length],['SSI cases',ssi.length],['SSI rate (%)',pct(ssi.length,list.length)],['Data complete (%)',pct(list.filter(c=>complete(c).pct===100).length,list.length)]]
       .forEach(([k,v])=>{ws.getCell(r,1).value=k;ws.getCell(r,1).fill=fill('E1F3D8');ws.getCell(r,2).value=v;ws.getCell(r,2).font={bold:true};r++});r++;
@@ -2016,7 +2049,7 @@ async function dashReport(){
     list.slice().sort((a,b)=>(a.tarikhOp||'').localeCompare(b.tarikhOp||'')).forEach(c=>{const x=ps.addRow([c.jabatan,c.nama,c.mrn||'',c.ic||'',fmtD(c.tarikhOp),c.kategori||'',c.prosedur||'',c.jenisLuka||'',c.implan==='Ya'?'Yes':c.implan==='Tidak'?'No':'',c.ssi==='Ya'?'YES':'No',
       c.ssi==='Ya'&&ssiDay(c)!=null?'Day '+ssiDay(c):'',c.ssi==='Ya'?ssiSite(c):'',c.ssi==='Ya'?c.diagJenis||'':'',c.organisma||'',c.tarikhLab?fmtD(c.tarikhLab):'',c.ssi==='Ya'?yn(c.readmit):'',status(c).t]);if(c.ssi==='Ya')x.eachCell(k=>k.fill=fill('FBE4E1'))});
     [16,34,14,16,14,30,30,18,9,7,14,20,14,18,14,11,22].forEach((w,i)=>ps.getColumn(i+1).width=w);
-    const nm=('SSI_Dashboard_'+D.DL+'_'+D.ML+(S.rf!=null&&S.rf!=='Semua'?'_'+RISK[+S.rf][0]:'')).replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,90)+'.xlsx';
+    const nm=('SSI_Dashboard_'+D.DL+'_'+D.ML+(rfLab()?'_'+rfLab():'')).replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,90)+'.xlsx';
     saveBlob(new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),nm);toast('Report downloaded');
   }catch(e){toast('Report failed: '+(e.message||'check your internet connection'))}
   finally{const b=$('[data-act="dashrep"]');if(b){b.disabled=false;b.textContent='⬇ Report of this view'}}
@@ -2224,8 +2257,12 @@ const RISK=[
 const DAYB=[['Day 0–7',0,7],['Day 8–14',8,14],['Day 15–21',15,21],['Day 22–30',22,30],['Day 31–90',31,90],['Day 91–365',91,365],['Not recorded',-1,-1]];
 const ssiDay=c=>c.tarikhSSI&&c.tarikhOp?dayDiff(c.tarikhOp,c.tarikhSSI):null;
 const inDayB=(c,b)=>{const d=ssiDay(c);return b[1]<0?d==null:d!=null&&d>=b[1]&&d<=b[2]};
-const rfOk=c=>S.rf==null||S.rf==='Semua'||RISK[+S.rf][2](c)&&RISK[+S.rf][1](c);
-function rfFilterBar(){return S.rf!=null&&S.rf!=='Semua'?`<div class="flag a row between" style="margin:0"><span>Showing only surgeries with <b>${esc(RISK[+S.rf][0])}</b></span><button class="btn sm" data-rf="Semua">✕ Clear risk filter</button></div>`:''}
+const rfLab=()=>[S.fs&&S.fs!=='Semua'?S.fs:'',S.rf!=null&&S.rf!=='Semua'?RISK[+S.rf][0]:''].filter(Boolean).join(' · ');
+const fsOk=c=>!S.fs||S.fs==='Semua'||c.kategori===S.fs;
+const rfOk=c=>fsOk(c)&&(S.rf==null||S.rf==='Semua'||RISK[+S.rf][2](c)&&RISK[+S.rf][1](c));
+function fsSelect(depts){const ps=[...new Set(depts.flatMap(d=>PROC[d]||[]))];if(S.fs&&S.fs!=='Semua'&&!ps.includes(S.fs))S.fs='Semua';
+  return `<select class="inline" id="fsSel" aria-label="Surgery type"><option value="Semua">All surgeries</option>${ps.map(p=>`<option ${S.fs===p?'selected':''}>${esc(p)}</option>`).join('')}</select>`}
+function rfFilterBar(){return (S.fs&&S.fs!=='Semua'?`<div class="flag a row between" style="margin:0"><span>Showing only <b>${esc(S.fs)}</b></span><button class="btn sm" data-act="fsclr">✕ Clear surgery filter</button></div>`:'')+(S.rf!=null&&S.rf!=='Semua'?`<div class="flag a row between" style="margin:0"><span>Showing only surgeries with <b>${esc(RISK[+S.rf][0])}</b></span><button class="btn sm" data-rf="Semua">✕ Clear risk filter</button></div>`:'')}
 function rfSelect(){return `<select class="inline" id="rfSel" aria-label="Risk factor"><option value="Semua">All risk factors</option>${RISK.map((r,i)=>`<option value="${i}" ${String(S.rf)===String(i)?'selected':''}>${esc(r[0])}</option>`).join('')}</select>`}
 function riskPanel0(base,DL){
   const rows=RISK.map((r,i)=>{const rec=base.filter(r[1]),w=rec.filter(r[2]),wo=rec.filter(c=>!r[2](c)),sw=w.filter(c=>c.ssi==='Ya').length,swo=wo.filter(c=>c.ssi==='Ya').length;
@@ -2393,7 +2430,7 @@ function procTable0(list,depts,title){
      ${op?`<tr class="pdet"><td colspan="4"><div class="plist">${l.sort((a,b)=>(b.tarikhOp||'').localeCompare(a.tarikhOp||'')).map(c=>`<button class="pitem" data-open="${c.id}"><span class="pd">${fmtD(c.tarikhOp)}</span><span class="pn"><b>${esc(c.nama)}</b><span class="hint">${esc(c.prosedur&&c.prosedur!==c.kategori?c.prosedur:'(no procedure detail)')}${c.drNama?' · Dr '+esc(c.drNama):''}</span></span>${c.ssi==='Ya'?'<span class="pill b">SSI</span>':''}</button>`).join('')}</div></td></tr>`:''}`};
   const tot=list.length,ts=list.filter(c=>c.ssi==='Ya').length;
   return `<div class="panel stack"><h3>${title}</h3><p class="hint" style="margin:-6px 0 0">Tap a surgery to see the patients and procedure details.</p><div class="scroll"><table class="ptab"><thead><tr><th>Surgery performed</th><th class="num">No.</th><th class="num">SSI</th><th class="num">Rate</th></tr></thead><tbody>
-   ${depts.map(j=>(depts.length>1?`<tr class="grp"><td colspan="4">${esc(j)}</td></tr>`:'')+PROC[j].map(p=>row(j,p)).join('')).join('')}
+   ${depts.filter(j=>PROC[j].some(p=>fsOk({kategori:p}))).map(j=>(depts.length>1?`<tr class="grp"><td colspan="4">${esc(j)}</td></tr>`:'')+PROC[j].filter(p=>fsOk({kategori:p})).map(p=>row(j,p)).join('')).join('')}
    <tr class="grp"><td>Total</td><td class="num">${tot}</td><td class="num">${ts}</td><td class="num">${tot?pct(ts,tot)+'%':'—'}</td></tr></tbody></table></div></div>`;
 }
 
@@ -2953,6 +2990,8 @@ document.addEventListener('click',e=>{
    const pl=e.target.closest('[data-play]');if(pl){openPlayer(pl.dataset.play);return}}
   const t=e.target.closest('button,[data-open],[data-opx],[data-rf],[data-wsel],[data-wsub],[data-dayb],[data-tysel],[data-osel]');if(!t)return;const D=t.dataset;
   if(D.lrole){S.lrole=D.lrole;S.lerr='';S.fp=null;render();return}
+  if(D.act==='fsclr'){S.fs='Semua';keepY();return}
+  if(D.act==='enter'){S.entered=true;render();scrollTo(0,0);return}
   if(D.act==='nagree'){if(!S.nok)return;S.agree=true;try{sessionStorage.setItem('ssiAgree','1')}catch(_){}render();scrollTo(0,0);return}
   if(D.act==='nlang'){S.nlang=D.l;render();return}
   if(D.act==='fpopen'){S.fp={};S.lerr='';render();return}
@@ -3118,6 +3157,7 @@ document.addEventListener('input',e=>{
     T.classList.toggle('miss',(T.dataset.s==='sd'?reqAll(S.sd):reqFields(S.draft)).includes(k)&&T.value==='');
     liveCalc();return}
   if(T.id==='tq'){S.tq=T.value;$('#tgrid').innerHTML=libGrid(S.user.role!=='liaison');return}
+  if(T.id==='pq'){S.pq=T.value;const el=$('#pqres');if(el)el.innerHTML=pqRes();return}
   if(T.id==='q'){S.q=T.value;$('#qres').innerHTML=searchRes(S.q,myCases());return}
   if(T.id==='cq'){S.cq=T.value;S.lim=50;$('#cqres').innerHTML=allRes();return}
 });
@@ -3137,6 +3177,7 @@ document.addEventListener('change',e=>{
   if(T.dataset.rmc){const m=T.dataset.rmc;S.rmonths=T.checked?[...new Set([...S.rmonths,m])].sort():S.rmonths.filter(x=>x!==m);S.mail=null;keepY();return}
   if(T.dataset.rmy){const ym=months().filter(m=>m.startsWith(T.dataset.rmy));S.rmonths=T.checked?[...new Set([...S.rmonths,...ym])].sort():S.rmonths.filter(x=>!ym.includes(x));S.mail=null;keepY();return}
   if(id==='rfSel'){S.rf=T.value;keepY();return}
+  if(id==='fsSel'){S.fs=T.value;keepY();return}
   if(id==='tySel'){S.ty=T.value;if(S.dy!=='Semua')S.dy=T.value;keepY();return}
   if(id==='dcmS'){S.dcm=T.value;keepY();return}
   if(id==='ysMetric'){S.ysm=T.value;keepY();return}
